@@ -1,10 +1,67 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace PELoader
 {
+    public class Section
+    {
+        public SectionHeader Header;
+
+        public byte[] Data;
+
+        public Section(SectionHeader header, byte[] data)
+        {
+            Header = header;
+
+            if (data.Length < header.virtualSize)
+            {
+                Data = new byte[header.virtualSize];
+                Buffer.BlockCopy(data, 0, Data, 0, data.Length);
+            }
+            else
+            {
+                Data = data;
+            }
+        }
+    }
+
+    public class VirtualMemory
+    {
+        public List<Section> Sections = new List<Section>();
+
+        public byte GetByte(uint location)
+        {
+            foreach (var section in Sections)
+            {
+                if (section.Header.virtualAddress <= location && section.Header.virtualAddress + section.Header.virtualSize > location)
+                {
+                    return section.Data[location - section.Header.virtualAddress];
+                }
+            }
+
+            throw new Exception("Invalid access");
+        }
+
+        public byte[] GetBytes(uint location, int length)
+        {
+            foreach (var section in Sections)
+            {
+                if (section.Header.virtualAddress <= location && section.Header.virtualAddress + section.Header.virtualSize > location)
+                {
+                    byte[] data = new byte[length];
+                    for (int i = 0; i < length; i++)
+                        data[i] = section.Data[location - section.Header.virtualAddress + i];
+                    return data;
+                }
+            }
+
+            throw new Exception("Invalid access");
+        }
+    }
+
     public class PortableExecutableFile
     {
         private COFFHeader _header;
@@ -12,6 +69,14 @@ namespace PELoader
         private COFFWindowsPE32Fields _windowsFieldsPe32;
         private COFFWindowsPE32PlusFields _windowsFieldsPe32Plus;
         private SectionHeader[] _sections;
+        private uint _peOffset;
+        private ImageDataDirectory[] _directories;
+        private StreamHeader[] _streamHeaders;
+        private MetadataLayout _metadataLayout;
+
+        private VirtualMemory _memory = new VirtualMemory();
+
+        public VirtualMemory Memory { get { return _memory; } }
 
         public PEType Type
         {
@@ -39,8 +104,8 @@ namespace PELoader
                 {
                     // this file contains a DOS header, so offset to the start of the PE header
                     reader.BaseStream.Position = 0x3C;
-                    var peHeader = reader.ReadUInt32();
-                    reader.BaseStream.Position = peHeader;
+                    _peOffset = reader.ReadUInt32();
+                    reader.BaseStream.Position = _peOffset;
                 }
                 else reader.BaseStream.Position = 0;
 
@@ -52,15 +117,124 @@ namespace PELoader
                 // From doc: "PE32 contains this additional field, which is absent in PE32+, following BaseOfCode."
                 _standardFields = optionalHeader.ToStruct<COFFStandardFields>(0, Marshal.SizeOf<COFFStandardFields>());
 
-                if (Type == PEType.PE32) _windowsFieldsPe32 = optionalHeader.ToStruct<COFFWindowsPE32Fields>(28, Marshal.SizeOf<COFFWindowsPE32Fields>());
-                else if (Type == PEType.PE32Plus) _windowsFieldsPe32Plus = optionalHeader.ToStruct<COFFWindowsPE32PlusFields>(24, Marshal.SizeOf<COFFWindowsPE32PlusFields>());
+                if (Type == PEType.PE32)
+                {
+                    _windowsFieldsPe32 = optionalHeader.ToStruct<COFFWindowsPE32Fields>(28, Marshal.SizeOf<COFFWindowsPE32Fields>());
+                    _directories = new ImageDataDirectory[_windowsFieldsPe32.numberOfRvaAndSizes];
+                    int offset = 28 + Marshal.SizeOf<COFFWindowsPE32Fields>();
+                    for (int i = 0; i < _directories.Length; i++)
+                        _directories[i] = optionalHeader.ToStruct<ImageDataDirectory>(offset + Marshal.SizeOf<ImageDataDirectory>() * i, Marshal.SizeOf<ImageDataDirectory>());
+                }
+                else if (Type == PEType.PE32Plus)
+                {
+                    _windowsFieldsPe32Plus = optionalHeader.ToStruct<COFFWindowsPE32PlusFields>(24, Marshal.SizeOf<COFFWindowsPE32PlusFields>());
+                    _directories = new ImageDataDirectory[_windowsFieldsPe32Plus.numberOfRvaAndSizes];
+                    int offset = 28 + Marshal.SizeOf<COFFWindowsPE32Fields>();
+                    for (int i = 0; i < _directories.Length; i++)
+                        _directories[i] = optionalHeader.ToStruct<ImageDataDirectory>(offset + Marshal.SizeOf<ImageDataDirectory>() * i, Marshal.SizeOf<ImageDataDirectory>());
+                }
 
                 _sections = new SectionHeader[_header.numberOfSections];
                 for (int i = 0; i < _sections.Length; i++)
                     _sections[i] = reader.ReadBytes(Marshal.SizeOf<SectionHeader>()).ToStruct<SectionHeader>();
 
-                Console.WriteLine(_header.MachineType);
+                // read all the data into the virtual memory sections so that we can access it
+                foreach (var section in _sections)
+                {
+                    reader.BaseStream.Seek(section.pointerToRawData, SeekOrigin.Begin);
+                    _memory.Sections.Add(new Section(section, reader.ReadBytes((int)section.sizeOfRawData)));
+                }
+
+                // the first interesting table is the import table, which is _directories[1]
+                var importTable = _memory.GetBytes(_directories[1].virtualAddress, Marshal.SizeOf<ImportTable>()).ToStruct<ImportTable>();
+                
+                // verify we got a dll entry pointt
+                /*StringBuilder dllName = new StringBuilder();
+                for (int i = 0; i < 256; i++)
+                {
+                    byte temp = _memory.GetByte((uint)(importTable.name + i));
+                    if (temp == 0) break;
+                    dllName.Append((char)temp);
+                }*/
+
+                // read in the CLI header, _directories[14]
+                var cliHeader = _memory.GetBytes(_directories[14].virtualAddress, Marshal.SizeOf<CLIHeader>()).ToStruct<CLIHeader>();
+
+                // read in the metadata root
+                uint metadataRva = (uint)(cliHeader.metadata & 0xffffffff);
+                int metadataLength = (int)(cliHeader.metadata >> 32);
+                byte[] metadata = _memory.GetBytes(metadataRva, metadataLength);
+                var metadataRoot = metadata.ToStruct<MetadataRoot>(0, Marshal.SizeOf<MetadataRoot>());
+
+                // verify the version looks appropriate
+                /*StringBuilder version = new StringBuilder();
+                for (int i = 0; i < metadataRoot.versionLength; i++)
+                {
+                    if (metadata[16 + i] == 0) break;
+                    version.Append((char)metadata[16 + i]);
+                }*/
+
+                ushort metadataStreams = BitConverter.ToUInt16(metadata, 18 + (int)metadataRoot.versionLength);
+                uint metadataOffset = 20 + metadataRoot.versionLength;
+                _streamHeaders = new StreamHeader[metadataStreams];
+
+                for (int i = 0; i < _streamHeaders.Length; i++)
+                {
+                    _streamHeaders[i] = new StreamHeader(metadata, ref metadataOffset);
+                    _streamHeaders[i].ReadHeap(_memory, metadataRva);
+
+                    if (_streamHeaders[i].Name == "#~")
+                    {
+                        _metadataLayout = _streamHeaders[i].Heap.ToStruct<MetadataLayout>(0, Marshal.SizeOf<MetadataLayout>());
+                    }
+                }
+
+                /*uint rvaOffset = 0x2050;
+                var tempMethod = new MethodHeader(_memory, ref rvaOffset);*/
+
+                //Console.WriteLine(_header.MachineType);
             }
+        }
+    }
+
+    public class MethodHeader
+    {
+        public uint CodeSize;
+        public byte[] Code;
+
+        public ushort Flags;
+        public ushort MaxStack;
+        public uint LocalVarSigTok;
+
+        public MethodHeader(VirtualMemory memory, ref uint offset)
+        {
+            byte type = memory.GetByte(offset);
+
+            if ((type & 0x03) == 0x02)
+            {
+                // tiny method header
+                CodeSize = (uint)(type >> 2);
+                offset++;
+            }
+            else
+            {
+                // fat method header
+                var fatHeader = memory.GetBytes(offset, 12);
+                offset += 12;
+
+                Flags = (ushort)(BitConverter.ToUInt16(fatHeader, 0) & 0x0fff);
+                MaxStack = BitConverter.ToUInt16(fatHeader, 2);
+                CodeSize = BitConverter.ToUInt32(fatHeader, 4);
+                LocalVarSigTok = BitConverter.ToUInt32(fatHeader, 8);
+
+                if ((type & 0x08) != 0)
+                {
+                    throw new Exception("More sections follows after this header (II.25.4.5)");
+                }
+            }
+
+            Code = memory.GetBytes(offset, (int)CodeSize);
+            offset += CodeSize;
         }
     }
 
@@ -92,6 +266,131 @@ namespace PELoader
         {
             return MemoryMarshal.Cast<byte, T>(bytes.AsSpan(offset, size))[0];
         }
+    }
+
+    public class StreamHeader
+    {
+        public uint Offset;
+        public uint Size;
+        public string Name;
+
+        public byte[] Heap;
+
+        public StreamHeader(byte[] data, ref uint offset)
+        {
+            Offset = BitConverter.ToUInt32(data, (int)offset);
+            Size = BitConverter.ToUInt32(data, (int)offset + 4);
+
+            offset += 8;
+
+            StringBuilder name = new StringBuilder();
+            while (offset < data.Length && data[offset] != 0)
+                name.Append((char)data[offset++]);
+            Name = name.ToString();
+
+            // move to the next 4-byte boundary
+            offset += (4 - (offset % 4));
+        }
+
+        public void ReadHeap(VirtualMemory memory, uint metadataOffset)
+        {
+            Heap = memory.GetBytes(metadataOffset + Offset, (int)Size);
+
+            if (Name == "#Strings")
+            {
+                for (int i = 0; i < Heap.Length; i++)
+                {
+                    if (Heap[i] != 0) Console.Write((char)Heap[i]);
+                    else Console.WriteLine();
+                }
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} heap contains {Size} bytes.";
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MetadataLayout
+    {
+        public uint reserved;
+        public byte majorVersion;
+        public byte minorVersion;
+        public byte heapSizes;
+        public byte reserved2;
+        public ulong valid;
+        public ulong sorted;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MetadataRoot
+    {
+        public uint signature;
+        public ushort majorVersion;
+        public ushort minorVersion;
+        public uint reserved;
+        public uint versionLength;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 40)]
+    public struct ImportTable
+    {
+        [FieldOffset(0)]
+        public uint importLookupTable;
+
+        [FieldOffset(4)]
+        public uint dateTimeStamp;
+
+        [FieldOffset(8)]
+        public uint forwarderChain;
+
+        [FieldOffset(12)]
+        public uint name;
+
+        [FieldOffset(16)]
+        public uint importAddressTable;
+
+        [FieldOffset(20)]
+        public uint zero;
+
+        [FieldOffset(24)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+        public byte[] zeros;
+    }
+
+    public struct CLIHeader
+    {
+        public uint cb;
+        public ushort majorRuntimeVersion;
+        public ushort minorRuntimeVersion;
+        public ulong metadata;
+        public uint flags;
+        public uint entryPointToken;
+        public ulong resources;
+        public ulong strongNameSignature;
+        public ulong codeManagerTable;
+        public ulong vTableFixups;
+        public ulong exportAddressTableJumps;
+        public ulong managedNativeHeader;
+    }
+
+    [Flags]
+    public enum CLIRuntimeFlags : uint
+    {
+        COMIMAGE_FLAGS_ILONLY = 0x00000001,
+        COMIMAGE_FLAGS_32BITREQUIRED = 0x00000002,
+        COMIMAGE_FLAGS_STRONGNAMESIGNED = 0x00000008,
+        COMIMAGE_FLAGS_NATIVE_ENTRYPOINT = 0x00000010,
+        COMIMAGE_FLAGS_TRACKDEBUGDATA = 0x00010000
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ImageDataDirectory
+    {
+        public uint virtualAddress;
+        public uint size;
     }
 
     [StructLayout(LayoutKind.Explicit)]
@@ -157,30 +456,88 @@ namespace PELoader
         public uint baseOfData;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Explicit, Pack = 1)]
     public struct COFFWindowsPE32Fields
     {
+        [FieldOffset(0)]
         public uint imageBase;
+
+        [FieldOffset(4)]
         public uint sectionAlignment;
+
+        [FieldOffset(8)]
         public uint fileAlignment;
+
+        [FieldOffset(12)]
         public ushort majorOperationSystemVersion;
+
+        [FieldOffset(14)]
         public ushort minorOperationSystemVersion;
+
+        [FieldOffset(16)]
         public ushort majorImageVersion;
+
+        [FieldOffset(18)]
         public ushort minorImageVersion;
+
+        [FieldOffset(20)]
         public ushort majorSubsystemVersion;
+
+        [FieldOffset(22)]
         public ushort minorSubsystemVersion;
+
+        [FieldOffset(24)]
         public uint win32VersionValue;
+
+        [FieldOffset(28)]
         public uint sizeOfImage;
+
+        [FieldOffset(32)]
         public uint sizeOfHeaders;
+
+        [FieldOffset(36)]
         public uint checkSum;
+
+        [FieldOffset(40)]
         public ushort subsystem;
+
+        [FieldOffset(42)]
         public ushort dllCharacteristics;
+        [FieldOffset(42)]
+        public DLLCharacteristic DLLCharacteristics;
+
+        [FieldOffset(44)]
         public uint sizeOfStackReserve;
+
+        [FieldOffset(48)]
         public uint sizeOfStackCommit;
+
+        [FieldOffset(52)]
         public uint sizeOfHeapReserve;
+
+        [FieldOffset(56)]
         public uint sizeOfHeapCommit;
+
+        [FieldOffset(60)]
         public uint loaderFlags;
-        public uint numerOfRvaAndSizes;
+
+        [FieldOffset(64)]
+        public uint numberOfRvaAndSizes;
+    }
+
+    [Flags]
+    public enum DLLCharacteristic : ushort
+    {
+        IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA = 0x0020,
+        IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE = 0x0040,
+        IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY = 0x0080,
+        IMAGE_DLLCHARACTERISTICS_NX_COMPAT = 0x0100,
+        IMAGE_DLLCHARACTERISTICS_NO_ISOLATION = 0x0200,
+        IMAGE_DLLCHARACTERISTICS_NO_SEH = 0x0400,
+        IMAGE_DLLCHARACTERISTICS_NO_BIND = 0x0800,
+        IMAGE_DLLCHARACTERISTICS_APPCONTAINER = 0x1000,
+        IMAGE_DLLCHARACTERISTICS_WDM_DRIVER = 0x2000,
+        IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -206,7 +563,7 @@ namespace PELoader
         public ulong sizeOfHeapReserve;
         public ulong sizeOfHeapCommit;
         public uint loaderFlags;
-        public uint numerOfRvaAndSizes;
+        public uint numberOfRvaAndSizes;
     }
 
     public enum COFFMachineType : ushort
