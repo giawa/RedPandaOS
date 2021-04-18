@@ -11,6 +11,11 @@ namespace PELoader
         public ushort MaxStack;
         public uint LocalVarSigTok;
 
+        public MethodHeader(byte[] code)
+        {
+            Code = code;
+        }
+
         public MethodHeader(VirtualMemory memory, ref uint offset)
         {
             byte type = memory.GetByte(offset);

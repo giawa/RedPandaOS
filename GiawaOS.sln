@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PELoader", "PELoader\PELoad
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILInterpreter", "ILInterpreter\ILInterpreter.csproj", "{99359455-7C30-4B34-B8D6-8955C7CA73B0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILInterpreter.Tests", "ILInterpreter.Tests\ILInterpreter.Tests.csproj", "{9517780D-7A43-46BC-B92C-21A7AB2AEB48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{99359455-7C30-4B34-B8D6-8955C7CA73B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{99359455-7C30-4B34-B8D6-8955C7CA73B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{99359455-7C30-4B34-B8D6-8955C7CA73B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
