@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace ILInterpreter
+namespace ILInterpreter.Gen1
 {
     public class Interpreter
     {

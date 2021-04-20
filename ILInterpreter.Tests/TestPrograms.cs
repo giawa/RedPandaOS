@@ -36,7 +36,7 @@ namespace ILInterpreter.Tests
                 0, 7, 45, 3, 22, 43, 1, 23, 19, 8, 43, 0, 17, 8, 42 
             };
 
-            Interpreter interpreter = new Interpreter();
+            Gen1.Interpreter interpreter = new Gen1.Interpreter();
             interpreter.LoadMethod(null, new PELoader.MethodHeader(cli));
             interpreter.Execute();
 

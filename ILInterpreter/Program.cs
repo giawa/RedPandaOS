@@ -1,5 +1,7 @@
 ﻿using PELoader;
 using System;
+using System.IO;
+using System.Diagnostics;
 
 namespace ILInterpreter
 {
@@ -16,11 +18,19 @@ namespace ILInterpreter
             {
                 MethodHeader method = new MethodHeader(file.Memory, ref rvaOffset);
 
-                Interpreter interpreter = new Interpreter();
-                interpreter.LoadMethod(file.Metadata, method);
-                interpreter.Execute();
+                var interpreter = new Gen1.Interpreter();
+
+                Stopwatch watch = Stopwatch.StartNew();
+                for (int i = 0; i < 3; i++)
+                {
+                    //if (i == 5) watch = Stopwatch.StartNew();
+                    interpreter.LoadMethod(file.Metadata, method);
+                    interpreter.Execute();
+                }
+                watch.Stop();
 
                 Console.WriteLine($"Interpreted method returned: {interpreter.ReturnValue}");
+                Console.WriteLine($"Took {watch.ElapsedMilliseconds}ms to run");
             }
             
             Console.ReadKey();
