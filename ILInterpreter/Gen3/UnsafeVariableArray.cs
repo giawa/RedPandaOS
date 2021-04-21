@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace ILInterpreter.Gen3
 {
-    public unsafe class UnsafeVariableArray
+    public unsafe class UnsafeVariableArray : IVariableArray
     {
         private Variable* _array;
 
@@ -15,6 +15,16 @@ namespace ILInterpreter.Gen3
                 (_array + a)->Type = value->Type;
                 (_array + a)->Integer = value->Integer;
             }
+        }
+
+        public Variable Get(int a)
+        {
+            var v = this[a];
+            return new Variable()
+            {
+                Integer = v->Integer,
+                Type = v->Type
+            };
         }
 
         public UnsafeVariableArray(int maxSize)

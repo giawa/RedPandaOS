@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace ILInterpreter.Gen3
 {
-    public unsafe class UnsafeVariableStack
+    public unsafe class UnsafeVariableStack : IVariableStack
     {
         private IntPtr _stack;
         private int _index = 0;
@@ -86,7 +86,7 @@ namespace ILInterpreter.Gen3
         }
     }
 
-    public unsafe class UnsafeVariableStackVer2
+    public unsafe class UnsafeVariableStackVer2 : IVariableStack
     {
         private IntPtr _stack;
         private Variable* _pos;

@@ -1,94 +1,11 @@
 ﻿using PELoader;
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ILInterpreter.Gen3
 {
-    public enum ObjType : uint
-    {
-        Byte = 0,               // Byte and SByte
-        Int16 = 1,              // Int16 and UInt16
-        Int32 = 2,              // Int32 and UInt32
-        Int64 = 3,              // Int64 and UInt64
-        F = 4,                  // (Double, Single)
-        NativeInt = 5,          // (IntPtr, nint)
-        Address = 6,            // &
-        TransientPointer = 7,   // *
-        // anything past here is a non-value type object
-        Object = 8,
-        String = 9,
-    }
-
-    [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 8)]
-    public struct Variable
-    {
-        [FieldOffset(0)]
-        public ObjType Type;
-
-        [FieldOffset(4)]
-        public long Integer;    // stores all integer types, including nativeint, address and transient pointer
-
-        [FieldOffset(4)]
-        public double Float;    // stores F types (Double and Single)
-
-        public override string ToString()
-        {
-            if (Type >= ObjType.Object) return $"Object type {Type.ToString()} at address {Integer}";
-            else if (Type == ObjType.F) return $"Floating point with contents {Float}";
-            else return $"Integer type {Type.ToString()} with contents {Integer}";
-        }
-
-        public Variable(byte value) : this()
-        {
-            Type = ObjType.Byte;
-            Integer = value;
-        }
-
-        public Variable(short value) : this()
-        {
-            Type = ObjType.Int16;
-            Integer = value;
-        }
-
-        public Variable(int value) : this()
-        {
-            Type = ObjType.Int32;
-            Integer = value;
-        }
-
-        public Variable(long value) : this()
-        {
-            Type = ObjType.Int64;
-            Integer = value;
-        }
-
-        public Variable(long value, ObjType type) : this()
-        {
-            Type = type;
-            Integer = value;
-        }
-
-        public Variable(IntPtr value) : this()
-        {
-            Type = ObjType.NativeInt;
-            Integer = (long)value;
-        }
-
-        public Variable(double value) : this()
-        {
-            Type = ObjType.F;
-            Float = value;
-        }
-
-        public static Variable Zero = new Variable(0);
-        public static Variable One = new Variable(1);
-    }
-
-    
-
-    public class Interpreter
+    public class Interpreter : IInterpreter
     {
         private CLIMetadata _metadata;
         private byte[] _code;
@@ -99,8 +16,11 @@ namespace ILInterpreter.Gen3
 
         public object ReturnValue { get; private set; }
 
-        //private Variable[] _localVariables = new Variable[256];
         private UnsafeVariableArray _localVariables = new UnsafeVariableArray(256);
+
+        public IVariableArray LocalVariables { get { return _localVariables; } }
+        public IVariableStack Stack { get { return _stack; } }
+        public List<string> StringHeap { get { return _stringHeap; } }
 
         public void LoadMethod(CLIMetadata metadata, MethodHeader method)
         {
@@ -252,34 +172,68 @@ namespace ILInterpreter.Gen3
             };
         }
 
+        private Dictionary<uint, Action> _pluggedMethods = new Dictionary<uint, Action>();
+
         private unsafe void CALL()
         {
             uint methodDesc = BitConverter.ToUInt32(_code, _programCounter);
             _programCounter += 4;
 
-            // the below is a total hack to work with my prime test code, which intercepts the methodDesc
-            // for Int32.ToString, Console.Write(string) and Console.WriteLine(string), in that order
-            if (methodDesc == 0x0a00000b)
+            if (_pluggedMethods.TryGetValue(methodDesc, out var action))
             {
-                var addr = _stack.Pop().Integer;
-                var localVar = _localVariables[(int)addr]->Integer;
-                _stack.Push(CreateString(localVar.ToString()));
+                action();
+                return;
             }
-            else if (methodDesc == 0x0a00000c)
+
+            if ((methodDesc & 0xff000000) == 0x0a000000)
             {
-                var s = _stack.Pop();
-                if (s.Type != ObjType.String) throw new InvalidOperationException();
-                //Console.Write(_stringHeap[(int)s.Integer]);
-            }
-            else if (methodDesc == 0x0a00000d)
-            {
-                var s = _stack.Pop();
-                if (s.Type != ObjType.String) throw new InvalidOperationException();
-                //Console.WriteLine(_stringHeap[(int)s.Integer]);
-            }
-            else
-            {
-                throw new Exception("Unknown method");
+                var memberRef = _metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
+                var memberName = memberRef.ToString();
+
+                if (memberName == "System.Int32.ToString" &&
+                    memberRef.MemberSignature.RetType.Type == ElementType.EType.String &&
+                    memberRef.MemberSignature.ParamCount == 0 &&
+                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.HASTHIS)
+                {
+                    _pluggedMethods.Add(methodDesc, () =>
+                    {
+                        var addr = _stack.Pop().Integer;
+                        var localVar = _localVariables[(int)addr]->Integer;
+                        _stack.Push(CreateString(localVar.ToString()));
+                    });
+                }
+                else if (memberName == "System.Console.Write" &&
+                    memberRef.MemberSignature.RetType.Type == ElementType.EType.Void &&
+                    memberRef.MemberSignature.ParamCount == 1 &&
+                    memberRef.MemberSignature.Params[0].Type == ElementType.EType.String &&
+                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.DEFAULT)
+                {
+                    _pluggedMethods.Add(methodDesc, () =>
+                    {
+                        var s = _stack.Pop();
+                        if (s.Type != ObjType.String) throw new InvalidOperationException();
+                        Console.Write(_stringHeap[(int)s.Integer]);
+                    });
+                }
+                else if (memberName == "System.Console.WriteLine" &&
+                    memberRef.MemberSignature.RetType.Type == ElementType.EType.Void &&
+                    memberRef.MemberSignature.ParamCount == 1 &&
+                    memberRef.MemberSignature.Params[0].Type == ElementType.EType.String &&
+                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.DEFAULT)
+                {
+                    _pluggedMethods.Add(methodDesc, () =>
+                    {
+                        var s = _stack.Pop();
+                        if (s.Type != ObjType.String) throw new InvalidOperationException();
+                        Console.WriteLine(_stringHeap[(int)s.Integer]);
+                    });
+                }
+                else
+                {
+                    throw new Exception("Unknown method");
+                }
+
+                _pluggedMethods[methodDesc]();
             }
         }
 
