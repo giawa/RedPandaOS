@@ -10,7 +10,7 @@ namespace ILInterpreter.Plugs
         {
             var s = interpreter.Stack.Pop();
             if (s.Type != ObjType.String) throw new InvalidOperationException();
-            //Console.Write(interpreter.StringHeap[(int)s.Integer]);
+            Console.Write(interpreter.StringHeap[(int)s.Integer]);
         }
 
         [Plug("System.Console", new ElementType.EType[] { ElementType.EType.String })]
@@ -18,7 +18,7 @@ namespace ILInterpreter.Plugs
         {
             var s = interpreter.Stack.Pop();
             if (s.Type != ObjType.String) throw new InvalidOperationException();
-            //Console.WriteLine(interpreter.StringHeap[(int)s.Integer]);
+            Console.WriteLine(interpreter.StringHeap[(int)s.Integer]);
         }
     }
 }
