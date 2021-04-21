@@ -1,5 +1,5 @@
 # GiawaOS
-This is a place for me to toy around with what might be necessary to build an operating system using C#.  The roadmap looks something like this:
+This is a place to toy around with what might be necessary to build an operating system using C#.  The roadmap looks something like this:
 
 - Understand IL by:
   - Processing PE files
@@ -19,3 +19,10 @@ This is a place for me to toy around with what might be necessary to build an op
   - Text mode
   - VGA
   - Network
+  - Storage (exFAT)
+  
+Some design thoughts:
+- Everything malloc'd is garbage collected, a free just drops the reference and doesn't immediately free it
+- PE is the executable file format of choice, allowing standard .NET files to be run (I hope)
+- Eventually everything should be written in C#, but perhaps a subset that allows easier targeting of asm
+- With sufficient privileges, code can be patched/modified at runtime (even kernel code)
