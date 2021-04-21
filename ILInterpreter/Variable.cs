@@ -101,5 +101,7 @@ namespace ILInterpreter
         IVariableStack Stack { get; }
         IVariableArray LocalVariables { get; }
         List<string> StringHeap { get; }
+
+        Variable AllocString(string s);
     }
 }

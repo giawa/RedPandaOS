@@ -1,6 +1,8 @@
 ﻿using PELoader;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace ILInterpreter.Gen3
@@ -155,7 +157,7 @@ namespace ILInterpreter.Gen3
 
         private List<string> _stringHeap = new List<string>();
 
-        private Variable CreateString(string s)
+        public Variable AllocString(string s)
         {
             int addr = -1;
 
@@ -173,8 +175,9 @@ namespace ILInterpreter.Gen3
         }
 
         private Dictionary<uint, Action> _pluggedMethods = new Dictionary<uint, Action>();
+        private MemberInfo[] _possiblePlugs = null;
 
-        private unsafe void CALL()
+        private void CALL()
         {
             uint methodDesc = BitConverter.ToUInt32(_code, _programCounter);
             _programCounter += 4;
@@ -190,48 +193,26 @@ namespace ILInterpreter.Gen3
                 var memberRef = _metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToString();
 
-                if (memberName == "System.Int32.ToString" &&
-                    memberRef.MemberSignature.RetType.Type == ElementType.EType.String &&
-                    memberRef.MemberSignature.ParamCount == 0 &&
-                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.HASTHIS)
+                // search for a method to plug this
+                var assembly = Assembly.GetExecutingAssembly();
+
+                if (_possiblePlugs == null) _possiblePlugs = assembly.GetTypes().SelectMany(t => t.GetMethods()).Where(m => m.GetCustomAttribute(typeof(PlugAttribute)) != null).ToArray();
+
+                foreach (var plug in _possiblePlugs)
                 {
-                    _pluggedMethods.Add(methodDesc, () =>
+                    if (plug.Name == memberRef.Name)
                     {
-                        var addr = _stack.Pop().Integer;
-                        var localVar = _localVariables[(int)addr]->Integer;
-                        _stack.Push(CreateString(localVar.ToString()));
-                    });
+                        var plugAttribute = plug.GetCustomAttribute<PlugAttribute>();
+                        if (plugAttribute.IsEquivalent(memberRef))
+                        {
+                            var invokableMethod = (MethodInfo)plug;
+                            _pluggedMethods.Add(methodDesc, () => invokableMethod.Invoke(null, new object[] { this }));
+                        }
+                    }
                 }
-                else if (memberName == "System.Console.Write" &&
-                    memberRef.MemberSignature.RetType.Type == ElementType.EType.Void &&
-                    memberRef.MemberSignature.ParamCount == 1 &&
-                    memberRef.MemberSignature.Params[0].Type == ElementType.EType.String &&
-                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.DEFAULT)
-                {
-                    _pluggedMethods.Add(methodDesc, () =>
-                    {
-                        var s = _stack.Pop();
-                        if (s.Type != ObjType.String) throw new InvalidOperationException();
-                        Console.Write(_stringHeap[(int)s.Integer]);
-                    });
-                }
-                else if (memberName == "System.Console.WriteLine" &&
-                    memberRef.MemberSignature.RetType.Type == ElementType.EType.Void &&
-                    memberRef.MemberSignature.ParamCount == 1 &&
-                    memberRef.MemberSignature.Params[0].Type == ElementType.EType.String &&
-                    (memberRef.MemberSignature.Flags & SigFlags.HASTHIS) == SigFlags.DEFAULT)
-                {
-                    _pluggedMethods.Add(methodDesc, () =>
-                    {
-                        var s = _stack.Pop();
-                        if (s.Type != ObjType.String) throw new InvalidOperationException();
-                        Console.WriteLine(_stringHeap[(int)s.Integer]);
-                    });
-                }
-                else
-                {
-                    throw new Exception("Unknown method");
-                }
+
+                if (!_pluggedMethods.ContainsKey(methodDesc))
+                    throw new NotImplementedException($"The method {memberRef.ToPrettyString()} is not yet implemented.");
 
                 _pluggedMethods[methodDesc]();
             }
@@ -249,7 +230,7 @@ namespace ILInterpreter.Gen3
             if ((blob & 0x80) == 0)
             {
                 var bytes = _metadata.US.Heap.AsSpan(addr, blob - 1);
-                _stack.Push(CreateString(Encoding.Unicode.GetString(bytes)));
+                _stack.Push(AllocString(Encoding.Unicode.GetString(bytes)));
             }
             else
             {

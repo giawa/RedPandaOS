@@ -64,6 +64,11 @@ namespace PELoader
         public EType Type;
         public uint Token;
 
+        public ElementType(EType type)
+        {
+            Type = type;
+        }
+
         public ElementType(uint[] data, ref uint i)
         {
             Type = (EType)data[i++];
@@ -205,11 +210,6 @@ namespace PELoader
                 case 0x03: _parent = metadata.MethodDefs[(int)(classIndex >> 3) - 1].ToString(); break;
                 case 0x04: _parent = metadata.TypeSpecs[(int)(classIndex >> 3) - 1].ToString(); break;
             }
-        }
-
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(nameAddr);
         }
 
         public override string ToString()

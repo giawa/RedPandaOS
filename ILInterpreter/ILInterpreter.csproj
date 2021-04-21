@@ -17,8 +17,4 @@
     <ProjectReference Include="..\PELoader\PELoader.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Gen2\" />
-  </ItemGroup>
-
 </Project>
