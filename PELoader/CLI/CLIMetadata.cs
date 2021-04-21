@@ -32,14 +32,37 @@ namespace PELoader
             return sb.ToString();
         }
 
-        public string GetBlob(uint addr)
+        public static uint[] DecompressUnsignedSignature(byte[] compressed)
+        {
+            List<uint> uncompressed = new List<uint>();
+
+            // first byte gives the call type
+            for (int i = 1; i < compressed.Length; i++)
+            {
+                if (i < compressed.Length - 3 && (compressed[i + 3] & 0xE0) == 0xC0)
+                {
+                    uncompressed.Add(BitConverter.ToUInt32(compressed, i) & 0x1fffffff);
+                    i += 3;
+                }
+                else if (i < compressed.Length - 1 && (compressed[i + 1] & 0xC0) == 0x80)
+                {
+                    uncompressed.Add((uint)BitConverter.ToUInt16(compressed, i) & 0x3fff);
+                    i++;
+                }
+                else uncompressed.Add(compressed[i]);
+            }
+
+            return uncompressed.ToArray();
+        }
+
+        public byte[] GetBlob(uint addr)
         {
             byte blob = Blob.Heap[addr++];
 
             if ((blob & 0x80) == 0)
             {
-                var bytes = Blob.Heap.AsSpan((int)addr, blob - 1);
-                return Encoding.Unicode.GetString(bytes);
+                var bytes = Blob.Heap.AsSpan((int)addr, blob);
+                return bytes.ToArray();
             }
             else
             {
@@ -117,7 +140,7 @@ namespace PELoader
                 {
                     if (bit == MetadataTable.Module)
                     {
-                        _modules.Add(new ModuleLayout(this, ref offset));
+                        _moduleRefs.Add(new ModuleRefLayout(this, ref offset));
                     }
                     else if (bit == MetadataTable.TypeRef)
                     {
@@ -177,9 +200,11 @@ namespace PELoader
             }
 
             for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(_fields, _methodDefs);
+
+            for (int i = 0; i < _memberRefs.Count; i++) _memberRefs[i].FindParentType(this);
         }
 
-        private List<ModuleLayout> _modules = new List<ModuleLayout>();
+        private List<ModuleRefLayout> _moduleRefs = new List<ModuleRefLayout>();
         private List<TypeRefLayout> _typeRefs = new List<TypeRefLayout>();
         private List<TypeDefLayout> _typeDefs = new List<TypeDefLayout>();
         private List<MethodDefLayout> _methodDefs = new List<MethodDefLayout>();
@@ -190,8 +215,14 @@ namespace PELoader
         private List<AssemblyLayout> _assemblies = new List<AssemblyLayout>();
         private List<AssemblyRefLayout> _assemblyRefs = new List<AssemblyRefLayout>();
         private List<FieldLayout> _fields = new List<FieldLayout>();
+        private List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
 
-        public List<TypeDefLayout> TypeDefs {  get { return _typeDefs; } }
+        public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
+        public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
+        public List<ModuleRefLayout> ModuleRefs { get { return _moduleRefs; } }
+        public List<MethodDefLayout> MethodDefs { get { return _methodDefs; } }
+        public List<TypeSpecLayout> TypeSpecs { get { return _typeSpecs; } }
+        public List<MemberRefLayout> MemberRefs { get { return _memberRefs; } }
 
         public uint[] TableSizes = new uint[64];
     }

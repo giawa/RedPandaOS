@@ -1,12 +1,143 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace PELoader
 {
+    [Flags]
+    public enum SigFlags : byte
+    {
+        HASTHIS = 0x20,
+        EXPLICITTHIS = 0x40,
+        DEFAULT = 0x00,
+        VARARG = 0x50,
+        GENERIC = 0x10
+    }
+
+    public class ElementType
+    {
+        public enum EType : uint
+        {
+            End = 0x00,
+            Void = 0x01,
+            Boolean = 0x02,
+            Char = 0x03,
+            I1 = 0x04,
+            U1 = 0x05,
+            I2 = 0x06,
+            U2 = 0x07,
+            I4 = 0x08,
+            U4 = 0x09,
+            I8 = 0x0A,
+            U8 = 0x0B,
+            R4 = 0x0C,
+            R8 = 0x0D,
+            String = 0x0E,
+            Ptr = 0x0f,
+            ByRef = 0x10,
+            ValueType = 0x11,
+            Class = 0x12,
+            Var = 0x13,
+            Array = 0x14,
+            GenericInst = 0x15,
+            TypedByRef = 0x16,
+            IntPtr = 0x18,
+            UIntPtr = 0x19,
+            MethodSignature = 0x1B,
+            Object = 0x1C,
+            SzArray = 0x1D,
+            MVar = 0x1E,
+            RequiredModifier = 0x1F,
+            OptionalModifier = 0x20,
+            Internal = 0x21,
+            Modifier = 0x40,
+            Sentinel = 0x41,
+            Pinned = 0x45,
+            Type = 0x50,
+            CustomAttribute = 0x51,
+            Reserved = 0x52,
+            Field = 0x53,
+            Property = 0x54,
+            Enum = 0x55
+        }
+
+        public EType Type;
+        public uint Token;
+
+        public ElementType(uint[] data, ref uint i)
+        {
+            Type = (EType)data[i++];
+
+            if (Type == EType.Ptr || Type == EType.ByRef)
+            {
+                Token = data[i++];
+            }
+            else if (Type == EType.ValueType || Type == EType.Class)
+            {
+                Token = data[i++];
+            }
+            else if (Type == EType.Var || Type == EType.MethodSignature || Type == EType.MVar)
+            {
+                throw new Exception("Unhandled");
+            }
+            else if (Type == EType.Array)
+            {
+                i += 2;  // type, rank
+                uint boundsCount = data[i++];
+                i += boundsCount;
+                uint loCount = data[i++];
+                i += loCount;
+            }
+            else if (Type == EType.GenericInst)
+            {
+                i++;
+                uint typeArgCount = data[i++];
+                i += typeArgCount;
+            }
+            else if (Type == EType.RequiredModifier || Type == EType.OptionalModifier)
+            {
+                Token = data[i++];
+            }
+        }
+    }
+
+    public class MethodRefSig
+    {
+        public SigFlags Flags { get; private set; }
+        public uint ParamCount { get; private set; }
+        public ElementType RetType { get; private set; }
+        public ElementType[] Params { get; private set; }
+
+        public MethodRefSig(CLIMetadata metadata, uint addr)
+        {
+            var blob = metadata.GetBlob(addr);
+            var data = CLIMetadata.DecompressUnsignedSignature(blob);
+
+            Flags = (SigFlags)blob[0];
+            ParamCount = data[0];
+
+            uint i = 1;
+            RetType = new ElementType(data, ref i);
+
+            if (ParamCount > 0)
+            {
+                Params = new ElementType[ParamCount];
+                for (uint p = 0; p < ParamCount; p++)
+                {
+                    Params[p] = new ElementType(data, ref i);
+                }
+            }
+        }
+    }
+
     public class MemberRefLayout
     {
         public uint classIndex;
-        public uint name;
+        public uint nameAddr;
         public uint signature;
+
+        public string Name { get; private set; }
+        public MethodRefSig MemberSignature { get; private set; }
 
         public MemberRefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -38,12 +169,12 @@ namespace PELoader
 
             if (metadata.WideStrings)
             {
-                name = BitConverter.ToUInt32(metadata.Table.Heap, offset);
+                nameAddr = BitConverter.ToUInt32(metadata.Table.Heap, offset);
                 offset += 4;
             }
             else
             {
-                name = BitConverter.ToUInt16(metadata.Table.Heap, offset);
+                nameAddr = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
 
@@ -57,11 +188,62 @@ namespace PELoader
                 signature = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
+
+            Name = metadata.GetString(nameAddr);
+            MemberSignature = new MethodRefSig(metadata, signature);
+        }
+
+        private string _parent = null;
+
+        public void FindParentType(CLIMetadata metadata)
+        {
+            switch (classIndex & 0x07)
+            {
+                case 0x00: _parent = metadata.TypeDefs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x01: _parent = metadata.TypeRefs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x02: _parent = metadata.ModuleRefs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x03: _parent = metadata.MethodDefs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x04: _parent = metadata.TypeSpecs[(int)(classIndex >> 3) - 1].ToString(); break;
+            }
         }
 
         public string GetName(CLIMetadata metadata)
         {
-            return metadata.GetString(name);
+            return metadata.GetString(nameAddr);
+        }
+
+        public override string ToString()
+        {
+            if (_parent == null) return $"???.{Name}";
+            else return $"{_parent}.{Name}";
+        }
+
+        public string ToPrettyString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            if (MemberSignature != null) sb.Append(MemberSignature.RetType.Type + " ");
+
+            if (string.IsNullOrEmpty(_parent)) sb.Append("???");
+            else sb.Append(_parent);
+            sb.Append(".");
+
+            sb.Append(Name);
+
+            if (MemberSignature != null)
+            {
+                sb.Append("(");
+
+                for (int i = 0; MemberSignature.Params != null && i < MemberSignature.Params.Length; i++)
+                {
+                    sb.Append(MemberSignature.Params[i].Type.ToString());
+                    if (i < MemberSignature.Params.Length - 1) sb.Append(", ");
+                }
+
+                sb.Append(")");
+            }
+
+            return sb.ToString();
         }
     }
 }

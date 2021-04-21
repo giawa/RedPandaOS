@@ -2,7 +2,7 @@
 
 namespace PELoader
 {
-    public class ModuleLayout
+    public class ModuleRefLayout
     {
         public ushort generation;
         public uint name;
@@ -10,7 +10,7 @@ namespace PELoader
         public ushort encId;
         public ushort encBaseId;
 
-        public ModuleLayout(CLIMetadata metadata, ref int offset)
+        public ModuleRefLayout(CLIMetadata metadata, ref int offset)
         {
             offset += 2;
 

@@ -8,6 +8,8 @@ namespace PELoader
         public uint typeName;
         public uint typeNamespace;
 
+        private string _name, _namespace;
+
         public TypeRefLayout(CLIMetadata metadata, ref int offset)
         {
             byte firstByte = metadata.Table.Heap[offset];
@@ -49,11 +51,19 @@ namespace PELoader
                 typeNamespace = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
+
+            _name = metadata.GetString(typeName);
+            _namespace = metadata.GetString(typeNamespace);
         }
 
         public string GetName(CLIMetadata metadata)
         {
             return metadata.GetString(typeName);
+        }
+
+        public override string ToString()
+        {
+            return $"{_namespace}.{_name}";
         }
     }
 }

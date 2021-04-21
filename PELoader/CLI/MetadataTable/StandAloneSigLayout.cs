@@ -20,7 +20,7 @@ namespace PELoader
             }
         }
 
-        public string GetSignature(CLIMetadata metadata)
+        public byte[] GetSignature(CLIMetadata metadata)
         {
             return metadata.GetBlob(signature);
         }
