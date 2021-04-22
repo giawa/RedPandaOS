@@ -7,11 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GiawaOS", "GiawaOS\GiawaOS.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestIL", "TestIL\TestIL.csproj", "{7E3FE372-1F38-4884-AB26-5E048CC8B3C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PELoader", "PELoader\PELoader.csproj", "{A585995B-95DC-48E5-90B2-CE439C30EE15}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PELoader", "PELoader\PELoader.csproj", "{A585995B-95DC-48E5-90B2-CE439C30EE15}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILInterpreter", "ILInterpreter\ILInterpreter.csproj", "{99359455-7C30-4B34-B8D6-8955C7CA73B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILInterpreter", "ILInterpreter\ILInterpreter.csproj", "{99359455-7C30-4B34-B8D6-8955C7CA73B0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILInterpreter.Tests", "ILInterpreter.Tests\ILInterpreter.Tests.csproj", "{9517780D-7A43-46BC-B92C-21A7AB2AEB48}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILInterpreter.Tests", "ILInterpreter.Tests\ILInterpreter.Tests.csproj", "{9517780D-7A43-46BC-B92C-21A7AB2AEB48}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IL2Asm", "IL2Asm\IL2Asm.csproj", "{6AD4270F-149A-468A-859E-043FEFF8CF50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9517780D-7A43-46BC-B92C-21A7AB2AEB48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

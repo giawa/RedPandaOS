@@ -11,26 +11,32 @@ namespace PELoader
         public ushort MaxStack;
         public uint LocalVarSigTok;
 
+        public MethodDefLayout MethodDef;
+
         public MethodHeader(byte[] code)
         {
             Code = code;
         }
 
-        public MethodHeader(VirtualMemory memory, ref uint offset)
+        public MethodHeader(VirtualMemory memory, MethodDefLayout methodDef)
         {
-            byte type = memory.GetByte(offset);
+            MethodDef = methodDef;
+
+            uint rva = methodDef.rva;
+
+            byte type = memory.GetByte(rva);
 
             if ((type & 0x03) == 0x02)
             {
                 // tiny method header
                 CodeSize = (uint)(type >> 2);
-                offset++;
+                rva++;
             }
             else
             {
                 // fat method header
-                var fatHeader = memory.GetBytes(offset, 12);
-                offset += 12;
+                var fatHeader = memory.GetBytes(rva, 12);
+                rva += 12;
 
                 Flags = (ushort)(BitConverter.ToUInt16(fatHeader, 0) & 0x0fff);
                 MaxStack = BitConverter.ToUInt16(fatHeader, 2);
@@ -43,8 +49,8 @@ namespace PELoader
                 }
             }
 
-            Code = memory.GetBytes(offset, (int)CodeSize);
-            offset += CodeSize;
+            Code = memory.GetBytes(rva, (int)CodeSize);
+            rva += CodeSize;
         }
     }
 }

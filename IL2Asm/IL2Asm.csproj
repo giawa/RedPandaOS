@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\IL2Asm\IL2Asm.csproj" />
+    <ProjectReference Include="..\PELoader\PELoader.csproj" />
   </ItemGroup>
 
 </Project>
