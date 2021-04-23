@@ -182,6 +182,10 @@ namespace PELoader
                     {
                         _fields.Add(new FieldLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.Constant)
+                    {
+                        _constants.Add(new ConstantLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -216,6 +220,7 @@ namespace PELoader
         private List<AssemblyRefLayout> _assemblyRefs = new List<AssemblyRefLayout>();
         private List<FieldLayout> _fields = new List<FieldLayout>();
         private List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
+        private List<ConstantLayout> _constants = new List<ConstantLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
