@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace PELoader
 {
@@ -9,6 +7,8 @@ namespace PELoader
         public ushort flags;
         public uint name;
         public uint signature;
+
+        public TypeDefLayout Parent;
 
         public FieldLayout(CLIMetadata metadata, ref int offset)
         {
@@ -36,11 +36,15 @@ namespace PELoader
                 signature = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
+
+            _name = metadata.GetString(name);
         }
 
-        public string GetName(CLIMetadata metadata)
+        private string _name;
+
+        public override string ToString()
         {
-            return metadata.GetString(name);
+            return _name;
         }
     }
 }

@@ -7,9 +7,12 @@ namespace PELoader
         public uint rva;
         public ushort implFlags;
         public ushort flags;
-        public uint name;
+        private uint name;
         public uint signature;
         public uint paramList;
+
+        public TypeDefLayout Parent;
+        public MethodRefSig MethodSignature;
 
         public MethodDefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -55,19 +58,15 @@ namespace PELoader
                 offset += 2;
             }
 
-            _name = GetName(metadata);
+            Name = metadata.GetString(name);
+            MethodSignature = new MethodRefSig(metadata, signature);
         }
 
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(name);
-        }
-
-        private string _name;
+        public string Name { get; private set; }
 
         public override string ToString()
         {
-            return _name;
+            return $"{Parent.Name}.{Name}";
         }
     }
 }

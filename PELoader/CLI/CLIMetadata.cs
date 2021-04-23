@@ -228,6 +228,7 @@ namespace PELoader
         public List<MethodDefLayout> MethodDefs { get { return _methodDefs; } }
         public List<TypeSpecLayout> TypeSpecs { get { return _typeSpecs; } }
         public List<MemberRefLayout> MemberRefs { get { return _memberRefs; } }
+        public List<StandAloneSigLayout> StandAloneSigs { get { return _standAloneSigs; } }
 
         public uint[] TableSizes = new uint[64];
     }

@@ -84,7 +84,7 @@ namespace PELoader
                 offset += 2;
             }
 
-            _name = GetName(metadata);
+            Name = metadata.GetString(typeName);
         }
 
         public void FindFieldsAndMethods(List<FieldLayout> fields, List<MethodDefLayout> methodDefs)
@@ -92,20 +92,23 @@ namespace PELoader
             if (endOfFieldList == 0) endOfFieldList = (uint)fields.Count;
             if (endOfMethodList == 0) endOfMethodList = (uint)methodDefs.Count;
 
-            for (uint i = fieldList; i < endOfFieldList; i++) Fields.Add(fields[(int)i - 1]);
-            for (uint i = methodList; i < endOfMethodList; i++) Methods.Add(methodDefs[(int)i - 1]);
+            for (uint i = fieldList; i < endOfFieldList; i++)
+            {
+                Fields.Add(fields[(int)i - 1]);
+                fields[(int)i - 1].Parent = this;
+            }
+            for (uint i = methodList; i < endOfMethodList; i++)
+            {
+                Methods.Add(methodDefs[(int)i - 1]);
+                methodDefs[(int)i - 1].Parent = this;
+            }
         }
 
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(typeName);
-        }
-
-        private string _name;
+        public string Name { get; private set; }
 
         public override string ToString()
         {
-            return _name;
+            return Name;
         }
     }
 }

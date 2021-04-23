@@ -69,7 +69,19 @@ namespace PELoader
             Type = type;
         }
 
+        public ElementType(byte[] data, ref uint i)
+        {
+            uint[] temp = new uint[data.Length];
+            for (int k = 0; k < data.Length; k++) temp[k] = data[k];
+            Init(temp, ref i);
+        }
+
         public ElementType(uint[] data, ref uint i)
+        {
+            Init(data, ref i);
+        }
+
+        private void Init(uint[] data, ref uint i)
         {
             Type = (EType)data[i++];
 
