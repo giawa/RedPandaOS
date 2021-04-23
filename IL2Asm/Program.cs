@@ -17,10 +17,10 @@ namespace IL2Asm
 
             if (methodDef != null)
             {
-                MethodHeader method = new MethodHeader(file.Memory, methodDef);
+                //MethodHeader method = new MethodHeader(file.Memory, methodDef);
 
-                Assembler assembler = new Assembler();
-                assembler.Assemble(file.Metadata, method);
+                Assembler.x86_RealMode.Assembler assembler = new Assembler.x86_RealMode.Assembler();
+                assembler.Assemble(file.Memory, file.Metadata, methodDef);
 
                 assembler.WriteAssembly("bios.asm");
 
@@ -45,17 +45,20 @@ namespace IL2Asm
                 var qemu = Process.Start("qemu-system-x86_64", "boot.bin");
                 qemu.WaitForExit();
             }
+
+            Console.WriteLine("Press key to exit...");
+            Console.ReadKey();
         }
 
         private static MethodDefLayout FindEntryPoint(PortableExecutableFile file, string typeName, string methodName)
         {
             foreach (var typeDef in file.Metadata.TypeDefs)
             {
-                if (typeDef.GetName(file.Metadata) == "Program")
+                if (typeDef.Name == "Program")
                 {
                     foreach (var methodDef in typeDef.Methods)
                     {
-                        if (methodDef.GetName(file.Metadata) == "Main")
+                        if (methodDef.Name == "Main")
                             return methodDef;
                     }
                 }

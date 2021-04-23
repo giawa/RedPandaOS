@@ -16,7 +16,7 @@ namespace ILInterpreter
 
             if (methodDef != null)
             {
-                MethodHeader method = new MethodHeader(file.Memory, methodDef);
+                MethodHeader method = new MethodHeader(file.Memory, file.Metadata, methodDef);
 
                 var interpreter = new Gen3.Interpreter();
 
@@ -40,11 +40,11 @@ namespace ILInterpreter
         {
             foreach (var typeDef in file.Metadata.TypeDefs)
             {
-                if (typeDef.GetName(file.Metadata) == "Program")
+                if (typeDef.Name == "Program")
                 {
                     foreach (var methodDef in typeDef.Methods)
                     {
-                        if (methodDef.GetName(file.Metadata) == "Main")
+                        if (methodDef.Name == "Main")
                             return methodDef;
                     }
                 }
