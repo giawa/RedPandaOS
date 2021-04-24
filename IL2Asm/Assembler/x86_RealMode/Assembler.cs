@@ -239,8 +239,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
                         assembly.AddAsm("pop ax");
-                        assembly.AddAsm("cmp ax, 1");
-                        assembly.AddAsm($"je {_jmpLabel}");
+                        assembly.AddAsm("cmp ax, 0");
+                        assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
                     // ADD
