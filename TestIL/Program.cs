@@ -82,27 +82,19 @@ namespace TestIL
         [RealMode]
         public static void WriteInt(int value)
         {
-            int tens = 0;
-            int scratch = value;
+            int divisor = 1;
 
-            while (scratch > 0)
+            while (divisor * 10 <= value)
             {
-                tens++;
-                scratch = Divide(scratch, 10);
+                divisor *= 10;
             }
 
-            while (tens > 0)
+            while (divisor > 0)
             {
-                scratch = 1;
-                for (int i = 0; i < tens - 1; i++) scratch *= 10;
+                int c = Divide(value, divisor);
+                Bios.WriteByte(Modulo(c, 10) + 48);
 
-                int c = Divide(value, scratch);
-                c = Modulo(c, 10);
-                c += 48;
-
-                Bios.WriteByte((byte)c);
-
-                tens--;
+                divisor = Divide(divisor, 10);
             }
         }
 
