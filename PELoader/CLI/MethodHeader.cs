@@ -4,10 +4,6 @@ namespace PELoader
 {
     public class LocalVarSig
     {
-        /*public SigFlags Flags { get; private set; }
-        public uint ParamCount { get; private set; }
-        public ElementType RetType { get; private set; }
-        public ElementType[] Params { get; private set; }*/
         public ElementType[] LocalVariables { get; private set; }
 
         public LocalVarSig(CLIMetadata metadata, uint addr)
@@ -20,27 +16,10 @@ namespace PELoader
             if (blob[0] != 0x07) throw new Exception("Invalid LOCAL_SIG (II.23.2.6)");
 
             LocalVariables = new ElementType[blob[1]];
-            uint offset = 2;
+            uint offset = 0;
+            var uncompressed = CLIMetadata.DecompressUnsignedSignature(blob, 2);    // first 2 bytes are LOCAL_SIG and Count
             for (int i = 0; i < LocalVariables.Length; i++)
-                LocalVariables[i] = new ElementType(blob, ref offset);
-            Console.WriteLine(blob);
-
-            /*var data = CLIMetadata.DecompressUnsignedSignature(blob);
-
-            Flags = (SigFlags)blob[0];
-            ParamCount = data[0];
-
-            uint i = 1;
-            RetType = new ElementType(data, ref i);
-
-            if (ParamCount > 0)
-            {
-                Params = new ElementType[ParamCount];
-                for (uint p = 0; p < ParamCount; p++)
-                {
-                    Params[p] = new ElementType(data, ref i);
-                }
-            }*/
+                LocalVariables[i] = new ElementType(uncompressed, ref offset);
         }
     }
 

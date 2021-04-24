@@ -424,24 +424,11 @@ namespace IL2Asm.Assembler.x86_RealMode
         {
             string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
 
-            ushort addr = BitConverter.ToUInt16(code, i);
-            i += 2;
-            ushort unknown = BitConverter.ToUInt16(code, i);
-            i += 2;
+            uint metadataToken = BitConverter.ToUInt32(code, i);
+            i += 4;
 
-            byte blob = metadata.US.Heap[addr++];
-            string s = string.Empty;
-
-            if ((blob & 0x80) == 0)
-            {
-                var bytes = metadata.US.Heap.AsSpan(addr, blob - 1);
-                s = Encoding.Unicode.GetString(bytes);
-            }
-            else
-            {
-                throw new Exception("No support yet for longer blobs.  See II.24.2.4");
-            }
-
+            string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
+            
             AddToData(label, s);
             assembly.AddAsm($"push {label}");
         }

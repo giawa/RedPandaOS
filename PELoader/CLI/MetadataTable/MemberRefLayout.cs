@@ -69,15 +69,14 @@ namespace PELoader
             Type = type;
         }
 
-        public ElementType(byte[] data, ref uint i)
-        {
-            uint[] temp = new uint[data.Length];
-            for (int k = 0; k < data.Length; k++) temp[k] = data[k];
-            Init(temp, ref i);
-        }
-
         public ElementType(uint[] data, ref uint i)
         {
+            Init(data, ref i);
+        }
+
+        public ElementType(uint[] data)
+        {
+            uint i = 0;
             Init(data, ref i);
         }
 
@@ -91,7 +90,7 @@ namespace PELoader
             }
             else if (Type == EType.ValueType || Type == EType.Class)
             {
-                Token = data[i++];
+                Token = CLIMetadata.TypeDefOrRefOrSpecEncoded(data[i++]);//data[i++];
             }
             else if (Type == EType.Var || Type == EType.MethodSignature || Type == EType.MVar)
             {
@@ -128,7 +127,7 @@ namespace PELoader
         public MethodRefSig(CLIMetadata metadata, uint addr)
         {
             var blob = metadata.GetBlob(addr);
-            var data = CLIMetadata.DecompressUnsignedSignature(blob);
+            var data = CLIMetadata.DecompressUnsignedSignature(blob, 1);    // first byte is the flags
 
             Flags = (SigFlags)blob[0];
             ParamCount = data[0];

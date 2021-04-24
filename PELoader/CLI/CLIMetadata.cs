@@ -32,12 +32,24 @@ namespace PELoader
             return sb.ToString();
         }
 
-        public static uint[] DecompressUnsignedSignature(byte[] compressed)
+        public static uint TypeDefOrRefOrSpecEncoded(uint compressed)
+        {
+            var table = compressed & 0x03;
+
+            switch (table)
+            {
+                case 0x00: return MetadataTable.TypeDef << 24 | (compressed >> 2);
+                case 0x01: return MetadataTable.TypeRef << 24 | (compressed >> 2);
+                case 0x02: return MetadataTable.TypeSpec << 24 | (compressed >> 2);
+                default: throw new Exception("Unexpected table type");
+            }
+        }
+
+        public static uint[] DecompressUnsignedSignature(byte[] compressed, int startPosition)
         {
             List<uint> uncompressed = new List<uint>();
 
-            // first byte gives the call type
-            for (int i = 1; i < compressed.Length; i++)
+            for (int i = startPosition; i < compressed.Length; i++)
             {
                 if (i < compressed.Length - 3 && (compressed[i + 3] & 0xE0) == 0xC0)
                 {
@@ -67,6 +79,28 @@ namespace PELoader
             else
             {
                 throw new Exception("No support yet for longer blobs.  See II.24.2.4");
+            }
+        }
+
+        public byte[] GetMetadata(uint metadataToken)
+        {
+            if ((metadataToken & 0xff000000) == 0x70000000U)
+            {
+                int addr = (int)(metadataToken & 0x00ffffff);
+                byte blob = US.Heap[addr++];
+
+                if ((blob & 0x80) == 0)
+                {
+                    return US.Heap.AsSpan(addr, blob - 1).ToArray();
+                }
+                else
+                {
+                    throw new Exception("No support yet for longer blobs.  See II.24.2.4");
+                }
+            }
+            else
+            {
+                throw new Exception("No support yet for getting metadata from the TypeDef table.  See III.1.9");
             }
         }
 
@@ -229,6 +263,7 @@ namespace PELoader
         public List<TypeSpecLayout> TypeSpecs { get { return _typeSpecs; } }
         public List<MemberRefLayout> MemberRefs { get { return _memberRefs; } }
         public List<StandAloneSigLayout> StandAloneSigs { get { return _standAloneSigs; } }
+        public List<FieldLayout> Fields { get { return _fields; } }
 
         public uint[] TableSizes = new uint[64];
     }
