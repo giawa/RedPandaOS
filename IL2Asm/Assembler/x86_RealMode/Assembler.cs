@@ -243,6 +243,56 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
+                    // BGE.S
+                    case 0x2F:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        assembly.Assembly.Add("pop ax");        // value2
+                        assembly.Assembly.Add("pop bx");        // value1
+                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jge {_jmpLabel}");
+                        break;
+
+                    // BGT.S
+                    case 0x30:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        assembly.Assembly.Add("pop ax");        // value2
+                        assembly.Assembly.Add("pop bx");        // value1
+                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jg {_jmpLabel}");
+                        break;
+
+                    // BLE.S
+                    case 0x31:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        assembly.Assembly.Add("pop ax");        // value2
+                        assembly.Assembly.Add("pop bx");        // value1
+                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jle {_jmpLabel}");
+                        break;
+
+                    // BLT.S
+                    case 0x32:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        assembly.Assembly.Add("pop ax");        // value2
+                        assembly.Assembly.Add("pop bx");        // value1
+                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jl {_jmpLabel}");
+                        break;
+
+                    // BNE.UN.S
+                    case 0x33:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        assembly.Assembly.Add("pop ax");        // value2
+                        assembly.Assembly.Add("pop bx");        // value1
+                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jne {_jmpLabel}");
+                        break;
+
                     // ADD
                     case 0x58:
                         assembly.Assembly.Add("pop bx");
