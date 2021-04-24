@@ -32,5 +32,10 @@ namespace IL2Asm
         {
             Console.Write((char)c);
         }
+
+        public static void WriteByte(int c)
+        {
+            Console.Write((char)(c & 0xff));
+        }
     }
 }
