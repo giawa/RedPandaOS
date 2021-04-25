@@ -115,6 +115,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("push ax");
                         break;
 
+                    // STARG.S
+                    case 0x10:
+                        _byte = code[i++];
+                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm($"mov [bp + {BytesPerRegister * (1 + _uint)}], ax");
+                        break;
+
                     // STLOC.S
                     case 0x13:
                         _byte = code[i++];
@@ -335,7 +343,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("push ax");
                         break;
 
-                    case 0x72: LDSTR(assembly, metadata, code, ref i); break;// LDSTR
+                    // LDSTR
+                    case 0x72: LDSTR(assembly, metadata, code, ref i); break;
+
+                    // LDSFLD
+                    case 0x7E: LDSFLD(assembly, metadata, code, ref i); break;
+
+                    // LDSFLDA
+                    case 0x7F: LDSFLDA(assembly, metadata, code, ref i); break;
 
                     // CONV.U2
                     case 0xD1:
@@ -429,8 +444,58 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
             
-            AddToData(label, s);
+            _initializedData.Add(label, s);
             assembly.AddAsm($"push {label}");
+        }
+
+        private void LDSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
+
+            int addr = BitConverter.ToInt32(code, i);
+            i += 4;
+
+            if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+
+            assembly.AddAsm($"mov ax, [{label}]");
+            assembly.AddAsm($"push ax");
+        }
+
+        private void LDSFLDA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
+
+            int addr = BitConverter.ToInt32(code, i);
+            i += 4;
+
+            if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+
+            assembly.AddAsm($"push {label}");
+        }
+
+        private void AddStaticField(CLIMetadata metadata, string label, int fieldToken)
+        {
+            if ((fieldToken & 0xff000000) == 0x04000000)
+            {
+                var field = metadata.Fields[(fieldToken & 0x00ffffff) - 1];
+
+                if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
+                {
+                    switch (field.Type.Type)
+                    {
+                        case ElementType.EType.U1: _initializedData.Add(label, (byte)0); break;
+                        case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
+                        case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
+                        case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
+                        default: throw new Exception("Unsupported type");
+                    }
+                }
+                else
+                {
+                    throw new Exception("Incomplete implementation");
+                }
+            }
+            else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
@@ -518,11 +583,6 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unhandled CALL target");
         }
 
-        public void AddToData(string label, string s)
-        {
-            _initializedData.Add(label, s);
-        }
-
         public void WriteAssembly(string file)
         {
             HashSet<string> dependencies = new HashSet<string>();
@@ -561,6 +621,30 @@ namespace IL2Asm.Assembler.x86_RealMode
                         {
                             stream.WriteLine($"{data.Key}:");
                             stream.WriteLine($"    db '{data.Value}', 0");  // 0 for null termination after the string
+                        }
+                        else if (data.Value is short)
+                        {
+                            stream.WriteLine($"{data.Key}:");
+                            stream.WriteLine($"    dw {(short)data.Value}");
+                        }
+                        else if (data.Value is ushort)
+                        {
+                            stream.WriteLine($"{data.Key}:");
+                            stream.WriteLine($"    dw {(ushort)data.Value}");
+                        }
+                        else if (data.Value is byte)
+                        {
+                            stream.WriteLine($"{data.Key}:");
+                            stream.WriteLine($"    db {(byte)data.Value}");
+                        }
+                        else if (data.Value is sbyte)
+                        {
+                            stream.WriteLine($"{data.Key}:");
+                            stream.WriteLine($"    db {(sbyte)data.Value}");
+                        }
+                        else
+                        {
+                            throw new Exception("Unexpected type allocated as part of initial data");
                         }
                     }
                     stream.WriteLine();

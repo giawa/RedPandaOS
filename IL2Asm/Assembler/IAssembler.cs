@@ -2,6 +2,6 @@
 {
     public interface IAssembler
     {
-        void AddToData(string label, string s);
+        //void AddToData(string label, string s);
     }
 }
