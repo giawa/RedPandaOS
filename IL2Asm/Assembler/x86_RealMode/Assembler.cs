@@ -222,8 +222,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                         }
 
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
-                        assembly.Assembly.Add("pop bp");
-                        assembly.Assembly.Add($"ret {bytes}");
+                        assembly.AddAsm("pop bp");
+                        assembly.AddAsm($"ret {bytes}");
                         break;
 
                     // BR.S
@@ -255,9 +255,9 @@ namespace IL2Asm.Assembler.x86_RealMode
                     case 0x2F:
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jge {_jmpLabel}");
                         break;
 
@@ -265,9 +265,9 @@ namespace IL2Asm.Assembler.x86_RealMode
                     case 0x30:
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jg {_jmpLabel}");
                         break;
 
@@ -275,9 +275,9 @@ namespace IL2Asm.Assembler.x86_RealMode
                     case 0x31:
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jle {_jmpLabel}");
                         break;
 
@@ -285,9 +285,9 @@ namespace IL2Asm.Assembler.x86_RealMode
                     case 0x32:
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jl {_jmpLabel}");
                         break;
 
@@ -295,34 +295,34 @@ namespace IL2Asm.Assembler.x86_RealMode
                     case 0x33:
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
                     // ADD
                     case 0x58:
-                        assembly.Assembly.Add("pop bx");
-                        assembly.Assembly.Add("pop ax");
-                        assembly.Assembly.Add("add ax, bx");
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop bx");
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("add ax, bx");
+                        assembly.AddAsm("push ax");
                         break;
 
                     // SUB
                     case 0x59:
-                        assembly.Assembly.Add("pop bx");
-                        assembly.Assembly.Add("pop ax");
-                        assembly.Assembly.Add("sub ax, bx");
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop bx");
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("sub ax, bx");
+                        assembly.AddAsm("push ax");
                         break;
 
                     // MUL
                     case 0x5A:
-                        assembly.Assembly.Add("pop bx");
-                        assembly.Assembly.Add("pop ax");
-                        assembly.Assembly.Add("mul bx");
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop bx");
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("mul bx");
+                        assembly.AddAsm("push ax");
                         break;
 
                     // AND
@@ -352,63 +352,66 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // LDSFLDA
                     case 0x7F: LDSFLDA(assembly, metadata, code, ref i); break;
 
+                    // STSFLD
+                    case 0x80: STSFLD(assembly, metadata, code, ref i); break;
+
                     // CONV.U2
                     case 0xD1:
                         // already must be 16 bit because we're in real mode
-                        /*assembly.Assembly.Add("pop ax");
-                        assembly.Assembly.Add("and ax, 65535");
-                        assembly.Assembly.Add("push ax");*/
+                        /*assembly.AddAsm("pop ax");
+                        assembly.AddAsm("and ax, 65535");
+                        assembly.AddAsm("push ax");*/
                         break;
 
                     // CONV.U1
                     case 0xD2:
-                        assembly.Assembly.Add("pop ax");
-                        assembly.Assembly.Add("and ax, 255");
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("and ax, 255");
+                        assembly.AddAsm("push ax");
                         break;
 
                     // CEQ
                     case 0xFE01:
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp ax, bx");    // compare values
-                        assembly.Assembly.Add("lahf");          // load flags into ah
-                        assembly.Assembly.Add("shr ax, 14");    // push the 1 into the LSB
-                        assembly.Assembly.Add("and ax, 1");     // push the 1 into the LSB
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp ax, bx");    // compare values
+                        assembly.AddAsm("lahf");          // load flags into ah
+                        assembly.AddAsm("shr ax, 14");    // push the 1 into the LSB
+                        assembly.AddAsm("and ax, 1");     // push the 1 into the LSB
+                        assembly.AddAsm("push ax");
                         break;
 
                     // CGT
                     case 0xFE02:
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp ax, bx");    // compare values
-                        assembly.Assembly.Add("lahf");          // load flags into ah
-                        assembly.Assembly.Add("shr ax, 15");    // push the 1 into the LSB
-                        assembly.Assembly.Add("and ax, 1");     // push the 1 into the LSB
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp ax, bx");    // compare values
+                        assembly.AddAsm("lahf");          // load flags into ah
+                        assembly.AddAsm("shr ax, 15");    // push the 1 into the LSB
+                        assembly.AddAsm("and ax, 1");     // push the 1 into the LSB
+                        assembly.AddAsm("push ax");
                         break;
 
                     // CGT.UN (identical to CGT for now)
                     case 0xFE03:
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp ax, bx");    // compare values
-                        assembly.Assembly.Add("lahf");          // load flags into ah
-                        assembly.Assembly.Add("shr ax, 15");    // push the 1 into the LSB
-                        assembly.Assembly.Add("and ax, 1");     // push the 1 into the LSB
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp ax, bx");    // compare values
+                        assembly.AddAsm("lahf");          // load flags into ah
+                        assembly.AddAsm("shr ax, 15");    // push the 1 into the LSB
+                        assembly.AddAsm("and ax, 1");     // push the 1 into the LSB
+                        assembly.AddAsm("push ax");
                         break;
 
                     // CLT
                     case 0xFE04:
-                        assembly.Assembly.Add("pop ax");        // value2
-                        assembly.Assembly.Add("pop bx");        // value1
-                        assembly.Assembly.Add("cmp bx, ax");    // compare values
-                        assembly.Assembly.Add("lahf");          // load flags into ah
-                        assembly.Assembly.Add("shr ax, 15");    // push the 1 into the LSB
-                        assembly.Assembly.Add("and ax, 1");     // push the 1 into the LSB
-                        assembly.Assembly.Add("push ax");
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
+                        assembly.AddAsm("lahf");          // load flags into ah
+                        assembly.AddAsm("shr ax, 15");    // push the 1 into the LSB
+                        assembly.AddAsm("and ax, 1");     // push the 1 into the LSB
+                        assembly.AddAsm("push ax");
                         break;
 
                     default: throw new Exception($"Unknown IL opcode 0x{opcode.ToString("X")} at {label}");
@@ -418,7 +421,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (assembly.Assembly.Count == asmCount)
                 {
                     //assembly.Assembly.RemoveAt(assembly.Assembly.Count - 1);
-                    //assembly.Assembly.Add("nop");
+                    //assembly.AddAsm("nop");
                 }
             }
 
