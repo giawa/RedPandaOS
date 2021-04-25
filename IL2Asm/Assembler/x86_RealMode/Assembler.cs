@@ -639,6 +639,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     stream.WriteLine("; Call static constructors");
                     foreach (var cctor in _staticConstructors)
                     {
+                        if (cctor.Value == null) continue;
                         string callsite = cctor.Key.Replace(".", "_");
                         stream.WriteLine($"    call {callsite}__cctor");
                     }
@@ -684,6 +685,18 @@ namespace IL2Asm.Assembler.x86_RealMode
                         {
                             stream.WriteLine($"{data.Key}:");
                             stream.WriteLine($"    db {(sbyte)data.Value}");
+                        }
+                        else if (data.Value is byte[])
+                        {
+                            stream.WriteLine($"{data.Key}:");
+                            stream.Write($"    db ");
+                            var bytes = (byte[])data.Value;
+                            for (int i = 0; i < bytes.Length; i++)
+                            {
+                                stream.Write(bytes[i]);
+                                if (i != bytes.Length - 1) stream.Write(", ");
+                            }
+                            stream.WriteLine();
                         }
                         else
                         {
