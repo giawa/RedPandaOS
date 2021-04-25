@@ -349,6 +349,15 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // LDSTR
                     case 0x72: LDSTR(assembly, metadata, code, ref i); break;
 
+                    // LDFLD
+                    case 0x7B: LDFLD(assembly, metadata, code, ref i); break;
+
+                    // LDFLDA
+                    case 0x7C: LDFLDA(assembly, metadata, code, ref i); break;
+
+                    // STFLD
+                    case 0x7D: STFLD(assembly, metadata, code, ref i); break;
+
                     // LDSFLD
                     case 0x7E: LDSFLD(assembly, metadata, code, ref i); break;
 
@@ -463,6 +472,19 @@ namespace IL2Asm.Assembler.x86_RealMode
             }
         }
 
+        private void STFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint fieldToken = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            int offset = GetFieldOffset(metadata, fieldToken);
+
+            assembly.AddAsm("pop ax");
+            assembly.AddAsm("pop bx");
+            if (offset == 0) assembly.AddAsm("mov [bx], ax");
+            else assembly.AddAsm($"mov [bx + {offset}], ax");
+        }
+
         private void LDSTR(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
             uint metadataToken = BitConverter.ToUInt32(code, i);
@@ -474,6 +496,36 @@ namespace IL2Asm.Assembler.x86_RealMode
             
             _initializedData.Add(label, s);
             assembly.AddAsm($"push {label}");
+        }
+
+        private void LDFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint fieldToken = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            int offset = GetFieldOffset(metadata, fieldToken);
+
+            assembly.AddAsm("pop bx");
+            if (offset == 0) assembly.AddAsm("mov ax, [bx]");
+            else assembly.AddAsm($"mov ax, [bx + {offset}]");
+            assembly.AddAsm("push ax");
+        }
+
+        private void LDFLDA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint fieldToken = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            int offset = GetFieldOffset(metadata, fieldToken);
+
+            assembly.AddAsm("pop bx");
+            if (offset == 0) assembly.AddAsm("mov ax, bx");
+            else
+            {
+                assembly.AddAsm("mov ax, bx");
+                assembly.AddAsm($"add ax, {offset}");
+            }
+            assembly.AddAsm("push ax");
         }
 
         private void STSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -509,9 +561,35 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             string label = $"DB_{addr.ToString("X")}";
 
-            if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+            if ((addr & 0xff000000) == 0x04000000)
+            {
+                var field = metadata.Fields[(addr & 0x00ffffff) - 1];
+
+                if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
+                {
+                    if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, field.Type);
+                }
+                else
+                {
+                    throw new Exception("Incomplete implementation");
+                }
+            }
+            else throw new Exception("Unexpected table found when trying to find a field.");
 
             assembly.AddAsm($"push {label}");
+        }
+
+        private void AddStaticField(CLIMetadata metadata, string label, ElementType type)
+        {
+            switch (type.Type)
+            {
+                case ElementType.EType.U1: _initializedData.Add(label, (byte)0); break;
+                case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
+                case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
+                case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
+                case ElementType.EType.ValueType: _initializedData.Add(label, new byte[GetTypeSize(metadata, type)]); break;
+                default: throw new Exception("Unsupported type");
+            }
         }
 
         private void AddStaticField(CLIMetadata metadata, string label, int fieldToken)
@@ -522,14 +600,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                 if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
                 {
-                    switch (field.Type.Type)
-                    {
-                        case ElementType.EType.U1: _initializedData.Add(label, (byte)0); break;
-                        case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
-                        case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
-                        case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
-                        default: throw new Exception("Unsupported type");
-                    }
+                    AddStaticField(metadata, label, field.Type);
                 }
                 else
                 {
@@ -537,6 +608,67 @@ namespace IL2Asm.Assembler.x86_RealMode
                 }
             }
             else throw new Exception("Unexpected table found when trying to find a field.");
+        }
+
+        private int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
+        {
+            var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
+            int offset = 0;
+
+            foreach (var f in field.Parent.Fields)
+            {
+                if (f == field) return offset;
+                offset += GetTypeSize(metadata, f.Type);
+            }
+
+            throw new Exception("TypeDef did not include requested fieldToken");
+        }
+
+        private static Dictionary<string, int> _typeSizes = new Dictionary<string, int>();
+
+        private int GetTypeSize(CLIMetadata metadata, ElementType type)
+        {
+            if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
+            {
+                var token = type.Token;
+                int size = 0;
+
+                if ((token & 0xff000000) == 0x02000000)
+                {
+                    var typeDef = metadata.TypeDefs[(int)(token & 0x00ffffff) - 1];
+                    if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
+
+                    foreach (var field in typeDef.Fields)
+                    {
+                        size += GetTypeSize(metadata, field.Type);
+                    }
+
+                    _typeSizes.Add(typeDef.FullName, size);
+                    return size;
+                }
+                else
+                {
+                    throw new Exception("Unsupported table");
+                }
+            }
+            else
+            {
+                switch (type.Type)
+                {
+                    case ElementType.EType.Boolean:
+                    case ElementType.EType.U1:
+                    case ElementType.EType.I1: return 1;
+                    case ElementType.EType.Char:
+                    case ElementType.EType.U2:
+                    case ElementType.EType.I2: return 2;
+                    case ElementType.EType.U4:
+                    case ElementType.EType.I4: return 4;
+                    case ElementType.EType.U8:
+                    case ElementType.EType.I8: return 8;
+                    case ElementType.EType.Void: return 0;
+                    default: throw new Exception("Unknown size");
+                }
+            }
         }
 
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
