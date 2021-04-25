@@ -66,7 +66,7 @@ namespace PELoader
 
         public override string ToString()
         {
-            return $"{Parent.Name}.{Name}";
+            return $"{Parent.FullName}.{Name}";
         }
     }
 }

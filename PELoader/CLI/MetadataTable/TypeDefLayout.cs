@@ -85,12 +85,13 @@ namespace PELoader
             }
 
             Name = metadata.GetString(typeName);
+            Namespace = metadata.GetString(typeNamespace);
         }
 
         public void FindFieldsAndMethods(List<FieldLayout> fields, List<MethodDefLayout> methodDefs)
         {
-            if (endOfFieldList == 0) endOfFieldList = (uint)fields.Count;
-            if (endOfMethodList == 0) endOfMethodList = (uint)methodDefs.Count;
+            if (endOfFieldList == 0) endOfFieldList = (uint)(fields.Count + 1);
+            if (endOfMethodList == 0) endOfMethodList = (uint)(methodDefs.Count + 1);
 
             for (uint i = fieldList; i < endOfFieldList; i++)
             {
@@ -105,6 +106,13 @@ namespace PELoader
         }
 
         public string Name { get; private set; }
+
+        public string Namespace { get; private set; }
+
+        public string FullName
+        {
+            get { return $"{Namespace}.{Name}"; }
+        }
 
         public override string ToString()
         {
