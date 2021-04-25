@@ -184,7 +184,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // LDC.I4
                     case 0x20:
                         int value = BitConverter.ToInt32(code, i);
-                        if (value > short.MaxValue || value < short.MinValue) 
+                        if (value > ushort.MaxValue || value < short.MinValue)
                             throw new Exception("Out of range for 16 bit mode");
                         i += 4;
                         assembly.AddAsm($"push {value}");
