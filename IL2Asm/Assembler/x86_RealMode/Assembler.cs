@@ -343,6 +343,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("push ax");
                         break;
 
+                    // CONV.I2
+                    case 0x68:
+                        // already must be 16 bit because we're in real mode
+                        /*assembly.AddAsm("pop ax");
+                        assembly.AddAsm("and ax, 65535");
+                        assembly.AddAsm("push ax");*/
+                        break;
+
                     // LDSTR
                     case 0x72: LDSTR(assembly, metadata, code, ref i); break;
 
