@@ -444,14 +444,12 @@ namespace IL2Asm.Assembler.x86_RealMode
             }
         }
 
-        //private Stack<object> _stack = new Stack<object>();
-
         private void LDSTR(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
-            string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
-
             uint metadataToken = BitConverter.ToUInt32(code, i);
             i += 4;
+
+            string label = $"DB_{metadataToken.ToString("X")}";
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
             
@@ -459,12 +457,25 @@ namespace IL2Asm.Assembler.x86_RealMode
             assembly.AddAsm($"push {label}");
         }
 
-        private void LDSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void STSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
-            string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
-
             int addr = BitConverter.ToInt32(code, i);
             i += 4;
+
+            string label = $"DB_{addr.ToString("X")}";
+
+            if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+
+            assembly.AddAsm($"pop ax");
+            assembly.AddAsm($"mov [{label}], ax");
+        }
+
+        private void LDSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            int addr = BitConverter.ToInt32(code, i);
+            i += 4;
+
+            string label = $"DB_{addr.ToString("X")}";
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
 
@@ -474,10 +485,10 @@ namespace IL2Asm.Assembler.x86_RealMode
 
         private void LDSFLDA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
-            string label = $"DB_{(i - 1).ToString("X4")}_{_methods.Count}";
-
             int addr = BitConverter.ToInt32(code, i);
             i += 4;
+
+            string label = $"DB_{addr.ToString("X")}";
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
 
