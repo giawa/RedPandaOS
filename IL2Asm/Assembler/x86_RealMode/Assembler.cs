@@ -8,6 +8,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 {
     public class Assembler : IAssembler
     {
+        private Dictionary<string, AssembledMethod> _staticConstructors = new Dictionary<string, AssembledMethod>();
         private List<AssembledMethod> _methods = new List<AssembledMethod>();
         private Dictionary<string, object> _initializedData = new Dictionary<string, object>();
 
@@ -25,13 +26,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             var code = method.Code;
 
-            if (_methods.Count == 0)
-            {
-                assembly.AddAsm("[bits 16]");    // for bootsector code only
-                assembly.AddAsm("[org 0x7c00]");    // for bootsector code only
-                assembly.AddAsm("");
-            }
-            else
+            if (_methods.Count > 0)
             {
                 string label = methodDef.ToString().Replace(".", "_");
                 assembly.AddAsm($"{label}:");
@@ -435,12 +430,36 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             _methods.Add(assembly);
 
+            ProcessStaticConstructor(memory, metadata, methodDef);
+
             var methodsToCompile = _methodsToCompile.ToArray();
             _methodsToCompile.Clear();
 
             for (int i = 0; i < methodsToCompile.Length; i++)
             {
                 Assemble(memory, metadata, methodsToCompile[i]);
+            }
+        }
+
+        private void ProcessStaticConstructor(VirtualMemory memory, CLIMetadata metadata, MethodDefLayout methodDef)
+        {
+            // find any static constructors for methods we are calling, and if necessary assemble them
+            if (!_staticConstructors.ContainsKey(methodDef.Parent.FullName))
+            {
+                _staticConstructors.Add(methodDef.Parent.FullName, null);
+
+                foreach (var childMethod in methodDef.Parent.Methods)
+                {
+                    if (childMethod.Name == ".cctor")
+                    {
+                        Console.WriteLine("Add constructor");
+
+                        int methodIndex = _methods.Count;
+
+                        Assemble(memory, metadata, childMethod);
+                        _staticConstructors[methodDef.Parent.FullName] = _methods[methodIndex];
+                    }
+                }
             }
         }
 
@@ -611,6 +630,20 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             using (StreamWriter stream = new StreamWriter(file))
             {
+                stream.WriteLine("[bits 16]");    // for bootsector code only
+                stream.WriteLine("[org 0x7c00]");    // for bootsector code only
+                stream.WriteLine("");
+
+                if (_staticConstructors.Count > 0)
+                {
+                    stream.WriteLine("; Call static constructors");
+                    foreach (var cctor in _staticConstructors)
+                    {
+                        string callsite = cctor.Key.Replace(".", "_");
+                        stream.WriteLine($"    call {callsite}__cctor");
+                    }
+                }
+
                 foreach (var method in _methods)
                 {
                     stream.WriteLine($"; Exporting assembly for method {method.Method.MethodDef}");
@@ -618,21 +651,9 @@ namespace IL2Asm.Assembler.x86_RealMode
                     {
                         if (!line.EndsWith(":") && !line.StartsWith("[")) stream.Write("    ");
                         stream.WriteLine(line);
-
-                        if (line == "call printstring")
-                        {
-                            if (!dependencies.Contains("realmode_printstring.asm")) dependencies.Add("realmode_printstring.asm");
-                        }
                     }
                     stream.WriteLine();
                 }
-
-                /*stream.WriteLine("; Exporting dependencies");
-                foreach (var dependency in dependencies)
-                {
-                    stream.WriteLine($"%include \"{dependency}\"");
-                }
-                stream.WriteLine();*/
 
                 if (_initializedData.Count > 0)
                 {
