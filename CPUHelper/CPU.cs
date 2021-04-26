@@ -30,12 +30,24 @@ namespace CPUHelper
             public GDTSegment DataSegment;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GDTPointer
+        {
+            public ushort size;
+            public uint offset;
+        }
+
         public static void DisableInterrupts()
         {
 
         }
 
         public static void LoadGDT(GDT gdt)
+        {
+
+        }
+
+        public static void WriteMemory(int addr, int c)
         {
 
         }
