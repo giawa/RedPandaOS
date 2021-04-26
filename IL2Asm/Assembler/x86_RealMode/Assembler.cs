@@ -19,10 +19,23 @@ namespace IL2Asm.Assembler.x86_RealMode
         private string _jmpLabel;
         private uint _uint;
 
-        public void Assemble(VirtualMemory memory, CLIMetadata metadata, MethodDefLayout methodDef)
+        public List<PortableExecutableFile> _assemblies = new List<PortableExecutableFile>();
+
+        public void AddAssembly(PortableExecutableFile pe)
         {
-            var method = new MethodHeader(memory, metadata, methodDef);
-            var assembly = new AssembledMethod(metadata, method);
+            foreach (var assembly in _assemblies)
+                if (assembly.Name == pe.Name)
+                    throw new Exception("Tried to add assembly more than once");
+
+            _assemblies.Add(pe);
+        }
+
+        public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
+        {
+            if (!_assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
+
+            var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
+            var assembly = new AssembledMethod(pe.Metadata, method);
 
             var code = method.Code;
 
@@ -195,8 +208,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("pop ax");
                         break;
 
-                    case 0x28: CALL(assembly, metadata, code, ref i); break;
-                    case 0x6F: CALLVIRT(assembly, metadata, code, ref i); break;
+                    case 0x28: CALL(assembly, pe.Metadata, code, ref i); break;
+                    case 0x6F: CALLVIRT(assembly, pe.Metadata, code, ref i); break;
 
                     // RET
                     case 0x2A:
@@ -347,25 +360,25 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     // LDSTR
-                    case 0x72: LDSTR(assembly, metadata, code, ref i); break;
+                    case 0x72: LDSTR(assembly, pe.Metadata, code, ref i); break;
 
                     // LDFLD
-                    case 0x7B: LDFLD(assembly, metadata, code, ref i); break;
+                    case 0x7B: LDFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDFLDA
-                    case 0x7C: LDFLDA(assembly, metadata, code, ref i); break;
+                    case 0x7C: LDFLDA(assembly, pe.Metadata, code, ref i); break;
 
                     // STFLD
-                    case 0x7D: STFLD(assembly, metadata, code, ref i); break;
+                    case 0x7D: STFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDSFLD
-                    case 0x7E: LDSFLD(assembly, metadata, code, ref i); break;
+                    case 0x7E: LDSFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDSFLDA
-                    case 0x7F: LDSFLDA(assembly, metadata, code, ref i); break;
+                    case 0x7F: LDSFLDA(assembly, pe.Metadata, code, ref i); break;
 
                     // STSFLD
-                    case 0x80: STSFLD(assembly, metadata, code, ref i); break;
+                    case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // CONV.U2
                     case 0xD1:
@@ -439,18 +452,18 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             _methods.Add(assembly);
 
-            ProcessStaticConstructor(memory, metadata, methodDef);
+            ProcessStaticConstructor(pe, methodDef);
 
             var methodsToCompile = _methodsToCompile.ToArray();
             _methodsToCompile.Clear();
 
             for (int i = 0; i < methodsToCompile.Length; i++)
             {
-                Assemble(memory, metadata, methodsToCompile[i]);
+                Assemble(pe, methodsToCompile[i]);
             }
         }
 
-        private void ProcessStaticConstructor(VirtualMemory memory, CLIMetadata metadata, MethodDefLayout methodDef)
+        private void ProcessStaticConstructor(PortableExecutableFile pe, MethodDefLayout methodDef)
         {
             // find any static constructors for methods we are calling, and if necessary assemble them
             if (!_staticConstructors.ContainsKey(methodDef.Parent.FullName))
@@ -465,7 +478,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                         int methodIndex = _methods.Count;
 
-                        Assemble(memory, metadata, childMethod);
+                        Assemble(pe, childMethod);
                         _staticConstructors[methodDef.Parent.FullName] = _methods[methodIndex];
                     }
                 }
