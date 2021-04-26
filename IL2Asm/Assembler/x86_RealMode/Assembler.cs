@@ -32,10 +32,11 @@ namespace IL2Asm.Assembler.x86_RealMode
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method);
             _methods.Add(assembly);
+            Runtime.GlobalMethodCounter++;
 
             var code = method.Code;
 
-            if (_methods.Count > 0)
+            if (_methods.Count > 1)
             {
                 string label = methodDef.ToAsmString();
                 assembly.AddAsm($"{label}:");
@@ -67,7 +68,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (opcode == 0xfe) opcode = (opcode << 8) | code[i++];
 
                 // add label for this opcode
-                string label = $"IL_{(i - 1).ToString("X4")}_{_methods.Count}";
+                string label = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                 assembly.AddAsm($"{label}:");
                 int asmCount = assembly.Assembly.Count;
 
@@ -233,14 +234,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BR.S
                     case 0x2B:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm($"jmp {_jmpLabel}");
                         break;
 
                     // BRFALSE.S
                     case 0x2C:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");
                         assembly.AddAsm("cmp ax, 0");
                         assembly.AddAsm($"je {_jmpLabel}");
@@ -249,7 +250,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BRTRUE.S
                     case 0x2D:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");
                         assembly.AddAsm("cmp ax, 0");
                         assembly.AddAsm($"jne {_jmpLabel}");
@@ -258,7 +259,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BGE.S
                     case 0x2F:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
@@ -268,7 +269,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BGT.S
                     case 0x30:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
@@ -278,7 +279,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BLE.S
                     case 0x31:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
@@ -288,7 +289,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BLT.S
                     case 0x32:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
@@ -298,7 +299,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // BNE.UN.S
                     case 0x33:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{_methods.Count}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
@@ -334,6 +335,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("pop bx");
                         assembly.AddAsm("pop ax");
                         assembly.AddAsm("and ax, bx");
+                        assembly.AddAsm("push ax");
+                        break;
+
+                    // OR
+                    case 0x60:
+                        assembly.AddAsm("pop bx");
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("or ax, bx");
                         assembly.AddAsm("push ax");
                         break;
 
@@ -594,7 +603,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                 case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
                 case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
                 case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
-                case ElementType.EType.ValueType: _initializedData.Add(label, new byte[_runtime.GetTypeSize(metadata, type)]); break;
+                case ElementType.EType.ValueType: 
+                    _initializedData.Add(label, new byte[_runtime.GetTypeSize(metadata, type)]); break;
                 default: throw new Exception("Unsupported type");
             }
         }
@@ -708,6 +718,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                 stream.WriteLine("[bits 16]");    // for bootsector code only
                 stream.WriteLine("[org 0x7c00]");    // for bootsector code only
                 stream.WriteLine("");
+                stream.WriteLine("mov bp, 0x9000");
+                stream.WriteLine("mov sp, bp");
 
                 if (_staticConstructors.Count > 0)
                 {

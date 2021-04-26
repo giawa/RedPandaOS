@@ -7,6 +7,8 @@ namespace IL2Asm
 {
     public class Runtime
     {
+        public static int GlobalMethodCounter = 0;
+
         private List<PortableExecutableFile> _assemblies = new List<PortableExecutableFile>();
 
         public List<PortableExecutableFile> Assemblies { get { return _assemblies; } }
