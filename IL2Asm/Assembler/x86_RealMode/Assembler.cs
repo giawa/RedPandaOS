@@ -625,16 +625,116 @@ namespace IL2Asm.Assembler.x86_RealMode
 
         private int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
         {
-            var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
-            int offset = 0;
-
-            foreach (var f in field.Parent.Fields)
+            if ((fieldToken & 0xff000000) == 0x04000000)
             {
-                if (f == field) return offset;
-                offset += GetTypeSize(metadata, f.Type);
-            }
+                var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
+                int offset = 0;
 
-            throw new Exception("TypeDef did not include requested fieldToken");
+                foreach (var f in field.Parent.Fields)
+                {
+                    if (f == field) return offset;
+                    offset += GetTypeSize(metadata, f.Type);
+                }
+
+                throw new Exception("Fields did not include requested fieldToken");
+            }
+            else if ((fieldToken & 0xff000000) == 0x0A000000)
+            {
+                var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
+                var type = field.MemberSignature.RetType;
+
+                if (type.Token == 0)
+                {
+                    // simple built-in type
+                    var parent = field.GetParentToken(metadata);
+
+                    while ((parent & 0xff000000) == 0x01000000)
+                    {
+                        var typeRef = metadata.TypeRefs[(int)(parent & 0x00ffffff) - 1];
+                        parent = typeRef.ResolutionScope;
+                    }
+
+                    if ((parent & 0xff000000) == 0x23000000)
+                    {
+                        var assemblyRef = metadata.AssemblyRefs[(int)(parent & 0x00ffffff) - 1];
+
+                        var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
+                        path += $"/{assemblyRef.Name}";
+
+                        PortableExecutableFile pe = null;
+
+                        foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
+
+                        if (pe == null)
+                        {
+                            if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
+                            else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
+                            else new FileNotFoundException(path);
+
+                            AddAssembly(pe);
+                        }
+
+                        for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                        {
+                            var f = pe.Metadata.Fields[i];
+                            if (f.Name == field.Name)
+                            {
+                                var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
+                                return offset;
+                            }
+                        }
+                    }
+                    else throw new Exception("Unable to find assembly used by typeRef");
+
+                    throw new Exception("MemberRefs did not include requested fieldToken");
+                }
+                else if ((type.Token & 0xff000000) == 0x01000000)
+                {
+                    var typeRef = metadata.TypeRefs[(int)(type.Token & 0x00ffffff) - 1];
+
+                    while ((typeRef.ResolutionScope & 0xff000000) == 0x01000000)
+                        typeRef = metadata.TypeRefs[(int)(typeRef.ResolutionScope & 0x00ffffff) - 1];
+
+                    if ((typeRef.ResolutionScope & 0xff000000) == 0x23000000)
+                    {
+                        var assemblyRef = metadata.AssemblyRefs[(int)(typeRef.ResolutionScope & 0x00ffffff) - 1];
+
+                        var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
+                        path += $"/{assemblyRef.Name}";
+
+                        PortableExecutableFile pe = null;
+
+                        foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
+
+                        if (pe == null)
+                        {
+                            if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
+                            else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
+                            else new FileNotFoundException(path);
+
+                            AddAssembly(pe);
+                        }
+
+                        for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                        {
+                            var f = pe.Metadata.Fields[i];
+                            if (f.Name == field.Name)
+                            {
+                                var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
+                                return offset;
+                            }
+                        }
+                    }
+                    else throw new Exception("Unable to find assembly used by typeRef");
+
+                    throw new Exception("MemberRefs did not include requested fieldToken");
+                }
+                else throw new Exception("Valuetype did not reference the typeref table");
+            }
+            else
+            {
+                throw new Exception("Unsupported metadata table");
+            }
         }
 
         private static Dictionary<string, int> _typeSizes = new Dictionary<string, int>();
@@ -658,6 +758,12 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                     _typeSizes.Add(typeDef.FullName, size);
                     return size;
+                }
+                else if ((token & 0xff000000) == 0x01000000)
+                {
+                    var typeRef = metadata.TypeRefs[(int)(token & 0x00ffffff) - 1];
+
+                    return 0;
                 }
                 else
                 {
