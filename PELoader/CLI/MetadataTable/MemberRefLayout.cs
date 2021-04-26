@@ -260,6 +260,19 @@ namespace PELoader
             else return $"{_parent}.{Name}";
         }
 
+        public string ToAsmString()
+        {
+            StringBuilder sb = new StringBuilder(ToString());//.Replace(".", "_"));
+            sb.Append($"_{MemberSignature.RetType.Type}");
+
+            for (int i = 0; i < MemberSignature.ParamCount; i++)
+            {
+                sb.Append($"_{MemberSignature.Params[i].Type}");
+            }
+
+            return sb.ToString();
+        }
+
         public string ToPrettyString()
         {
             StringBuilder sb = new StringBuilder();

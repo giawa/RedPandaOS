@@ -37,7 +37,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             if (_methods.Count > 0)
             {
-                string label = methodDef.ToString().Replace(".", "_");
+                string label = methodDef.ToAsmString();
                 assembly.AddAsm($"{label}:");
                 assembly.AddAsm("push bp");
                 assembly.AddAsm("mov bp, sp");
@@ -629,9 +629,9 @@ namespace IL2Asm.Assembler.x86_RealMode
             if ((methodDesc & 0xff000000) == 0x0a000000)
             {
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
-                var memberName = memberRef.ToString();
+                var memberName = memberRef.ToAsmString();
 
-                if (memberName == "CPUHelper.Bios.WriteByte")
+                if (memberName == "CPUHelper.Bios.WriteByte_Void_I4" || memberName == "CPUHelper.Bios.WriteByte_Void_U1")
                 {
                     assembly.AddAsm("; IL2Asm.Bios.WriteByte plug");
                     assembly.AddAsm("pop ax");
@@ -646,23 +646,23 @@ namespace IL2Asm.Assembler.x86_RealMode
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
                 var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
-                var memberName = methodDef.ToString();
+                var memberName = methodDef.ToAsmString();
 
                 bool methodAlreadyCompiled = false;
                 foreach (var method in _methods)
-                    if (method.Method.MethodDef.ToString() == methodDef.ToString())
+                    if (method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
                         methodAlreadyCompiled = true;
 
                 if (!methodAlreadyCompiled)
                 {
                     bool methodWaitingToCompile = false;
                     foreach (var method in _methodsToCompile)
-                        if (method.ToString() == methodDef.ToString())
+                        if (method.ToAsmString() == methodDef.ToAsmString())
                             methodWaitingToCompile = true;
                     if (!methodWaitingToCompile) _methodsToCompile.Add(methodDef);
                 }
 
-                string callsite = methodDef.ToString().Replace(".", "_");
+                string callsite = methodDef.ToAsmString().Replace(".", "_");
                 assembly.AddAsm($"call {callsite}");
 
                 if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push ax");
@@ -678,9 +678,9 @@ namespace IL2Asm.Assembler.x86_RealMode
             if ((methodDesc & 0xff000000) == 0x0a000000)
             {
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
-                var memberName = memberRef.ToString();
+                var memberName = memberRef.ToAsmString();
 
-                if (memberName == "System.String.get_Chars")
+                if (memberName == "System.String.get_Chars_Char_I4")
                 {
                     assembly.AddAsm("; System.String.get_Chars plug");
                     assembly.AddAsm("pop ax");  // pop index
@@ -688,13 +688,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("add ax, bx");
                     assembly.AddAsm("mov bx, ax");
                     assembly.AddAsm("mov ax, [bx]");
+                    assembly.AddAsm("and ax, 255");
                     assembly.AddAsm("push ax");
-                }
-                else if (memberName == "System.String.get_Length")
-                {
-                    assembly.AddAsm("; System.String.get_Length plug");
-                    assembly.AddAsm("pop bx");  // pop this
-                    assembly.AddAsm("push 14"); // TODO:  Actually find the length of the string
                 }
                 else
                 {

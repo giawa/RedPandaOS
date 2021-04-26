@@ -50,13 +50,23 @@ namespace TestIL
         [RealMode]
         public static void WriteHex(int value)
         {
+            WriteHexChar(value >> 12);
+            WriteHexChar(value >> 8);
             WriteHexChar(value >> 4);
-            WriteHexChar(value & 0x0f);
+            WriteHexChar(value);
+        }
+
+        [RealMode]
+        public static void WriteHex(byte value)
+        {
+            WriteHexChar(value >> 4);
+            WriteHexChar(value);
         }
 
         [RealMode]
         public static void WriteHexChar(int value)
         {
+            value &= 0x0f;
             if (value >= 10) Bios.WriteByte(value + 55);
             else Bios.WriteByte(value + 48);
         }
@@ -72,11 +82,12 @@ namespace TestIL
         [RealMode]
         public static void Write(string s)
         {
-            int l = s.Length;
+            int i = 0;
 
-            for (int i = 0; i < l; i++)
+            while (s[i] != 0)
             {
                 Bios.WriteByte((byte)s[i]);
+                i += 1;
             }
         }
 

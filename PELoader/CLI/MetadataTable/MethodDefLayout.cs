@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 
 namespace PELoader
 {
@@ -67,6 +68,19 @@ namespace PELoader
         public override string ToString()
         {
             return $"{Parent.FullName}.{Name}";
+        }
+
+        public string ToAsmString()
+        {
+            StringBuilder sb = new StringBuilder(ToString().Replace(".", "_"));
+            sb.Append($"_{MethodSignature.RetType.Type}");
+
+            for (int i = 0; i < MethodSignature.ParamCount; i++)
+            {
+                sb.Append($"_{MethodSignature.Params[i].Type}");
+            }
+
+            return sb.ToString();
         }
     }
 }
