@@ -129,18 +129,31 @@ namespace PELoader
             var blob = metadata.GetBlob(addr);
             var data = CLIMetadata.DecompressUnsignedSignature(blob, 1);    // first byte is the flags
 
-            Flags = (SigFlags)blob[0];
-            ParamCount = data[0];
-
-            uint i = 1;
-            RetType = new ElementType(data, ref i);
-
-            if (ParamCount > 0)
+            if (blob[0] == 0x06)
             {
-                Params = new ElementType[ParamCount];
-                for (uint p = 0; p < ParamCount; p++)
+                // this is just a field type?
+                uint i = 0;
+                RetType = new ElementType(data, ref i);
+            }
+            else if (blob[0] == 0x05)
+            {
+                throw new Exception("No support for VARARG (II.22.25) (intentional)");
+            }
+            else
+            {
+                Flags = (SigFlags)blob[0];
+                ParamCount = data[0];
+
+                uint i = 1;
+                RetType = new ElementType(data, ref i);
+
+                if (ParamCount > 0)
                 {
-                    Params[p] = new ElementType(data, ref i);
+                    Params = new ElementType[ParamCount];
+                    for (uint p = 0; p < ParamCount; p++)
+                    {
+                        Params[p] = new ElementType(data, ref i);
+                    }
                 }
             }
         }

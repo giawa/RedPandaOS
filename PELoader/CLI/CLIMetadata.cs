@@ -220,6 +220,10 @@ namespace PELoader
                     {
                         _constants.Add(new ConstantLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.NestedClass)
+                    {
+                        _nestedClasses.Add(new NestedClassLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -255,6 +259,7 @@ namespace PELoader
         private List<FieldLayout> _fields = new List<FieldLayout>();
         private List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
         private List<ConstantLayout> _constants = new List<ConstantLayout>();
+        private List<NestedClassLayout> _nestedClasses = new List<NestedClassLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
@@ -264,6 +269,7 @@ namespace PELoader
         public List<MemberRefLayout> MemberRefs { get { return _memberRefs; } }
         public List<StandAloneSigLayout> StandAloneSigs { get { return _standAloneSigs; } }
         public List<FieldLayout> Fields { get { return _fields; } }
+        public List<AssemblyRefLayout> AssemblyRefs { get { return _assemblyRefs; } }
 
         public uint[] TableSizes = new uint[64];
     }

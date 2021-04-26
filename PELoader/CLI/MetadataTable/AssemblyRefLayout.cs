@@ -11,6 +11,8 @@ namespace PELoader
         public uint culture;
         public uint hashValue;
 
+        public string Name { get; private set; }
+
         public AssemblyRefLayout(CLIMetadata metadata, ref int offset)
         {
             majorVersion = BitConverter.ToUInt16(metadata.Table.Heap, offset);
@@ -66,11 +68,8 @@ namespace PELoader
                 hashValue = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
-        }
 
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(name);
+            Name = metadata.GetString(name);
         }
     }
 }

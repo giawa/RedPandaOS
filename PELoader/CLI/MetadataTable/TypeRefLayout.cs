@@ -8,6 +8,8 @@ namespace PELoader
         public uint typeName;
         public uint typeNamespace;
 
+        public uint ResolutionScope { get; private set; }
+
         private string _name, _namespace;
 
         public TypeRefLayout(CLIMetadata metadata, ref int offset)
@@ -35,6 +37,14 @@ namespace PELoader
             {
                 resolutionScope = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
+            }
+
+            switch (firstByte & 0x03)
+            {
+                case 0x00: ResolutionScope = resolutionScope >> 2; break;
+                case 0x01: ResolutionScope = 0x1A000000 | (resolutionScope >> 2); break;
+                case 0x02: ResolutionScope = 0x23000000 | (resolutionScope >> 2); break;
+                case 0x03: ResolutionScope = 0x01000000 | (resolutionScope >> 2); break;
             }
 
             if (metadata.WideStrings)
