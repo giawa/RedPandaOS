@@ -31,6 +31,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method);
+            _methods.Add(assembly);
 
             var code = method.Code;
 
@@ -444,8 +445,6 @@ namespace IL2Asm.Assembler.x86_RealMode
                     //assembly.AddAsm("nop");
                 }
             }
-
-            _methods.Add(assembly);
 
             ProcessStaticConstructor(pe, methodDef);
 
