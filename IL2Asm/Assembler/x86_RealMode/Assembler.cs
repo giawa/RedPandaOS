@@ -506,7 +506,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             string label = $"DB_{metadataToken.ToString("X")}";
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
-            
+
             _initializedData.Add(label, s);
             assembly.AddAsm($"push {label}");
         }
@@ -623,6 +623,39 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
+        private PortableExecutableFile GetParentAssembly(CLIMetadata metadata, uint typeRefToken)
+        {
+            while ((typeRefToken & 0xff000000) == 0x01000000)
+            {
+                var typeRef = metadata.TypeRefs[(int)(typeRefToken & 0x00ffffff) - 1];
+                typeRefToken = typeRef.ResolutionScope;
+            }
+
+            if ((typeRefToken & 0xff000000) == 0x23000000)
+            {
+                var assemblyRef = metadata.AssemblyRefs[(int)(typeRefToken & 0x00ffffff) - 1];
+
+                var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
+                path += $"/{assemblyRef.Name}";
+
+                PortableExecutableFile pe = null;
+
+                foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
+
+                if (pe == null)
+                {
+                    if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
+                    else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
+                    else new FileNotFoundException(path);
+
+                    AddAssembly(pe);
+                }
+
+                return pe;
+            }
+            else throw new Exception("Unable to find assembly used by typeRef");
+        }
+
         private int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
         {
             if ((fieldToken & 0xff000000) == 0x04000000)
@@ -643,93 +676,22 @@ namespace IL2Asm.Assembler.x86_RealMode
                 var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
                 var type = field.MemberSignature.RetType;
 
-                if (type.Token == 0)
+                uint typeRefToken = type.Token;
+                if (typeRefToken == 0) typeRefToken = field.GetParentToken(metadata);
+
+                var pe = GetParentAssembly(metadata, typeRefToken);
+
+                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
                 {
-                    // simple built-in type
-                    var parent = field.GetParentToken(metadata);
-
-                    while ((parent & 0xff000000) == 0x01000000)
+                    var f = pe.Metadata.Fields[i];
+                    if (f.Name == field.Name)
                     {
-                        var typeRef = metadata.TypeRefs[(int)(parent & 0x00ffffff) - 1];
-                        parent = typeRef.ResolutionScope;
+                        var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
+                        return offset;
                     }
-
-                    if ((parent & 0xff000000) == 0x23000000)
-                    {
-                        var assemblyRef = metadata.AssemblyRefs[(int)(parent & 0x00ffffff) - 1];
-
-                        var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
-                        path += $"/{assemblyRef.Name}";
-
-                        PortableExecutableFile pe = null;
-
-                        foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
-
-                        if (pe == null)
-                        {
-                            if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
-                            else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
-                            else new FileNotFoundException(path);
-
-                            AddAssembly(pe);
-                        }
-
-                        for (int i = 0; i < pe.Metadata.Fields.Count; i++)
-                        {
-                            var f = pe.Metadata.Fields[i];
-                            if (f.Name == field.Name)
-                            {
-                                var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
-                                return offset;
-                            }
-                        }
-                    }
-                    else throw new Exception("Unable to find assembly used by typeRef");
-
-                    throw new Exception("MemberRefs did not include requested fieldToken");
                 }
-                else if ((type.Token & 0xff000000) == 0x01000000)
-                {
-                    var typeRef = metadata.TypeRefs[(int)(type.Token & 0x00ffffff) - 1];
 
-                    while ((typeRef.ResolutionScope & 0xff000000) == 0x01000000)
-                        typeRef = metadata.TypeRefs[(int)(typeRef.ResolutionScope & 0x00ffffff) - 1];
-
-                    if ((typeRef.ResolutionScope & 0xff000000) == 0x23000000)
-                    {
-                        var assemblyRef = metadata.AssemblyRefs[(int)(typeRef.ResolutionScope & 0x00ffffff) - 1];
-
-                        var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
-                        path += $"/{assemblyRef.Name}";
-
-                        PortableExecutableFile pe = null;
-
-                        foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
-
-                        if (pe == null)
-                        {
-                            if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
-                            else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
-                            else new FileNotFoundException(path);
-
-                            AddAssembly(pe);
-                        }
-
-                        for (int i = 0; i < pe.Metadata.Fields.Count; i++)
-                        {
-                            var f = pe.Metadata.Fields[i];
-                            if (f.Name == field.Name)
-                            {
-                                var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
-                                return offset;
-                            }
-                        }
-                    }
-                    else throw new Exception("Unable to find assembly used by typeRef");
-
-                    throw new Exception("MemberRefs did not include requested fieldToken");
-                }
-                else throw new Exception("Valuetype did not reference the typeref table");
+                throw new Exception("Could not find offset");
             }
             else
             {
