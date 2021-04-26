@@ -1,0 +1,152 @@
+﻿using PELoader;
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+namespace IL2Asm
+{
+    public class Runtime
+    {
+        private List<PortableExecutableFile> _assemblies = new List<PortableExecutableFile>();
+
+        public List<PortableExecutableFile> Assemblies { get { return _assemblies; } }
+
+        public void AddAssembly(PortableExecutableFile pe)
+        {
+            foreach (var assembly in _assemblies)
+                if (assembly.Name == pe.Name)
+                    throw new Exception("Tried to add assembly more than once");
+
+            _assemblies.Add(pe);
+        }
+
+        public PortableExecutableFile GetParentAssembly(CLIMetadata metadata, uint typeRefToken)
+        {
+            while ((typeRefToken & 0xff000000) == 0x01000000)
+            {
+                var typeRef = metadata.TypeRefs[(int)(typeRefToken & 0x00ffffff) - 1];
+                typeRefToken = typeRef.ResolutionScope;
+            }
+
+            if ((typeRefToken & 0xff000000) == 0x23000000)
+            {
+                var assemblyRef = metadata.AssemblyRefs[(int)(typeRefToken & 0x00ffffff) - 1];
+
+                var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
+                path += $"/{assemblyRef.Name}";
+
+                PortableExecutableFile pe = null;
+
+                foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
+
+                if (pe == null)
+                {
+                    if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
+                    else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
+                    else new FileNotFoundException(path);
+
+                    AddAssembly(pe);
+                }
+
+                return pe;
+            }
+            else throw new Exception("Unable to find assembly used by typeRef");
+        }
+
+        public int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
+        {
+            if ((fieldToken & 0xff000000) == 0x04000000)
+            {
+                var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
+                int offset = 0;
+
+                foreach (var f in field.Parent.Fields)
+                {
+                    if (f == field) return offset;
+                    offset += GetTypeSize(metadata, f.Type);
+                }
+
+                throw new Exception("Fields did not include requested fieldToken");
+            }
+            else if ((fieldToken & 0xff000000) == 0x0A000000)
+            {
+                var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
+                var type = field.MemberSignature.RetType;
+
+                uint typeRefToken = type.Token;
+                if (typeRefToken == 0) typeRefToken = field.GetParentToken(metadata);
+
+                var pe = GetParentAssembly(metadata, typeRefToken);
+
+                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                {
+                    var f = pe.Metadata.Fields[i];
+                    if (f.Name == field.Name)
+                    {
+                        var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
+                        return offset;
+                    }
+                }
+
+                throw new Exception("Could not find offset");
+            }
+            else
+            {
+                throw new Exception("Unsupported metadata table");
+            }
+        }
+
+        private Dictionary<string, int> _typeSizes = new Dictionary<string, int>();
+
+        public int GetTypeSize(CLIMetadata metadata, ElementType type)
+        {
+            if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
+            {
+                var token = type.Token;
+                int size = 0;
+
+                if ((token & 0xff000000) == 0x02000000)
+                {
+                    var typeDef = metadata.TypeDefs[(int)(token & 0x00ffffff) - 1];
+                    if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
+
+                    foreach (var field in typeDef.Fields)
+                    {
+                        size += GetTypeSize(metadata, field.Type);
+                    }
+
+                    _typeSizes.Add(typeDef.FullName, size);
+                    return size;
+                }
+                else if ((token & 0xff000000) == 0x01000000)
+                {
+                    var typeRef = metadata.TypeRefs[(int)(token & 0x00ffffff) - 1];
+
+                    return 0;
+                }
+                else
+                {
+                    throw new Exception("Unsupported table");
+                }
+            }
+            else
+            {
+                switch (type.Type)
+                {
+                    case ElementType.EType.Boolean:
+                    case ElementType.EType.U1:
+                    case ElementType.EType.I1: return 1;
+                    case ElementType.EType.Char:
+                    case ElementType.EType.U2:
+                    case ElementType.EType.I2: return 2;
+                    case ElementType.EType.U4:
+                    case ElementType.EType.I4: return 4;
+                    case ElementType.EType.U8:
+                    case ElementType.EType.I8: return 8;
+                    case ElementType.EType.Void: return 0;
+                    default: throw new Exception("Unknown size");
+                }
+            }
+        }
+    }
+}

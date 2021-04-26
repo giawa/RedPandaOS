@@ -11,6 +11,7 @@ namespace IL2Asm.Assembler.x86_RealMode
         private Dictionary<string, AssembledMethod> _staticConstructors = new Dictionary<string, AssembledMethod>();
         private List<AssembledMethod> _methods = new List<AssembledMethod>();
         private Dictionary<string, object> _initializedData = new Dictionary<string, object>();
+        private Runtime _runtime = new Runtime();
 
         public const int BytesPerRegister = 2;
 
@@ -19,20 +20,14 @@ namespace IL2Asm.Assembler.x86_RealMode
         private string _jmpLabel;
         private uint _uint;
 
-        public List<PortableExecutableFile> _assemblies = new List<PortableExecutableFile>();
-
         public void AddAssembly(PortableExecutableFile pe)
         {
-            foreach (var assembly in _assemblies)
-                if (assembly.Name == pe.Name)
-                    throw new Exception("Tried to add assembly more than once");
-
-            _assemblies.Add(pe);
+            _runtime.AddAssembly(pe);
         }
 
         public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
         {
-            if (!_assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
+            if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method);
@@ -490,7 +485,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             uint fieldToken = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            int offset = GetFieldOffset(metadata, fieldToken);
+            int offset = _runtime.GetFieldOffset(metadata, fieldToken);
 
             assembly.AddAsm("pop ax");
             assembly.AddAsm("pop bx");
@@ -516,7 +511,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             uint fieldToken = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            int offset = GetFieldOffset(metadata, fieldToken);
+            int offset = _runtime.GetFieldOffset(metadata, fieldToken);
 
             assembly.AddAsm("pop bx");
             if (offset == 0) assembly.AddAsm("mov ax, [bx]");
@@ -529,7 +524,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             uint fieldToken = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            int offset = GetFieldOffset(metadata, fieldToken);
+            int offset = _runtime.GetFieldOffset(metadata, fieldToken);
 
             assembly.AddAsm("pop bx");
             if (offset == 0) assembly.AddAsm("mov ax, bx");
@@ -600,7 +595,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
                 case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
                 case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
-                case ElementType.EType.ValueType: _initializedData.Add(label, new byte[GetTypeSize(metadata, type)]); break;
+                case ElementType.EType.ValueType: _initializedData.Add(label, new byte[_runtime.GetTypeSize(metadata, type)]); break;
                 default: throw new Exception("Unsupported type");
             }
         }
@@ -623,134 +618,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
-        private PortableExecutableFile GetParentAssembly(CLIMetadata metadata, uint typeRefToken)
-        {
-            while ((typeRefToken & 0xff000000) == 0x01000000)
-            {
-                var typeRef = metadata.TypeRefs[(int)(typeRefToken & 0x00ffffff) - 1];
-                typeRefToken = typeRef.ResolutionScope;
-            }
-
-            if ((typeRefToken & 0xff000000) == 0x23000000)
-            {
-                var assemblyRef = metadata.AssemblyRefs[(int)(typeRefToken & 0x00ffffff) - 1];
-
-                var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
-                path += $"/{assemblyRef.Name}";
-
-                PortableExecutableFile pe = null;
-
-                foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
-
-                if (pe == null)
-                {
-                    if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
-                    else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
-                    else new FileNotFoundException(path);
-
-                    AddAssembly(pe);
-                }
-
-                return pe;
-            }
-            else throw new Exception("Unable to find assembly used by typeRef");
-        }
-
-        private int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
-        {
-            if ((fieldToken & 0xff000000) == 0x04000000)
-            {
-                var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
-                int offset = 0;
-
-                foreach (var f in field.Parent.Fields)
-                {
-                    if (f == field) return offset;
-                    offset += GetTypeSize(metadata, f.Type);
-                }
-
-                throw new Exception("Fields did not include requested fieldToken");
-            }
-            else if ((fieldToken & 0xff000000) == 0x0A000000)
-            {
-                var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
-                var type = field.MemberSignature.RetType;
-
-                uint typeRefToken = type.Token;
-                if (typeRefToken == 0) typeRefToken = field.GetParentToken(metadata);
-
-                var pe = GetParentAssembly(metadata, typeRefToken);
-
-                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
-                {
-                    var f = pe.Metadata.Fields[i];
-                    if (f.Name == field.Name)
-                    {
-                        var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
-                        return offset;
-                    }
-                }
-
-                throw new Exception("Could not find offset");
-            }
-            else
-            {
-                throw new Exception("Unsupported metadata table");
-            }
-        }
-
-        private static Dictionary<string, int> _typeSizes = new Dictionary<string, int>();
-
-        private int GetTypeSize(CLIMetadata metadata, ElementType type)
-        {
-            if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
-            {
-                var token = type.Token;
-                int size = 0;
-
-                if ((token & 0xff000000) == 0x02000000)
-                {
-                    var typeDef = metadata.TypeDefs[(int)(token & 0x00ffffff) - 1];
-                    if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
-
-                    foreach (var field in typeDef.Fields)
-                    {
-                        size += GetTypeSize(metadata, field.Type);
-                    }
-
-                    _typeSizes.Add(typeDef.FullName, size);
-                    return size;
-                }
-                else if ((token & 0xff000000) == 0x01000000)
-                {
-                    var typeRef = metadata.TypeRefs[(int)(token & 0x00ffffff) - 1];
-
-                    return 0;
-                }
-                else
-                {
-                    throw new Exception("Unsupported table");
-                }
-            }
-            else
-            {
-                switch (type.Type)
-                {
-                    case ElementType.EType.Boolean:
-                    case ElementType.EType.U1:
-                    case ElementType.EType.I1: return 1;
-                    case ElementType.EType.Char:
-                    case ElementType.EType.U2:
-                    case ElementType.EType.I2: return 2;
-                    case ElementType.EType.U4:
-                    case ElementType.EType.I4: return 4;
-                    case ElementType.EType.U8:
-                    case ElementType.EType.I8: return 8;
-                    case ElementType.EType.Void: return 0;
-                    default: throw new Exception("Unknown size");
-                }
-            }
-        }
+        
 
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
 
@@ -827,7 +695,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 {
                     assembly.AddAsm("; System.String.get_Length plug");
                     assembly.AddAsm("pop bx");  // pop this
-                    assembly.AddAsm("push 14");
+                    assembly.AddAsm("push 14"); // TODO:  Actually find the length of the string
                 }
                 else
                 {
