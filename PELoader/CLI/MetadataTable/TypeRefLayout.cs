@@ -10,7 +10,8 @@ namespace PELoader
 
         public uint ResolutionScope { get; private set; }
 
-        private string _name, _namespace;
+        public string Name { get; private set; }
+        public string Namespace { get; private set; }
 
         public TypeRefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -62,18 +63,13 @@ namespace PELoader
                 offset += 2;
             }
 
-            _name = metadata.GetString(typeName);
-            _namespace = metadata.GetString(typeNamespace);
-        }
-
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(typeName);
+            Name = metadata.GetString(typeName);
+            Namespace = metadata.GetString(typeNamespace);
         }
 
         public override string ToString()
         {
-            return $"{_namespace}.{_name}";
+            return $"{Namespace}.{Name}";
         }
     }
 }

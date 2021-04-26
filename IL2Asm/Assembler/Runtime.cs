@@ -123,8 +123,25 @@ namespace IL2Asm
                 else if ((token & 0xff000000) == 0x01000000)
                 {
                     var typeRef = metadata.TypeRefs[(int)(token & 0x00ffffff) - 1];
+                    var pe = GetParentAssembly(metadata, token);
 
-                    return 0;
+                    foreach (var typeDef in pe.Metadata.TypeDefs)
+                    {
+                        if (typeDef.Name == typeRef.Name && typeDef.Namespace == typeRef.Namespace)
+                        {
+                            if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
+
+                            foreach (var field in typeDef.Fields)
+                            {
+                                size += GetTypeSize(pe.Metadata, field.Type);
+                            }
+
+                            _typeSizes.Add(typeDef.FullName, size);
+                            return size;
+                        }
+                    }
+
+                    throw new Exception("Could not find size");
                 }
                 else
                 {
