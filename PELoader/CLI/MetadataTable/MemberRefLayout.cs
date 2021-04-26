@@ -92,7 +92,11 @@ namespace PELoader
             {
                 Token = CLIMetadata.TypeDefOrRefOrSpecEncoded(data[i++]);//data[i++];
             }
-            else if (Type == EType.Var || Type == EType.MethodSignature || Type == EType.MVar)
+            else if (Type == EType.Var)
+            {
+                Token = data[i++];
+            }
+            else if (Type == EType.MethodSignature || Type == EType.MVar)
             {
                 throw new Exception("Unhandled");
             }
@@ -223,6 +227,20 @@ namespace PELoader
         }
 
         private string _parent = null;
+
+        public uint GetParentToken(CLIMetadata metadata)
+        {
+            uint addr = (classIndex >> 3);
+            switch (classIndex & 0x07)
+            {
+                case 0x00: addr |= 0x02000000U; break;
+                case 0x01: addr |= 0x01000000U; break;
+                case 0x02: addr |= 0x0A000000U; break;
+                case 0x03: addr |= 0x06000000U; break;
+                case 0x04: addr |= 0x1B000000U; break;
+            }
+            return addr;
+        }
 
         public void FindParentType(CLIMetadata metadata)
         {

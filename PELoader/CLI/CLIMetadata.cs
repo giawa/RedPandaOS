@@ -224,6 +224,10 @@ namespace PELoader
                     {
                         _nestedClasses.Add(new NestedClassLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.InterfaceImpl)
+                    {
+                        _interfaceImpls.Add(new InterfaceImplLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -260,6 +264,7 @@ namespace PELoader
         private List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
         private List<ConstantLayout> _constants = new List<ConstantLayout>();
         private List<NestedClassLayout> _nestedClasses = new List<NestedClassLayout>();
+        private List<InterfaceImplLayout> _interfaceImpls = new List<InterfaceImplLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
