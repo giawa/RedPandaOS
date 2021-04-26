@@ -20,7 +20,8 @@ namespace IL2Asm
                 //MethodHeader method = new MethodHeader(file.Memory, methodDef);
 
                 Assembler.x86_RealMode.Assembler assembler = new Assembler.x86_RealMode.Assembler();
-                assembler.Assemble(file.Memory, file.Metadata, methodDef);
+                assembler.AddAssembly(file);
+                assembler.Assemble(file, methodDef);
 
                 assembler.WriteAssembly("bios.asm");
 

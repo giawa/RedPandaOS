@@ -7,6 +7,7 @@ namespace PELoader
     public class PortableExecutableFile
     {
         public string Name { get; private set; }
+        public string Filename { get; private set; }
 
         private COFFHeader _header;
         private COFFStandardFields _standardFields;
@@ -38,9 +39,10 @@ namespace PELoader
 
         public PortableExecutableFile(string path)
         {
-            Name = path.Replace("\\", "/");
-            Name = Name.Substring(Name.LastIndexOf("/") + 1);
+            var fileInfo = new FileInfo(path);
+            Name = fileInfo.Name;
             if (Name.EndsWith(".dll") || Name.EndsWith(".exe")) Name = Name.Substring(0, Name.Length - 4);
+            Filename = fileInfo.FullName.Replace("\\", "/");
 
             // try to process the output of 'TestIL'
             using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
