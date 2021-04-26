@@ -696,7 +696,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToString();
 
-                if (memberName == "IL2Asm.Bios.WriteByte")
+                if (memberName == "CPUHelper.Bios.WriteByte")
                 {
                     assembly.AddAsm("; IL2Asm.Bios.WriteByte plug");
                     assembly.AddAsm("pop ax");

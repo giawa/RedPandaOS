@@ -13,7 +13,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILInterpreter", "ILInterpre
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILInterpreter.Tests", "ILInterpreter.Tests\ILInterpreter.Tests.csproj", "{9517780D-7A43-46BC-B92C-21A7AB2AEB48}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IL2Asm", "IL2Asm\IL2Asm.csproj", "{6AD4270F-149A-468A-859E-043FEFF8CF50}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IL2Asm", "IL2Asm\IL2Asm.csproj", "{6AD4270F-149A-468A-859E-043FEFF8CF50}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CPUHelper", "CPUHelper\CPUHelper.csproj", "{8F7BE29B-B914-436D-8CE2-FDE30870842B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6AD4270F-149A-468A-859E-043FEFF8CF50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,4 +1,5 @@
-﻿using IL2Asm;
+﻿using System.Runtime.InteropServices;
+using CPUHelper;
 
 namespace TestIL
 {

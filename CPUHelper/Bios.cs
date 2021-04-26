@@ -1,8 +1,7 @@
-﻿using PELoader;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace IL2Asm
+namespace CPUHelper
 {
     /*public interface ICanBeAssembled
     {
