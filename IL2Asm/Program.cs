@@ -55,7 +55,7 @@ namespace IL2Asm
                     // then boot qemu
                     Console.WriteLine();
                     Console.WriteLine("* Booting OS!");
-                    var qemu = Process.Start("qemu-system-x86_64", "boot.bin");
+                    var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin");
                     qemu.WaitForExit();
                 }
                 catch (Exception e)

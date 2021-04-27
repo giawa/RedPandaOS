@@ -6,6 +6,7 @@ namespace TestIL
     class Program
     {
         private const string _welcomeMessage = "Hello from C#!";
+        private const string _diskFail = "Disk fail";
         private static CPU.GDT _gdt;
 
         [BootEntryPoint]
