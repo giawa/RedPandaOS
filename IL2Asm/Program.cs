@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 
 namespace IL2Asm
@@ -13,53 +14,84 @@ namespace IL2Asm
             PortableExecutableFile file = new PortableExecutableFile(@"..\..\..\..\TestIL\bin\Debug\netcoreapp3.1\TestIL.dll");
 
             // find the Program.Main entry point
-            var methodDef = FindEntryPoint(file, "Program", "Main");
+            var methodDef16 = FindEntryPoint(file, "Program", "Main");
+            var methodDef32 = FindEntryPoint(file, "Program", "Main32");
 
-            if (methodDef != null)
+            if (methodDef16 != null && methodDef32 != null)
             {
                 //MethodHeader method = new MethodHeader(file.Memory, methodDef);
 
-                Assembler.x86_RealMode.Assembler assembler = new Assembler.x86_RealMode.Assembler();
-                assembler.AddAssembly(file);
-                assembler.Assemble(file, methodDef);
+                Assembler.x86_RealMode.Assembler assembler16 = new Assembler.x86_RealMode.Assembler();
+                assembler16.AddAssembly(file);
+                assembler16.Assemble(file, methodDef16);
 
-                assembler.WriteAssembly("bios.asm");
+                assembler16.WriteAssembly("bios.asm");
+
+                Assembler.x86.Assembler assembler32 = new Assembler.x86.Assembler();
+                assembler32.AddAssembly(file);
+                assembler32.Assemble(file, methodDef32);
+
+                assembler32.WriteAssembly("pm.asm");
+
+                /*using (StreamWriter stream = new StreamWriter("bios.asm", true))
+                {
+                    stream.WriteLine();
+                    stream.Write(File.ReadAllText("pm.asm"));
+                }*/
 
                 // process the assembly
                 Console.WriteLine();
                 Console.WriteLine("* Assembling OS!");
-                ProcessStartInfo startInfo = new ProcessStartInfo("nasm.exe", "-fbin bios.asm -o boot.bin");
-                startInfo.RedirectStandardOutput = true;
-                startInfo.UseShellExecute = false;
+                RunNASM("bios.asm", "bios.bin");
+                RunNASM("pm.asm", "pm.bin");
 
-                Process nasm = new Process();
-                nasm.StartInfo = startInfo;
-                nasm.OutputDataReceived += (sender, args) => Console.WriteLine("{0}", args);
+                // combine the assemblies by tacking the protected mode code on to the boot loader
+                try
+                {
+                    File.Copy("bios.bin", "boot.bin", true);
+                    using (var stream = new FileStream("boot.bin", FileMode.Append))
+                        stream.Write(File.ReadAllBytes("pm.bin"));
 
-                nasm.Start();
-                nasm.BeginOutputReadLine();
-                nasm.WaitForExit();
-
-                // then boot qemu
-                Console.WriteLine();
-                Console.WriteLine("* Booting OS!");
-                var qemu = Process.Start("qemu-system-x86_64", "boot.bin");
-                qemu.WaitForExit();
+                    // then boot qemu
+                    Console.WriteLine();
+                    Console.WriteLine("* Booting OS!");
+                    var qemu = Process.Start("qemu-system-x86_64", "boot.bin");
+                    qemu.WaitForExit();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
             }
 
             Console.WriteLine("Press key to exit...");
             Console.ReadKey();
         }
 
+        private static void RunNASM(string inputFile, string outputFile)
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo("nasm.exe", $"-fbin {inputFile} -o {outputFile}");
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+
+            Process nasm = new Process();
+            nasm.StartInfo = startInfo;
+            nasm.OutputDataReceived += (sender, args) => Console.WriteLine("{0}", args);
+
+            nasm.Start();
+            nasm.BeginOutputReadLine();
+            nasm.WaitForExit();
+        }
+
         private static MethodDefLayout FindEntryPoint(PortableExecutableFile file, string typeName, string methodName)
         {
             foreach (var typeDef in file.Metadata.TypeDefs)
             {
-                if (typeDef.Name == "Program")
+                if (typeDef.Name == typeName)
                 {
                     foreach (var methodDef in typeDef.Methods)
                     {
-                        if (methodDef.Name == "Main")
+                        if (methodDef.Name == methodName)
                             return methodDef;
                     }
                 }

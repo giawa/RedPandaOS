@@ -5,27 +5,73 @@ namespace TestIL
 {
     class Program
     {
-        private const string _welcomeMessage = "Welcome to C#!";
+        private const string _welcomeMessage = "Hello from C#!";
+        private static CPU.GDT _gdt;
 
         [BootEntryPoint]
         [RealMode]
         static void Main()
         {
-            for (int i = 1; i < 80; i++)
+            // BIOS stores the disk in dl, the lowest 8 bits of dx
+            byte disk = (byte)CPU.ReadDX();
+
+            if (LoadDiskWithRetry(0x0000, 0x9000, disk, 4))
             {
-                int prime = IsPrime(i);
-                if (prime != 0)
-                {
-                    WriteHex(prime);
-                    Bios.WriteByte('\n');
-                    Bios.WriteByte('\r');
-                }
+                _gdt.CodeSegment.segmentLength = 0xffff;
+                _gdt.CodeSegment.flags1 = 0x9A;
+                _gdt.CodeSegment.flags2 = 0xCF;
+
+                _gdt.DataSegment.segmentLength = 0xffff;
+                _gdt.DataSegment.flags1 = 0x92;
+                _gdt.DataSegment.flags2 = 0xCF;
+
+                Bios.EnterProtectedMode(_gdt);
+            }
+            else
+            {
+                Write(_diskFail);
             }
 
             while (true) ;
         }
 
-        [RealMode]
+        public static bool LoadDiskWithRetry(ushort highAddr, ushort lowAddr, byte disk, byte sectors)
+        {
+            int retry = 0;
+            ushort sectorsRead;
+
+            do
+            {
+                sectorsRead = Bios.LoadDisk(0x0000, 0x9000, disk, sectors);
+            } while (sectorsRead != sectors && retry++ < 3);
+
+            return sectorsRead == sectors;
+        }
+
+        static void Main32()
+        {
+            VGA.Clear();
+            VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
+            VGA.WriteLine();
+
+            for (int i = 0; i < 255; i++)
+            {
+                VGA.WriteVideoMemoryChar(MathHelper.Modulo(i, 10) + 48, (ushort)(i << 8));
+            }
+
+            VGA.WriteLine();
+            VGA.WriteVideoMemoryString("CR0: 0x");
+            VGA.WriteHex((int)CPU.ReadCR0());
+
+            while (true) ;
+        }
+
+        public static int Factorial(int num)
+        {
+            if (num == 1) return 1;
+            else return num * Factorial(num - 1);
+        }
+
         public static int IsPrime(int num)
         {
             if (num == 1) return 0;
@@ -33,20 +79,13 @@ namespace TestIL
             {
                 for (int i = 2; i < num; i++)
                 {
-                    if (Modulo(num, i) == 0) return 0;
+                    if (MathHelper.Modulo(num, i) == 0) return 0;
                 }
                 return num;
             }
         }
 
-        [RealMode]
-        public static int Modulo(int source, int div)
-        {
-            int remainder = source;
-            while (remainder >= div) remainder -= div;
-            return remainder;
-        }
-
+        #region Bios Helpers
         [RealMode]
         public static void WriteHex(int value)
         {
@@ -103,26 +142,12 @@ namespace TestIL
 
             while (divisor > 0)
             {
-                int c = Divide(value, divisor);
-                Bios.WriteByte(Modulo(c, 10) + 48);
+                int c = MathHelper.Divide(value, divisor);
+                Bios.WriteByte(MathHelper.Modulo(c, 10) + 48);
 
-                divisor = Divide(divisor, 10);
+                divisor = MathHelper.Divide(divisor, 10);
             }
         }
-
-        [RealMode]
-        public static int Divide(int source, int div)
-        {
-            int remainder = source;
-            int quotient = 0;
-
-            while (remainder >= div)
-            {
-                remainder -= div;
-                quotient++;
-            }
-
-            return quotient;
-        }
+        #endregion
     }
 }
