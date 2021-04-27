@@ -200,6 +200,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"push {value}");
                         break;
 
+                    // DUP
+                    case 0x25:
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("push ax");
+                        assembly.AddAsm("push ax");
+                        break;
+
                     // POP
                     case 0x26:
                         assembly.AddAsm("pop ax");
@@ -256,6 +263,16 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
+                    // BEQ.S
+                    case 0x2E:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"je {_jmpLabel}");
+                        break;
+
                     // BGE.S
                     case 0x2F:
                         _sbyte = (sbyte)code[i++];
@@ -304,6 +321,17 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("pop bx");        // value1
                         assembly.AddAsm("cmp bx, ax");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
+                        break;
+
+                    // BRFALSE
+                    case 0x39:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("cmp bx, 0");    // compare values
+                        assembly.AddAsm($"je {_jmpLabel}");
                         break;
 
                     // ADD
@@ -660,7 +688,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                 bool methodAlreadyCompiled = false;
                 foreach (var method in _methods)
-                    if (method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
+                    if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
                         methodAlreadyCompiled = true;
 
                 if (!methodAlreadyCompiled)
@@ -715,8 +743,8 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             using (StreamWriter stream = new StreamWriter(file))
             {
-                stream.WriteLine("[bits 16]");    // for bootsector code only
-                stream.WriteLine("[org 0x7c00]");    // for bootsector code only
+                stream.WriteLine("[bits 16]");      // for bootsector code only
+                stream.WriteLine("[org 0x7c00]");   // for bootsector code only
                 stream.WriteLine("");
                 stream.WriteLine("mov bp, 0x9000");
                 stream.WriteLine("mov sp, bp");
@@ -728,13 +756,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                     {
                         if (cctor.Value == null) continue;
                         string callsite = cctor.Key.Replace(".", "_");
-                        stream.WriteLine($"    call {callsite}__cctor");
+                        stream.WriteLine($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
                     }
                 }
 
                 foreach (var method in _methods)
                 {
-                    stream.WriteLine($"; Exporting assembly for method {method.Method.MethodDef}");
+                    if (method.Method != null) stream.WriteLine($"; Exporting assembly for method {method.Method.MethodDef}");
                     foreach (var line in method.Assembly)
                     {
                         if (!line.EndsWith(":") && !line.StartsWith("[")) stream.Write("    ");
