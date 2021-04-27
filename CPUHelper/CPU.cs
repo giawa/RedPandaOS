@@ -21,13 +21,11 @@ namespace CPUHelper
         [StructLayout(LayoutKind.Sequential)]
         public struct GDT
         {
-            public ushort reserved1;
-            public ushort reserved2;
-            public ushort reserved3;
-            public ushort reserved4;
-
-            public GDTSegment CodeSegment;
-            public GDTSegment DataSegment;
+            public GDTSegment Reserved;
+            public GDTSegment KernelCodeSegment;
+            public GDTSegment KernelDataSegment;
+            //public GDTSegment UserCodeSegment;
+            //public GDTSegment UserDataSegment;
         }
 
         [StructLayout(LayoutKind.Sequential)]

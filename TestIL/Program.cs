@@ -17,13 +17,13 @@ namespace TestIL
 
             if (LoadDiskWithRetry(0x0000, 0x9000, disk, 4))
             {
-                _gdt.CodeSegment.segmentLength = 0xffff;
-                _gdt.CodeSegment.flags1 = 0x9A;
-                _gdt.CodeSegment.flags2 = 0xCF;
+                _gdt.KernelCodeSegment.segmentLength = 0xffff;
+                _gdt.KernelCodeSegment.flags1 = 0x9A;
+                _gdt.KernelCodeSegment.flags2 = 0xCF;
 
-                _gdt.DataSegment.segmentLength = 0xffff;
-                _gdt.DataSegment.flags1 = 0x92;
-                _gdt.DataSegment.flags2 = 0xCF;
+                _gdt.KernelDataSegment.segmentLength = 0xffff;
+                _gdt.KernelDataSegment.flags1 = 0x92;
+                _gdt.KernelDataSegment.flags2 = 0xCF;
 
                 Bios.EnterProtectedMode(ref _gdt);
             }
