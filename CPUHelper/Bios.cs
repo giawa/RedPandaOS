@@ -37,7 +37,7 @@ namespace CPUHelper
             Console.Write((char)(c & 0xff));
         }
 
-        public static void EnterProtectedMode(CPU.GDT gdt)
+        public static void EnterProtectedMode(ref CPU.GDT gdt)
         {
 
         }

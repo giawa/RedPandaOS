@@ -25,7 +25,7 @@ namespace TestIL
                 _gdt.DataSegment.flags1 = 0x92;
                 _gdt.DataSegment.flags2 = 0xCF;
 
-                Bios.EnterProtectedMode(_gdt);
+                Bios.EnterProtectedMode(ref _gdt);
             }
             else
             {

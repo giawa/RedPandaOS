@@ -676,10 +676,11 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("mov ah, 0x0e");
                     assembly.AddAsm("int 0x10");
                 }
-                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ValueType")
+                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ByRef")
                 {
                     assembly.AddAsm("; Bios.EnterProtectedMode plug");
                     assembly.AddAsm("pop bx");
+                    assembly.AddAsm("mov [gdt_ptr + 2], bx");
                     assembly.AddAsm("cli");
                     assembly.AddAsm("lgdt [gdt_ptr]");
                     assembly.AddAsm("mov eax, cr0");
@@ -689,7 +690,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("");
                     assembly.AddAsm("gdt_ptr:");
                     assembly.AddAsm("dw 23");
-                    assembly.AddAsm("dd DB_4000006");
+                    assembly.AddAsm("dd 0; this gets filled in with bx, which is the address of the gdt object");
                 }
                 else if (memberName == "CPUHelper.CPU.ReadDX_U2")
                 {
