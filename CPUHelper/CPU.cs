@@ -51,5 +51,35 @@ namespace CPUHelper
         {
 
         }
+
+        public static void OutDxAl(ushort dx, byte al)
+        {
+
+        }
+
+        public static byte InDx(ushort dx)
+        {
+            return 0;
+        }
+
+        public static ushort ReadDX()
+        {
+            return 0;
+        }
+
+        public static ushort ReadAX()
+        {
+            return 0;
+        }
+
+        public static uint ReadCR0()
+        {
+            return 0;
+        }
+
+        public static ushort ReadMem(ushort addr)
+        {
+            return 0;
+        }
     }
 }

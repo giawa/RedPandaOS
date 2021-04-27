@@ -41,5 +41,10 @@ namespace CPUHelper
         {
 
         }
+
+        public static ushort LoadDisk(ushort highAddr, ushort lowAddr, byte drive, byte sectors)
+        {
+            return 0;
+        }
     }
 }

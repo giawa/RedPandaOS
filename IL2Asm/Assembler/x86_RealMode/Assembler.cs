@@ -19,6 +19,7 @@ namespace IL2Asm.Assembler.x86_RealMode
         private byte _byte;
         private string _jmpLabel;
         private uint _uint;
+        private int _int;
 
         public void AddAssembly(PortableExecutableFile pe)
         {
@@ -655,9 +656,8 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
-        
-
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
+        private bool _addedLoadDisk = false;
 
         private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
@@ -671,10 +671,87 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                 if (memberName == "CPUHelper.Bios.WriteByte_Void_I4" || memberName == "CPUHelper.Bios.WriteByte_Void_U1")
                 {
-                    assembly.AddAsm("; IL2Asm.Bios.WriteByte plug");
+                    assembly.AddAsm("; Bios.WriteByte plug");
                     assembly.AddAsm("pop ax");
                     assembly.AddAsm("mov ah, 0x0e");
                     assembly.AddAsm("int 0x10");
+                }
+                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ValueType")
+                {
+                    assembly.AddAsm("; Bios.EnterProtectedMode plug");
+                    assembly.AddAsm("pop bx");
+                    assembly.AddAsm("cli");
+                    assembly.AddAsm("lgdt [gdt_ptr]");
+                    assembly.AddAsm("mov eax, cr0");
+                    assembly.AddAsm("or eax, 0x1");
+                    assembly.AddAsm("mov cr0, eax");
+                    assembly.AddAsm("jmp 08h:0x9000");  // our 32 bit code starts at 0x9000, freshly loaded from the disk
+                    assembly.AddAsm("");
+                    assembly.AddAsm("gdt_ptr:");
+                    assembly.AddAsm("dw 23");
+                    assembly.AddAsm("dd DB_4000006");
+                }
+                else if (memberName == "CPUHelper.CPU.ReadDX_U2")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.ReadDX_U2 plug");
+                    assembly.AddAsm("push dx");
+                }
+                else if (memberName == "CPUHelper.CPU.ReadMem_U2_U2")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
+                    assembly.AddAsm("pop bx");
+                    assembly.AddAsm("mov ax, [bx]");
+                    assembly.AddAsm("push ax");
+                }
+                else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U2_U2_U1_U1")
+                {
+                    assembly.AddAsm("call LoadDisk_U2_U2_U2_U1_U1");
+                    assembly.AddAsm("push ax");
+
+                    if (!_addedLoadDisk)
+                    {
+                        AssembledMethod loadDiskMethod = new AssembledMethod(null, null);
+                        loadDiskMethod.AddAsm("; Bios.LoadDisk_U2_U2_U2_U1_U1 plug");
+                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1:");
+                        loadDiskMethod.AddAsm("push bp");
+                        loadDiskMethod.AddAsm("mov bp, sp");
+                        loadDiskMethod.AddAsm("push cx");
+                        loadDiskMethod.AddAsm("push dx");
+                        
+                        // bp + 4 is sectors
+                        // bp + 6 is drive
+                        // bp + 8 is lowAddr
+                        // bp + 10 is hiAddr
+                        loadDiskMethod.AddAsm("mov es, [bp + 10]");
+                        loadDiskMethod.AddAsm("mov bx, [bp + 8]");
+
+                        loadDiskMethod.AddAsm("mov ah, 0x02");
+                        loadDiskMethod.AddAsm("mov al, [bp + 4]");
+
+                        loadDiskMethod.AddAsm("mov cl, 0x02");      // starting at sector 2, sector 1 is our boot sector and already in memory
+                        loadDiskMethod.AddAsm("mov ch, 0x00");      // cyliner 0
+                        loadDiskMethod.AddAsm("mov dh, 0x00");      // head number 0
+                        loadDiskMethod.AddAsm("mov dl, [bp + 6]");  // drive number from bios
+
+                        loadDiskMethod.AddAsm("int 0x13");
+                        //loadDiskMethod.AddAsm("mov al, dl");
+
+                        loadDiskMethod.AddAsm("jc LoadDisk_U2_U2_U2_U1_U1_Error");
+                        loadDiskMethod.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
+
+                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
+                        loadDiskMethod.AddAsm("pop dx");
+                        loadDiskMethod.AddAsm("pop cx");
+                        loadDiskMethod.AddAsm("pop bp");
+                        loadDiskMethod.AddAsm("ret 8");
+
+                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Error:");
+                        loadDiskMethod.AddAsm("mov al, ah");
+                        loadDiskMethod.AddAsm("jmp LoadDisk_U2_U2_U2_U1_U1_Cleanup");
+
+                        _methods.Add(loadDiskMethod);
+                        _addedLoadDisk = true;
+                    }
                 }
                 else
                 {
@@ -824,6 +901,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 // should only do this for boot sector attribute code
                 stream.WriteLine("times 510-($-$$) db 0");
                 stream.WriteLine("dw 0xaa55");
+                stream.WriteLine();
             }
         }
     }
