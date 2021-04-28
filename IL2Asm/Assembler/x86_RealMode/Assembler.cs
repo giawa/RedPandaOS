@@ -675,7 +675,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 case ElementType.EType.I1: _initializedData.Add(label, new DataType(type, (sbyte)0)); break;
                 case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
-                case ElementType.EType.ValueType: 
+                case ElementType.EType.ValueType:
                     _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); break;
                 default: throw new Exception("Unsupported type");
             }
@@ -769,7 +769,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         loadDiskMethod.AddAsm("mov bp, sp");
                         loadDiskMethod.AddAsm("push cx");
                         loadDiskMethod.AddAsm("push dx");
-                        
+
                         // bp + 4 is sectors
                         // bp + 6 is drive
                         // bp + 8 is lowAddr
@@ -918,95 +918,94 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unhandled CALL target");
         }
 
-        public void WriteAssembly(string file)
+        public List<string> WriteAssembly()
         {
-            HashSet<string> dependencies = new HashSet<string>();
+            List<string> output = new List<string>();
 
-            using (StreamWriter stream = new StreamWriter(file))
+            output.Add("[bits 16]");      // for bootsector code only
+            output.Add("[org 0x7c00]");   // for bootsector code only
+            output.Add("");
+            output.Add("mov bp, 0x9000");
+            output.Add("mov sp, bp");
+
+            if (_staticConstructors.Count > 0)
             {
-                stream.WriteLine("[bits 16]");      // for bootsector code only
-                stream.WriteLine("[org 0x7c00]");   // for bootsector code only
-                stream.WriteLine("");
-                stream.WriteLine("mov bp, 0x9000");
-                stream.WriteLine("mov sp, bp");
-
-                if (_staticConstructors.Count > 0)
+                output.Add("; Call static constructors");
+                foreach (var cctor in _staticConstructors)
                 {
-                    stream.WriteLine("; Call static constructors");
-                    foreach (var cctor in _staticConstructors)
+                    if (cctor.Value == null) continue;
+                    string callsite = cctor.Key.Replace(".", "_");
+                    output.Add($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
+                }
+            }
+
+            foreach (var method in _methods)
+            {
+                if (method.Method != null) output.Add($"; Exporting assembly for method {method.Method.MethodDef}");
+                foreach (var line in method.Assembly)
+                {
+                    if (!line.EndsWith(":") && !line.StartsWith("[")) output.Add("    " + line);
+                    else output.Add(line);
+                }
+                output.Add("");
+            }
+
+            if (_initializedData.Count > 0)
+            {
+                output.Add("; Exporting initialized data");
+                foreach (var data in _initializedData)
+                {
+                    if (data.Value.Type.Type == ElementType.EType.String)
                     {
-                        if (cctor.Value == null) continue;
-                        string callsite = cctor.Key.Replace(".", "_");
-                        stream.WriteLine($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db '{data.Value.Data}', 0");  // 0 for null termination after the string
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.I2)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dw {(short)data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.U2)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dw {(ushort)data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.U1)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db {(byte)data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.I1)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db {(sbyte)data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.ValueType)
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        output.Add($"{data.Key}:");
+                        sb.Append($"    db ");
+                        var bytes = (byte[])data.Value.Data;
+                        for (int i = 0; i < bytes.Length; i++)
+                        {
+                            sb.Append(bytes[i]);
+                            if (i != bytes.Length - 1) sb.Append(", ");
+                        }
+                        output.Add(sb.ToString());
+                    }
+                    else
+                    {
+                        throw new Exception("Unexpected type allocated as part of initial data");
                     }
                 }
-
-                foreach (var method in _methods)
-                {
-                    if (method.Method != null) stream.WriteLine($"; Exporting assembly for method {method.Method.MethodDef}");
-                    foreach (var line in method.Assembly)
-                    {
-                        if (!line.EndsWith(":") && !line.StartsWith("[")) stream.Write("    ");
-                        stream.WriteLine(line);
-                    }
-                    stream.WriteLine();
-                }
-
-                if (_initializedData.Count > 0)
-                {
-                    stream.WriteLine("; Exporting initialized data");
-                    foreach (var data in _initializedData)
-                    {
-                        if (data.Value.Type.Type == ElementType.EType.String)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db '{data.Value.Data}', 0");  // 0 for null termination after the string
-                        }
-                        else if (data.Value.Type.Type == ElementType.EType.I2)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dw {(short)data.Value.Data}");
-                        }
-                        else if (data.Value.Type.Type == ElementType.EType.U2)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dw {(ushort)data.Value.Data}");
-                        }
-                        else if (data.Value.Type.Type == ElementType.EType.U1)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db {(byte)data.Value.Data}");
-                        }
-                        else if (data.Value.Type.Type == ElementType.EType.I1)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db {(sbyte)data.Value.Data}");
-                        }
-                        else if (data.Value.Type.Type == ElementType.EType.ValueType)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.Write($"    db ");
-                            var bytes = (byte[])data.Value.Data;
-                            for (int i = 0; i < bytes.Length; i++)
-                            {
-                                stream.Write(bytes[i]);
-                                if (i != bytes.Length - 1) stream.Write(", ");
-                            }
-                            stream.WriteLine();
-                        }
-                        else
-                        {
-                            throw new Exception("Unexpected type allocated as part of initial data");
-                        }
-                    }
-                    stream.WriteLine();
-                }
+                output.Add("");
 
                 // should only do this for boot sector attribute code
-                stream.WriteLine("times 510-($-$$) db 0");
-                stream.WriteLine("dw 0xaa55");
-                stream.WriteLine();
+                output.Add("times 510-($-$$) db 0");
+                output.Add("dw 0xaa55");
             }
+
+            return output;
         }
     }
 }

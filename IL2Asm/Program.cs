@@ -25,7 +25,12 @@ namespace IL2Asm
                 assembler16.AddAssembly(file);
                 assembler16.Assemble(file, methodDef16);
 
-                assembler16.WriteAssembly("bios.asm");
+                var bios = assembler16.WriteAssembly();
+                Optimizer.RemoveUnneededLabels.ProcessAssembly(bios);
+                Optimizer.MergePushPop.ProcessAssembly(bios);
+                Optimizer.MergePushPopAcrossMov.ProcessAssembly(bios);
+                Optimizer.SimplifyMoves.ProcessAssembly(bios);
+                File.WriteAllLines("bios.asm", bios.ToArray());
 
                 Assembler.x86.Assembler assembler32 = new Assembler.x86.Assembler();
                 assembler32.AddAssembly(file);
