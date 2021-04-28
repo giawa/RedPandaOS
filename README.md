@@ -26,3 +26,6 @@ Some design thoughts:
 - PE is the executable file format of choice, allowing standard .NET files to be run (I hope)
 - Eventually everything should be written in C#, but perhaps a subset that allows easier targeting of asm
 - With sufficient privileges, code can be patched/modified at runtime (even kernel code)
+
+Screenshots:
+![image](https://user-images.githubusercontent.com/3923687/116469059-834cbc80-a826-11eb-9562-fe50afa912ab.png)
