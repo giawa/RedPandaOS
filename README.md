@@ -29,4 +29,4 @@ Some design thoughts:
 
 Screenshots:
 
-![image](https://user-images.githubusercontent.com/3923687/116469059-834cbc80-a826-11eb-9562-fe50afa912ab.png)
+![image](https://user-images.githubusercontent.com/3923687/116469294-d32b8380-a826-11eb-8555-335d2a64fdae.png)
