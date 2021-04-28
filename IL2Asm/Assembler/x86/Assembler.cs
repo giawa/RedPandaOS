@@ -178,6 +178,19 @@ namespace IL2Asm.Assembler.x86
                         }
                         break;
 
+                    // LDLOCA.S
+                    case 0x12:
+                        _byte = code[i++];
+                        if (_byte == 0) assembly.AddAsm("push 2");      // This is my made up address for ECX
+                        else if (_byte == 1) assembly.AddAsm("push 3"); // This is my made up address for EDX
+                        else
+                        {
+                            assembly.AddAsm("mov eax, bp");
+                            assembly.AddAsm($"sub eax, {BytesPerRegister * (_byte + 1)}");
+                            assembly.AddAsm("push eax");
+                        }
+                        break;
+
                     // LDC.I4.1
                     case 0x17: assembly.AddAsm("push 1"); break;
                     case 0x18: assembly.AddAsm("push 2"); break;
@@ -334,6 +347,17 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm($"je {_jmpLabel}");
                         break;
 
+                    // BRTRUE
+                    case 0x3A:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop eax");        // value2
+                        assembly.AddAsm("cmp ebx, 0");    // compare values
+                        assembly.AddAsm($"jne {_jmpLabel}");
+                        break;
+
                     // ADD
                     case 0x58:
                         assembly.AddAsm("pop ebx");
@@ -354,7 +378,9 @@ namespace IL2Asm.Assembler.x86
                     case 0x5A:
                         assembly.AddAsm("pop ebx");
                         assembly.AddAsm("pop eax");
+                        assembly.AddAsm("push edx"); // multiply clobbers edx
                         assembly.AddAsm("mul ebx");
+                        assembly.AddAsm("pop edx");  // multiply clobbers edx
                         assembly.AddAsm("push eax");
                         break;
 
@@ -490,7 +516,7 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm("push eax");
                         break;
 
-                    default: throw new Exception($"Unknown IL opcode 0x{opcode.ToString("X")} at {label}");
+                    default: throw new Exception($"Unknown IL opcode 0x{opcode.ToString("X")} at {label} in method {method.MethodDef.Name}");
                 }
 
                 // remove the label if no new assembly was added
@@ -580,14 +606,13 @@ namespace IL2Asm.Assembler.x86
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
 
-            assembly.AddAsm("pop ebx");
-            if (offset == 0) assembly.AddAsm("mov eax, ebx");
+            if (offset == 0) return;
             else
             {
-                assembly.AddAsm("mov eax, ebx");
+                assembly.AddAsm("pop eax");
                 assembly.AddAsm($"add eax, {offset}");
+                assembly.AddAsm("push eax");
             }
-            assembly.AddAsm("push eax");
         }
 
         private void STSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
