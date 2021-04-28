@@ -58,7 +58,12 @@ namespace PELoader
             Reserved = 0x52,
             Field = 0x53,
             Property = 0x54,
-            Enum = 0x55
+            Enum = 0x55,
+
+
+            // custom types
+            ByRefValueType = 0x1011,
+            ByRefPtr = 0x0f11
         }
 
         public EType Type;
@@ -87,16 +92,26 @@ namespace PELoader
             if (Type == EType.Ptr || Type == EType.ByRef)
             {
                 Token = data[i++];
+
+                if (Token == (int)EType.ValueType)
+                {
+                    Type = (EType)((int)Type << 8) | EType.ValueType;
+                    Token = CLIMetadata.TypeDefOrRefOrSpecEncoded(data[i++]);
+                }
             }
             else if (Type == EType.ValueType || Type == EType.Class)
             {
-                Token = CLIMetadata.TypeDefOrRefOrSpecEncoded(data[i++]);//data[i++];
+                Token = CLIMetadata.TypeDefOrRefOrSpecEncoded(data[i++]);
             }
             else if (Type == EType.Var)
             {
                 Token = data[i++];
             }
-            else if (Type == EType.MethodSignature || Type == EType.MVar)
+            else if (Type == EType.MVar)
+            {
+                Token = data[i++];
+            }
+            else if (Type == EType.MethodSignature)
             {
                 throw new Exception("Unhandled");
             }
@@ -146,9 +161,12 @@ namespace PELoader
             else
             {
                 Flags = (SigFlags)blob[0];
-                ParamCount = data[0];
 
-                uint i = 1;
+                uint i = 0;
+                if ((Flags & SigFlags.GENERIC) != 0) i++;   // TODO?
+
+                ParamCount = data[i++];
+                
                 RetType = new ElementType(data, ref i);
 
                 if (ParamCount > 0)
@@ -267,7 +285,8 @@ namespace PELoader
 
             for (int i = 0; i < MemberSignature.ParamCount; i++)
             {
-                sb.Append($"_{MemberSignature.Params[i].Type}");
+                if (MemberSignature.Params[i].Type != ElementType.EType.End)
+                    sb.Append($"_{MemberSignature.Params[i].Type}");
             }
 
             return sb.ToString();

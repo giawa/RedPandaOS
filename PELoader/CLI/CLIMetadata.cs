@@ -228,6 +228,14 @@ namespace PELoader
                     {
                         _interfaceImpls.Add(new InterfaceImplLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.MethodSpec)
+                    {
+                        _methodSpecs.Add(new MethodSpecLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.GenericParam)
+                    {
+                        _genericParams.Add(new GenericParamLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -265,6 +273,8 @@ namespace PELoader
         private List<ConstantLayout> _constants = new List<ConstantLayout>();
         private List<NestedClassLayout> _nestedClasses = new List<NestedClassLayout>();
         private List<InterfaceImplLayout> _interfaceImpls = new List<InterfaceImplLayout>();
+        private List<MethodSpecLayout> _methodSpecs = new List<MethodSpecLayout>();
+        private List<GenericParamLayout> _genericParams = new List<GenericParamLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
@@ -275,6 +285,7 @@ namespace PELoader
         public List<StandAloneSigLayout> StandAloneSigs { get { return _standAloneSigs; } }
         public List<FieldLayout> Fields { get { return _fields; } }
         public List<AssemblyRefLayout> AssemblyRefs { get { return _assemblyRefs; } }
+        public List<MethodSpecLayout> MethodSpecs { get { return _methodSpecs; } }
 
         public uint[] TableSizes = new uint[64];
     }

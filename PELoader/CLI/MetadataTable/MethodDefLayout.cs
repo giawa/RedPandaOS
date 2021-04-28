@@ -77,7 +77,8 @@ namespace PELoader
 
             for (int i = 0; i < MethodSignature.ParamCount; i++)
             {
-                sb.Append($"_{MethodSignature.Params[i].Type}");
+                if (MethodSignature.Params[i].Type != ElementType.EType.End)
+                    sb.Append($"_{MethodSignature.Params[i].Type}");
             }
 
             return sb.ToString();
