@@ -1,13 +1,16 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using CPUHelper;
 
 namespace TestIL
 {
     class Program
     {
-        private const string _welcomeMessage = "Hello from C#!";
-        private const string _diskFail = "Disk fail";
+        private const string _disk = "Disk";
+        private const string _mem = "Mem";
+        private const string _fail = " fail";
         private static CPU.GDT _gdt;
+        //private static CPU.GDTPointer _gdtPointer;
 
         [BootEntryPoint]
         [RealMode]
@@ -16,24 +19,50 @@ namespace TestIL
             // BIOS stores the disk in dl, the lowest 8 bits of dx
             byte disk = (byte)CPU.ReadDX();
 
-            if (LoadDiskWithRetry(0x0000, 0x9000, disk, 4))
+            if (DetectMemory(0x500, 10) != 0)
             {
-                _gdt.KernelCodeSegment.segmentLength = 0xffff;
-                _gdt.KernelCodeSegment.flags1 = 0x9A;
-                _gdt.KernelCodeSegment.flags2 = 0xCF;
+                if (LoadDiskWithRetry(0x0000, 0x9000, disk, 4))
+                {
+                    _gdt.KernelCodeSegment.segmentLength = 0xffff;
+                    _gdt.KernelCodeSegment.flags1 = 0x9A;
+                    _gdt.KernelCodeSegment.flags2 = 0xCF;
 
-                _gdt.KernelDataSegment.segmentLength = 0xffff;
-                _gdt.KernelDataSegment.flags1 = 0x92;
-                _gdt.KernelDataSegment.flags2 = 0xCF;
+                    _gdt.KernelDataSegment.segmentLength = 0xffff;
+                    _gdt.KernelDataSegment.flags1 = 0x92;
+                    _gdt.KernelDataSegment.flags2 = 0xCF;
 
-                Bios.EnterProtectedMode(ref _gdt);
+                    Bios.EnterProtectedMode(ref _gdt);
+                }
+                else
+                {
+                    //Write(_disk);
+                }
             }
             else
             {
-                Write(_diskFail);
+                //Write(_mem);
             }
 
+            //Write(_fail);
+
             while (true) ;
+        }
+
+        private static Bios.SMAP_ret _smap_ret;
+
+        public static short DetectMemory(ushort address, int maxEntries)
+        {
+            short entries = 0;
+
+            do
+            {
+                if (Bios.DetectMemory((ushort)(address + entries * 24 + 2), ref _smap_ret) == 0xff) break;
+                entries++;
+            } while ((_smap_ret.contId1 != 0 || _smap_ret.contId2 != 0) && entries < maxEntries);
+
+            CPU.WriteMemory(address, entries);
+
+            return entries;
         }
 
         public static bool LoadDiskWithRetry(ushort highAddr, ushort lowAddr, byte disk, byte sectors)
