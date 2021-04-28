@@ -709,11 +709,20 @@ namespace IL2Asm.Assembler.x86
         {
             uint methodDesc = BitConverter.ToUInt32(code, i);
             i += 4;
+            string generic = string.Empty;
+
+            if ((methodDesc & 0xff000000) == 0x2b000000)
+            {
+                var methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
+                methodDesc = methodSpec.method;
+                generic = methodSpec.MemberSignature.ToAsmString();
+            }
 
             if ((methodDesc & 0xff000000) == 0x0a000000)
             {
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToAsmString();
+                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
 
                 if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
                 {
@@ -744,12 +753,51 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("mov eax, cr0");
                     assembly.AddAsm("push eax");
                 }
+                else if (memberName == "CPUHelper.CPU.ReadMem_U2_U2")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov ax, [bx]");
+                    assembly.AddAsm("and eax, 65535");
+                    assembly.AddAsm("push eax");
+                }
+                else if (memberName == "CPUHelper.CPU.ReadMemByte_U1_U2")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov ax, [bx]");
+                    assembly.AddAsm("and eax, 255");
+                    assembly.AddAsm("push eax");
+                }
+                else if (memberName == "CPUHelper.CPU.CopyByte<SMAP_entry>_Void_U4_U4_ByRef")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.CopyByte plug");
+                    assembly.AddAsm("push ecx");
+
+                    assembly.AddAsm("mov eax, [esp + 16]");
+                    assembly.AddAsm("add eax, [esp + 12]"); // source + sourceOffset
+                    assembly.AddAsm("mov ebx, eax");
+                    assembly.AddAsm("mov al, [ebx]");       // read source
+                    assembly.AddAsm("mov cl, al");
+
+                    assembly.AddAsm("mov eax, [esp + 8]");
+                    assembly.AddAsm("add eax, [esp + 4]"); // dest + destOffset
+                    assembly.AddAsm("mov ebx, eax");
+                    assembly.AddAsm("mov [ebx], cl");       // copy source to destination
+
+                    assembly.AddAsm("pop ecx");
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm("pop eax");
+                }
                 else throw new Exception("Unable to handle this method");
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
                 var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = methodDef.ToAsmString();
+                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
 
                 bool methodAlreadyCompiled = false;
                 foreach (var method in _methods)
