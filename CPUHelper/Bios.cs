@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace CPUHelper
 {
@@ -43,6 +44,20 @@ namespace CPUHelper
         }
 
         public static ushort LoadDisk(ushort highAddr, ushort lowAddr, byte drive, byte sectors)
+        {
+            return 0;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SMAP_ret
+        {
+            public ushort sig1;
+            public ushort sig2;
+            public ushort contId1;
+            public ushort contId2;
+        }
+
+        public static ushort DetectMemory(ushort address, ref SMAP_ret value)
         {
             return 0;
         }
