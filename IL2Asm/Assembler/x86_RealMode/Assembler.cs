@@ -701,6 +701,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
         private bool _addedLoadDisk = false;
+        private bool _addedDetectMemory = false;
 
         private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
@@ -719,7 +720,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("mov ah, 0x0e");
                     assembly.AddAsm("int 0x10");
                 }
-                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ByRef")
+                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ByRefValueType")
                 {
                     assembly.AddAsm("; Bios.EnterProtectedMode plug");
                     assembly.AddAsm("pop bx");
@@ -746,6 +747,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("pop bx");
                     assembly.AddAsm("mov ax, [bx]");
                     assembly.AddAsm("push ax");
+                }
+                else if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.WriteMemory_Void_I4_I4 plug");
+                    assembly.AddAsm("pop ax");
+                    assembly.AddAsm("pop bx");
+                    assembly.AddAsm("mov [bx], ax");
                 }
                 else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U2_U2_U1_U1")
                 {
@@ -795,6 +803,58 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                         _methods.Add(loadDiskMethod);
                         _addedLoadDisk = true;
+                    }
+                }
+                else if (memberName == "CPUHelper.Bios.DetectMemory_U2_U2_ByRefValueType")
+                {
+                    assembly.AddAsm("call DetectMemory_U2_U2_ByRef");
+                    assembly.AddAsm("push ax");
+
+                    if (!_addedDetectMemory)
+                    {
+                        AssembledMethod detectMemMethod = new AssembledMethod(null, null);
+                        detectMemMethod.AddAsm("; Bios.DetectMemory_U2_U2_ByRef plug");
+                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef:");
+                        detectMemMethod.AddAsm("push bp");
+                        detectMemMethod.AddAsm("mov bp, sp");
+                        detectMemMethod.AddAsm("push cx");
+                        detectMemMethod.AddAsm("push dx");
+
+                        // bp + 4 is SMAP_ret
+                        // bp + 6 is address
+
+                        detectMemMethod.AddAsm("mov di, [bp + 6]");
+                        detectMemMethod.AddAsm("mov bx, [bp + 4]");
+                        detectMemMethod.AddAsm("mov ebx, [bx + 4]");
+                        detectMemMethod.AddAsm("mov edx, 0x534D4150");
+                        detectMemMethod.AddAsm("mov ecx, 24");
+                        detectMemMethod.AddAsm("mov eax, 0xE820");
+                        detectMemMethod.AddAsm("int 0x15");
+
+                        detectMemMethod.AddAsm("jc DetectMemory_U2_U2_ByRef_Error");
+                        detectMemMethod.AddAsm("push ebx"); // this is the continuation
+                        detectMemMethod.AddAsm("mov bx, [bp + 4]");
+                        detectMemMethod.AddAsm("mov [bx], eax");    // al will now contain magic number
+
+                        // now grab the continuation
+                        detectMemMethod.AddAsm("mov ax, bx");
+                        detectMemMethod.AddAsm("add ax, 4");
+                        detectMemMethod.AddAsm("mov bx, ax");
+                        detectMemMethod.AddAsm("pop eax");
+                        detectMemMethod.AddAsm("mov [bx], eax");    // now we have the continuation as well
+
+                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef_Cleanup:");
+                        detectMemMethod.AddAsm("pop dx");
+                        detectMemMethod.AddAsm("pop cx");
+                        detectMemMethod.AddAsm("pop bp");
+                        detectMemMethod.AddAsm("ret 4");
+
+                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef_Error:");
+                        detectMemMethod.AddAsm("mov ax, 0xff");
+                        detectMemMethod.AddAsm("jmp DetectMemory_U2_U2_ByRef_Cleanup");
+
+                        _methods.Add(detectMemMethod);
+                        _addedDetectMemory = true;
                     }
                 }
                 else
