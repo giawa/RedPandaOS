@@ -344,6 +344,15 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
+                    // BR
+                    case 0x38:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm($"jmp {_jmpLabel}");
+                        break;
+
                     // BRFALSE
                     case 0x39:
                         _int = BitConverter.ToInt32(code, i);
@@ -364,6 +373,18 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("cmp ebx, 0");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
+                        break;
+
+                    // BLT
+                    case 0x3F:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop eax");        // value2
+                        assembly.AddAsm("pop ebx");        // value1
+                        assembly.AddAsm("cmp ebx, eax");    // compare values
+                        assembly.AddAsm($"jl {_jmpLabel}");
                         break;
 
                     // ADD
