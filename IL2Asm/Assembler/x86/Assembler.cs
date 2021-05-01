@@ -37,6 +37,7 @@ namespace IL2Asm.Assembler.x86
             Runtime.GlobalMethodCounter++;
 
             var code = method.Code;
+            int localVarOffset = 0;
 
             if (_methods.Count > 1)
             {
@@ -50,17 +51,24 @@ namespace IL2Asm.Assembler.x86
                     int localVarCount = method.LocalVars.LocalVariables.Length;
                     if (localVarCount > 0)
                     {
-                        assembly.AddAsm("push ecx");
+                        assembly.AddAsm("push ecx; localvar.1");
                         assembly.AddAsm("mov ecx, 0");
+                        localVarOffset = BytesPerRegister;
                     }
                     if (localVarCount > 1)
                     {
-                        assembly.AddAsm("push edx");
+                        assembly.AddAsm("push edx; localvar.2");
                         assembly.AddAsm("mov edx, 0");
+                        localVarOffset = BytesPerRegister * 2;
                     }
-                    for (int i = 2; i < localVarCount; i++)
-                        assembly.AddAsm("push 0");
                 }
+            }
+
+            if (method.LocalVars != null)
+            {
+                int localVarCount = method.LocalVars.LocalVariables.Length;
+                for (int i = 2; i < localVarCount; i++)
+                    assembly.AddAsm($"push 0; localvar.{i + 1}");
             }
 
             for (ushort i = 0; i < code.Length;)
@@ -113,12 +121,12 @@ namespace IL2Asm.Assembler.x86
                         break;
                     // LDLOC.2
                     case 0x08:
-                        assembly.AddAsm("mov eax, [ebp - 6]");
+                        assembly.AddAsm($"mov eax, [ebp - {localVarOffset + BytesPerRegister}]");
                         assembly.AddAsm("push eax");
                         break;
                     // LDLOC.3
                     case 0x09:
-                        assembly.AddAsm("mov eax, [ebp - 8]");
+                        assembly.AddAsm($"mov eax, [ebp - {localVarOffset + 2 * BytesPerRegister}]");
                         assembly.AddAsm("push eax");
                         break;
 
@@ -158,12 +166,12 @@ namespace IL2Asm.Assembler.x86
                     // STLOC.2
                     case 0x0C:
                         assembly.AddAsm("pop eax");
-                        assembly.AddAsm("mov [ebp - 6], eax");
+                        assembly.AddAsm($"mov [ebp - {localVarOffset + BytesPerRegister}], eax");
                         break;
                     // STLOC.3
                     case 0x0D:
                         assembly.AddAsm("pop eax");
-                        assembly.AddAsm("mov [ebp - 8], eax");
+                        assembly.AddAsm($"mov [ebp - {localVarOffset + 2 * BytesPerRegister}], eax");
                         break;
 
                     // LDLOC.S
