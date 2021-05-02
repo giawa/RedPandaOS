@@ -5,4 +5,14 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CPUHelper\CPUHelper.csproj" />
+    <ProjectReference Include="..\IL2Asm\IL2Asm.csproj" />
+    <ProjectReference Include="..\PELoader\PELoader.csproj" />
+  </ItemGroup>
+
 </Project>
