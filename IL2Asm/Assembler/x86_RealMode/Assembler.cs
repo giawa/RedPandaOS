@@ -949,15 +949,15 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unhandled CALL target");
         }
 
-        public List<string> WriteAssembly()
+        public List<string> WriteAssembly(uint offset = 0x7C00, uint size = 512, bool bootSector = false)
         {
             List<string> output = new List<string>();
 
             output.Add("[bits 16]");      // for bootsector code only
-            output.Add("[org 0x7c00]");   // for bootsector code only
+            output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
             output.Add("");
-            output.Add("mov bp, 0x9000");
-            output.Add("mov sp, bp");
+            output.Add("    mov bp, 0x9000");
+            output.Add("    mov sp, bp");
 
             if (_staticConstructors.Count > 0)
             {
@@ -965,7 +965,6 @@ namespace IL2Asm.Assembler.x86_RealMode
                 foreach (var cctor in _staticConstructors)
                 {
                     if (cctor.Value == null) continue;
-                    string callsite = cctor.Key.Replace(".", "_");
                     output.Add($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
                 }
             }
@@ -1032,8 +1031,15 @@ namespace IL2Asm.Assembler.x86_RealMode
                 output.Add("");
 
                 // should only do this for boot sector attribute code
-                output.Add("times 510-($-$$) db 0");
-                output.Add("dw 0xaa55");
+                if (bootSector)
+                {
+                    output.Add("times 510-($-$$) db 0");
+                    output.Add("dw 0xaa55");
+                }
+                else
+                {
+                    output.Add($"times {size}-($-$$) db 0");
+                }
             }
 
             return output;

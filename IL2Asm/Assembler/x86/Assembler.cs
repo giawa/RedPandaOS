@@ -880,116 +880,109 @@ namespace IL2Asm.Assembler.x86
             else throw new Exception("Unhandled CALL target");
         }
 
-        public void WriteAssembly(string file)
+        public List<string> WriteAssembly(uint offset = 0xA000, uint size = 512)
         {
-            HashSet<string> dependencies = new HashSet<string>();
+            List<string> output = new List<string>();
 
-            using (StreamWriter stream = new StreamWriter(file))
+            output.Add("[bits 32]");
+            output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
+            output.Add("enter_pm:");
+            output.Add("mov ax, 16");
+            output.Add("mov ds, ax");
+            output.Add("mov ss, ax");
+            output.Add("mov es, ax");
+            output.Add("mov fs, ax");
+            output.Add("mov gs, ax");
+            output.Add("mov ebp, 0x9000 ; reset the stack");
+            output.Add("mov esp, ebp");
+            output.Add("");
+
+            if (_staticConstructors.Count > 0)
             {
-                stream.WriteLine("[bits 32]");
-                stream.WriteLine("[org 0x9000]");   // for bootsector code only
-                stream.WriteLine("enter_pm:");
-                stream.WriteLine("mov ax, 16");
-                stream.WriteLine("mov ds, ax");
-                stream.WriteLine("mov ss, ax");
-                stream.WriteLine("mov es, ax");
-                stream.WriteLine("mov fs, ax");
-                stream.WriteLine("mov gs, ax");
-                stream.WriteLine("mov ebp, 0x9000 ; reset the stack");
-                stream.WriteLine("mov esp, ebp");
-                stream.WriteLine();
-
-                // draw a character in video memory
-                /*stream.WriteLine("mov edx, 0xb8000");
-                stream.WriteLine("mov al, 48");
-                stream.WriteLine("mov ah, 0x01");
-                stream.WriteLine("mov [edx], ax");*/
-
-                if (_staticConstructors.Count > 0)
+                output.Add("; Call static constructors");
+                foreach (var cctor in _staticConstructors)
                 {
-                    stream.WriteLine("; Call static constructors");
-                    foreach (var cctor in _staticConstructors)
-                    {
-                        if (cctor.Value == null) continue;
-                        string callsite = cctor.Key.Replace(".", "_");
-                        stream.WriteLine($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
-                    }
+                    if (cctor.Value == null) continue;
+                    output.Add($"    call {cctor.Value.Method.MethodDef.ToAsmString()}");
                 }
-
-                foreach (var method in _methods)
-                {
-                    if (method.Method != null) stream.WriteLine($"; Exporting assembly for method {method.Method.MethodDef}");
-                    foreach (var line in method.Assembly)
-                    {
-                        if (!line.EndsWith(":") && !line.StartsWith("[")) stream.Write("    ");
-                        stream.WriteLine(line);
-                    }
-                    stream.WriteLine();
-                }
-
-                if (_initializedData.Count > 0)
-                {
-                    stream.WriteLine("; Exporting initialized data");
-                    foreach (var data in _initializedData)
-                    {
-                        if (data.Value is string)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db '{data.Value}', 0");  // 0 for null termination after the string
-                        }
-                        else if (data.Value is int)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dd {(int)data.Value}");
-                        }
-                        else if (data.Value is uint)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dd {(uint)data.Value}");
-                        }
-                        else if (data.Value is short)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dw {(short)data.Value}");
-                        }
-                        else if (data.Value is ushort)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    dw {(ushort)data.Value}");
-                        }
-                        else if (data.Value is byte)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db {(byte)data.Value}");
-                        }
-                        else if (data.Value is sbyte)
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.WriteLine($"    db {(sbyte)data.Value}");
-                        }
-                        else if (data.Value is byte[])
-                        {
-                            stream.WriteLine($"{data.Key}:");
-                            stream.Write($"    db ");
-                            var bytes = (byte[])data.Value;
-                            for (int i = 0; i < bytes.Length; i++)
-                            {
-                                stream.Write(bytes[i]);
-                                if (i != bytes.Length - 1) stream.Write(", ");
-                            }
-                            stream.WriteLine();
-                        }
-                        else
-                        {
-                            throw new Exception("Unexpected type allocated as part of initial data");
-                        }
-                    }
-                    stream.WriteLine();
-                }
-
-                // pad this file to 2kB, since that is what we load in from disk
-                stream.WriteLine("times 2048-($-$$) db 0");
             }
+
+            foreach (var method in _methods)
+            {
+                if (method.Method != null) output.Add($"; Exporting assembly for method {method.Method.MethodDef}");
+                foreach (var line in method.Assembly)
+                {
+                    if (!line.EndsWith(":") && !line.StartsWith("[")) output.Add("    " + line);
+                    else output.Add(line);
+                }
+                output.Add("");
+            }
+
+            if (_initializedData.Count > 0)
+            {
+                output.Add("; Exporting initialized data");
+                foreach (var data in _initializedData)
+                {
+                    if (data.Value is string)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db '{data.Value}', 0");  // 0 for null termination after the string
+                    }
+                    else if (data.Value is int)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dd {(int)data.Value}");
+                    }
+                    else if (data.Value is uint)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dd {(uint)data.Value}");
+                    }
+                    else if (data.Value is short)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dw {(short)data.Value}");
+                    }
+                    else if (data.Value is ushort)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dw {(ushort)data.Value}");
+                    }
+                    else if (data.Value is byte)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db {(byte)data.Value}");
+                    }
+                    else if (data.Value is sbyte)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    db {(sbyte)data.Value}");
+                    }
+                    else if (data.Value is byte[])
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        output.Add($"{data.Key}:");
+                        sb.Append($"    db ");
+                        var bytes = (byte[])data.Value;
+                        for (int i = 0; i < bytes.Length; i++)
+                        {
+                            sb.Append(bytes[i]);
+                            if (i != bytes.Length - 1) sb.Append(", ");
+                        }
+                        output.Add(sb.ToString());
+                    }
+                    else
+                    {
+                        throw new Exception("Unexpected type allocated as part of initial data");
+                    }
+                }
+                output.Add("");
+            }
+
+            // pad this file to 8kB, since that is what we load in from disk
+            output.Add($"times {size}-($-$$) db 0");
+
+            return output;
         }
     }
 }
