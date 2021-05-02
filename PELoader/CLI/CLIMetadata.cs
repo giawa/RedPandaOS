@@ -236,6 +236,10 @@ namespace PELoader
                     {
                         _genericParams.Add(new GenericParamLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.TypeSpec)
+                    {
+                        _typeSpecs.Add(new TypeSpecLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
