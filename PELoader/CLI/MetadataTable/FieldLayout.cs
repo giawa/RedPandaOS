@@ -63,7 +63,7 @@ namespace PELoader
             }
             else
             {
-                Console.WriteLine(blob);
+                throw new Exception();
             }
         }
 

@@ -125,7 +125,7 @@ namespace PELoader
             }
             else if (Type == EType.GenericInst)
             {
-                i++;
+                var type = new ElementType(data, ref i);
                 uint typeArgCount = data[i++];
                 i += typeArgCount;
             }
@@ -183,9 +183,10 @@ namespace PELoader
 
     public class MemberRefLayout
     {
-        public uint classIndex;
+        private uint classIndex;
         public uint nameAddr;
         public uint signature;
+        public uint Parent { get; private set; }
 
         public string Name { get; private set; }
         public MethodRefSig MemberSignature { get; private set; }
@@ -218,6 +219,8 @@ namespace PELoader
                 offset += 2;
             }
 
+            Parent = GetParentToken();
+
             if (metadata.WideStrings)
             {
                 nameAddr = BitConverter.ToUInt32(metadata.Table.Heap, offset);
@@ -246,7 +249,7 @@ namespace PELoader
 
         private string _parent = null;
 
-        public uint GetParentToken(CLIMetadata metadata)
+        public uint GetParentToken()
         {
             uint addr = (classIndex >> 3);
             switch (classIndex & 0x07)

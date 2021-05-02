@@ -87,8 +87,6 @@ namespace PELoader
                         }
                         else throw new Exception("No implementation for this table type");
                     }
-
-                    Console.WriteLine("made it");
                 }
                 else throw new Exception("Unexpected blob type");
             }
