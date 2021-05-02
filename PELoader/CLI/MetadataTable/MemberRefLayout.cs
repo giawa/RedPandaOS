@@ -134,6 +134,17 @@ namespace PELoader
                 Token = data[i++];
             }
         }
+
+        public override string ToString()
+        {
+            if (Token == 0) return Type.ToString();
+            else return $"{Type} {Token.ToString("X")}";
+        }
+
+        public bool Is32BitCapable()
+        {
+            return (Type >= EType.Char && Type <= EType.U4);
+        }
     }
 
     public class MethodRefSig
