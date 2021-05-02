@@ -7,24 +7,6 @@ using System.Linq;
 
 namespace IL2Asm.Assembler.x86_RealMode
 {
-    public class DataType
-    {
-        public ElementType Type;
-        public object Data;
-
-        public DataType(ElementType type, object data)
-        {
-            Type = type;
-            Data = data;
-        }
-
-        public DataType(ElementType.EType type, object data)
-        {
-            Type = new ElementType(type);
-            Data = data;
-        }
-    }
-
     public class Assembler : IAssembler
     {
         private Dictionary<string, AssembledMethod> _staticConstructors = new Dictionary<string, AssembledMethod>();
@@ -622,7 +604,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
 
-            _initializedData.Add(label, new DataType(ElementType.EType.String, s));
+            if (!_initializedData.ContainsKey(label)) _initializedData.Add(label, new DataType(ElementType.EType.String, s));
             assembly.AddAsm($"push {label}");
         }
 
@@ -715,7 +697,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                 case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
                 case ElementType.EType.ValueType:
-                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); break;
+                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); 
+                    break;
                 default: throw new Exception("Unsupported type");
             }
         }
