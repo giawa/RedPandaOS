@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace IL2Asm.Assembler.x86
@@ -29,10 +30,10 @@ namespace IL2Asm.Assembler.x86
         public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
         {
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
+            if (methodDef != null && _methods.Where(m => m.Method != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()).Any()) return;
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method);
-            foreach (var m in _methods) if (m != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()) return;
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
 
@@ -146,7 +147,7 @@ namespace IL2Asm.Assembler.x86
                         else
                         {
                             assembly.AddAsm("pop eax");
-                            assembly.AddAsm($"mov [ebp - {BytesPerRegister * (_byte + 1)}], eax");
+                            assembly.AddAsm($"mov [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}], eax");
                         }
                         break;
 
@@ -181,7 +182,7 @@ namespace IL2Asm.Assembler.x86
                         else if (_byte == 1) assembly.AddAsm("push edx");
                         else
                         {
-                            assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister * (_byte + 1)}]");
+                            assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
                             assembly.AddAsm("push eax");
                         }
                         break;

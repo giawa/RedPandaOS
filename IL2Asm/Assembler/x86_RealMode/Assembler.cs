@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace IL2Asm.Assembler.x86_RealMode
 {
@@ -47,6 +48,7 @@ namespace IL2Asm.Assembler.x86_RealMode
         public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
         {
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
+            if (methodDef != null && _methods.Where(m => m.Method != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()).Any()) return;
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method);
@@ -163,7 +165,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         else
                         {
                             assembly.AddAsm("pop ax");
-                            assembly.AddAsm($"mov [bp - {BytesPerRegister * (_byte + 1)}], ax");
+                            assembly.AddAsm($"mov [bp - {BytesPerRegister * (_byte - 1 + localVarOffset)}], ax");
                         }
                         break;
 
@@ -198,7 +200,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         else if (_byte == 1) assembly.AddAsm("push dx");
                         else
                         {
-                            assembly.AddAsm($"mov ax, [bp - {BytesPerRegister * (_byte + 1)}]");
+                            assembly.AddAsm($"mov ax, [bp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
                             assembly.AddAsm("push ax");
                         }
                         break;
