@@ -22,5 +22,10 @@ namespace IL2Asm
         {
             Assembly.Add(asm);
         }
+
+        public override string ToString()
+        {
+            return Method?.MethodDef?.ToAsmString() ?? "Unknown Method";
+        }
     }
 }

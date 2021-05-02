@@ -365,6 +365,16 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
+                    // BGE.UN.S
+                    case 0x34:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jae {_jmpLabel}");
+                        break;
+
                     // BR
                     case 0x38:
                         _int = BitConverter.ToInt32(code, i);
@@ -581,8 +591,6 @@ namespace IL2Asm.Assembler.x86_RealMode
                 {
                     if (childMethod.Name == ".cctor")
                     {
-                        Console.WriteLine("Add constructor");
-
                         int methodIndex = _methods.Count;
 
                         Assemble(pe, childMethod);
