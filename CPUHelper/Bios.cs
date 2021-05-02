@@ -61,5 +61,10 @@ namespace CPUHelper
         {
             return 0;
         }
+
+        public static bool EnableA20()
+        {
+            return true;
+        }
     }
 }

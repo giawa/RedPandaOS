@@ -786,6 +786,46 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("pop bx");
                     assembly.AddAsm("mov [bx], ax");
                 }
+                else if (memberName == "CPUHelper.CPU.Jump_Void_U4")
+                {
+                    assembly.AddAsm("; CPUHelper.CPU.Jump_Void_U4 plug");
+                    assembly.AddAsm("pop ax");
+                    assembly.AddAsm("jmp ax");
+                }
+                else if (memberName == "CPUHelper.Bios.EnableA20_Boolean")
+                {
+                    // from https://wiki.osdev.org/A20_Line
+                    assembly.AddAsm("; CPUHelper.CPU.EnableA20_Boolean plug");
+                    assembly.AddAsm("mov ax, 0x2403");
+                    assembly.AddAsm("int 0x15");
+                    assembly.AddAsm("jb bios_a20_failed");
+                    assembly.AddAsm("cmp ah, 0");
+                    assembly.AddAsm("jnz bios_a20_failed");
+
+                    assembly.AddAsm("mov ax, 0x2402");
+                    assembly.AddAsm("int 0x15");
+                    assembly.AddAsm("jb bios_a20_failed");
+                    assembly.AddAsm("cmp ah, 0");
+                    assembly.AddAsm("jnz bios_a20_failed");
+
+                    assembly.AddAsm("cmp al, 1");
+                    assembly.AddAsm("jz bios_a20_activated");
+
+                    assembly.AddAsm("mov ax, 0x2401");
+                    assembly.AddAsm("int 0x15");
+                    assembly.AddAsm("jb bios_a20_failed");
+                    assembly.AddAsm("cmp ah, 0");
+                    assembly.AddAsm("jnz bios_a20_failed");
+
+                    assembly.AddAsm("bios_a20_activated:");
+                    assembly.AddAsm("push 1");
+                    assembly.AddAsm("jmp bios_a20_complete");
+
+                    assembly.AddAsm("bios_a20_failed:");
+                    assembly.AddAsm("push 0");
+
+                    assembly.AddAsm("bios_a20_complete:");
+                }
                 else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U2_U2_U1_U1")
                 {
                     assembly.AddAsm("call LoadDisk_U2_U2_U2_U1_U1");

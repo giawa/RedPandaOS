@@ -75,9 +75,39 @@ namespace CPUHelper
             return 0;
         }
 
-        public static ushort ReadMem(ushort addr)
+        public static void WriteMemInt(uint addr, uint data)
+        {
+
+        }
+
+        public static uint ReadMemInt(uint addr)
         {
             return 0;
+        }
+
+        public static ushort ReadMemShort(ushort addr)
+        {
+            return 0;
+        }
+
+        public static byte ReadMemByte(ushort addr)
+        {
+            return 0;
+        }
+
+        public static void CopyByte<T>(uint source, uint sourceOffset, ref T destination, uint destinationOffset)
+        {
+            
+        }
+
+        public static void Jump(uint addr)
+        {
+
+        }
+
+        public static void FastA20()
+        {
+
         }
     }
 }

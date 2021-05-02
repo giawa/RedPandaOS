@@ -783,7 +783,7 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("mov eax, cr0");
                     assembly.AddAsm("push eax");
                 }
-                else if (memberName == "CPUHelper.CPU.ReadMem_U2_U2")
+                else if (memberName == "CPUHelper.CPU.ReadMemShort_U2_U2")
                 {
                     assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
                     assembly.AddAsm("pop ebx");
@@ -820,6 +820,29 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("pop eax");
                     assembly.AddAsm("pop eax");
                     assembly.AddAsm("pop eax");
+                }
+                else if (memberName == "CPUHelper.CPU.WriteMemInt_Void_U4_U4")
+                {
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov [ebx], eax");
+                }
+                else if (memberName == "CPUHelper.CPU.ReadMemInt_U4_U4")
+                {
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov eax, [ebx]");
+                    assembly.AddAsm("push eax");
+                }
+                else if (memberName == "CPUHelper.CPU.FastA20_Void")
+                {
+                    // fromm https://wiki.osdev.org/A20_Line
+                    assembly.AddAsm("in al, 0x92");
+                    assembly.AddAsm("test al, 2");
+                    assembly.AddAsm("jnz fasta20_enabled");
+                    assembly.AddAsm("or al, 2");
+                    assembly.AddAsm("and al, 0xFE");
+                    assembly.AddAsm("out 0x92, al");
+                    assembly.AddAsm("fasta20_enabled:");
                 }
                 else throw new Exception("Unable to handle this method");
             }
