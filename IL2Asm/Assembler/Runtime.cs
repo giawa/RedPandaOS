@@ -55,6 +55,46 @@ namespace IL2Asm
             else throw new Exception("Unable to find assembly used by typeRef");
         }
 
+        public ElementType GetFieldType(CLIMetadata metadata, uint fieldToken)
+        {
+            if ((fieldToken & 0xff000000) == 0x04000000)
+            {
+                var field = metadata.Fields[(int)(fieldToken & 0x00ffffff) - 1];
+
+                foreach (var f in field.Parent.Fields)
+                {
+                    if (f == field) return f.Type;
+                }
+
+                throw new Exception("Fields did not include requested fieldToken");
+            }
+            else if ((fieldToken & 0xff000000) == 0x0A000000)
+            {
+                var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
+                var type = field.MemberSignature.RetType;
+
+                uint typeRefToken = type.Token;
+                if (typeRefToken == 0) typeRefToken = field.GetParentToken();
+
+                var pe = GetParentAssembly(metadata, typeRefToken);
+
+                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                {
+                    var f = pe.Metadata.Fields[i];
+                    if (f.Name == field.Name)
+                    {
+                        return f.Type;
+                    }
+                }
+
+                throw new Exception("Could not find type");
+            }
+            else
+            {
+                throw new Exception("Unsupported metadata table");
+            }
+        }
+
         public int GetFieldOffset(CLIMetadata metadata, uint fieldToken)
         {
             if ((fieldToken & 0xff000000) == 0x04000000)
