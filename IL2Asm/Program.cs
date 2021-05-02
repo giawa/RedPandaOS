@@ -14,29 +14,38 @@ namespace IL2Asm
             PortableExecutableFile file = new PortableExecutableFile(@"..\..\..\..\TestIL\bin\Debug\netcoreapp3.1\TestIL.dll");
 
             // find the Program.Main entry point
-            var methodDef16 = FindEntryPoint(file, "Program", "Main");
+            var bootloader1 = FindEntryPoint(file, "Program", "BootloaderStage1");
+            var bootloader2 = FindEntryPoint(file, "Program", "BootloaderStage2");
             var methodDef32 = FindEntryPoint(file, "Program", "Main32");
 
-            if (methodDef16 != null && methodDef32 != null)
+            if (bootloader1 != null && methodDef32 != null)
             {
                 //MethodHeader method = new MethodHeader(file.Memory, methodDef);
 
                 Assembler.x86_RealMode.Assembler assembler16 = new Assembler.x86_RealMode.Assembler();
                 assembler16.AddAssembly(file);
-                assembler16.Assemble(file, methodDef16);
+                assembler16.Assemble(file, bootloader1);
 
-                var bios = assembler16.WriteAssembly();
-                Optimizer.RemoveUnneededLabels.ProcessAssembly(bios);
-                Optimizer.MergePushPop.ProcessAssembly(bios);
-                Optimizer.MergePushPopAcrossMov.ProcessAssembly(bios);
-                Optimizer.SimplifyMoves.ProcessAssembly(bios);
-                File.WriteAllLines("bios.asm", bios.ToArray());
+                var stage1 = assembler16.WriteAssembly(0x7C00, 512, true);
+                Optimizer.RemoveUnneededLabels.ProcessAssembly(stage1);
+                Optimizer.MergePushPop.ProcessAssembly(stage1);
+                Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage1);
+                Optimizer.SimplifyMoves.ProcessAssembly(stage1);
+                File.WriteAllLines("stage1.asm", stage1.ToArray());
+
+                assembler16 = new Assembler.x86_RealMode.Assembler();
+                assembler16.AddAssembly(file);
+                assembler16.Assemble(file, bootloader2);
+
+                var stage2 = assembler16.WriteAssembly(0x9000, 4096, false);
+                File.WriteAllLines("stage2.asm", stage2.ToArray());
 
                 Assembler.x86.Assembler assembler32 = new Assembler.x86.Assembler();
                 assembler32.AddAssembly(file);
                 assembler32.Assemble(file, methodDef32);
 
-                assembler32.WriteAssembly("pm.asm");
+                var pm = assembler32.WriteAssembly(0xA000, 8192);
+                File.WriteAllLines("pm.asm", pm.ToArray());
 
                 /*using (StreamWriter stream = new StreamWriter("bios.asm", true))
                 {
@@ -47,15 +56,19 @@ namespace IL2Asm
                 // process the assembly
                 Console.WriteLine();
                 Console.WriteLine("* Assembling OS!");
-                RunNASM("bios.asm", "bios.bin");
+                RunNASM("stage1.asm", "stage1.bin");
+                RunNASM("stage2.asm", "stage2.bin");
                 RunNASM("pm.asm", "pm.bin");
 
                 // combine the assemblies by tacking the protected mode code on to the boot loader
                 try
                 {
-                    File.Copy("bios.bin", "boot.bin", true);
+                    File.Copy("stage1.bin", "boot.bin", true);
                     using (var stream = new FileStream("boot.bin", FileMode.Append))
+                    {
+                        stream.Write(File.ReadAllBytes("stage2.bin"));
                         stream.Write(File.ReadAllBytes("pm.bin"));
+                    }
 
                     // then boot qemu
                     Console.WriteLine();

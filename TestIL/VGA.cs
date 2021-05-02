@@ -86,7 +86,31 @@ namespace TestIL
             CPU.OutDxAl(0x3D5, (byte)(pos >> 8));
         }
 
+        public static void WriteHex(uint value)
+        {
+            WriteHexChar((byte)(value >> 28));
+            WriteHexChar((byte)(value >> 24));
+            WriteHexChar((byte)(value >> 20));
+            WriteHexChar((byte)(value >> 16));
+            WriteHexChar((byte)(value >> 12));
+            WriteHexChar((byte)(value >> 8));
+            WriteHexChar((byte)(value >> 4));
+            WriteHexChar((byte)(value));
+        }
+
         public static void WriteHex(int value)
+        {
+            WriteHexChar(value >> 28);
+            WriteHexChar(value >> 24);
+            WriteHexChar(value >> 20);
+            WriteHexChar(value >> 16);
+            WriteHexChar(value >> 12);
+            WriteHexChar(value >> 8);
+            WriteHexChar(value >> 4);
+            WriteHexChar(value);
+        }
+
+        public static void WriteHex(short value)
         {
             WriteHexChar(value >> 12);
             WriteHexChar(value >> 8);

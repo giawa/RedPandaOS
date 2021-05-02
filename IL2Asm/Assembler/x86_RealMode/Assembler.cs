@@ -761,7 +761,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("mov eax, cr0");
                     assembly.AddAsm("or eax, 0x1");
                     assembly.AddAsm("mov cr0, eax");
-                    assembly.AddAsm("jmp 08h:0x9000");  // our 32 bit code starts at 0x9000, freshly loaded from the disk
+                    assembly.AddAsm("jmp 08h:0xA000");  // our 32 bit code starts at 0xA000, freshly loaded from the disk
                     assembly.AddAsm("");
                     assembly.AddAsm("gdt_ptr:");
                     assembly.AddAsm("dw 23");
@@ -932,6 +932,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 {
                     throw new Exception("Unable to handle this method");
                 }
+                assembly.AddAsm("; end plug");
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
@@ -985,6 +986,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 {
                     throw new Exception("Unable to handle this method");
                 }
+                assembly.AddAsm("; end plug");
             }
             else throw new Exception("Unhandled CALL target");
         }

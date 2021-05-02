@@ -12,39 +12,54 @@ namespace TestIL
         private static CPU.GDT _gdt;
         //private static CPU.GDTPointer _gdtPointer;
 
-        [BootEntryPoint]
-        [RealMode]
         static void Main()
+        {
+
+        }
+
+        [BootSector]
+        [RealMode(0x7C00)]
+        static void BootloaderStage1()
         {
             // BIOS stores the disk in dl, the lowest 8 bits of dx
             byte disk = (byte)CPU.ReadDX();
 
-            if (DetectMemory(0x500, 10) != 0)
+            if (LoadDiskWithRetry(0x0000, 0x9000, disk, 24))
             {
-                if (LoadDiskWithRetry(0x0000, 0x9000, disk, 4))
-                {
-                    _gdt.KernelCodeSegment.segmentLength = 0xffff;
-                    _gdt.KernelCodeSegment.flags1 = 0x9A;
-                    _gdt.KernelCodeSegment.flags2 = 0xCF;
-
-                    _gdt.KernelDataSegment.segmentLength = 0xffff;
-                    _gdt.KernelDataSegment.flags1 = 0x92;
-                    _gdt.KernelDataSegment.flags2 = 0xCF;
-
-                    Bios.EnterProtectedMode(ref _gdt);
-                }
-                else
-                {
-                    //Write(_disk);
-                }
+                CPU.Jump(0x9000);
             }
             else
             {
-                //Write(_mem);
+                Write("Failed to read from disk 0x");
+                WriteHex(disk);
             }
 
-            //Write(_fail);
+            while (true) ;
+        }
 
+        [RealMode(0x9000)]
+        static void BootloaderStage2()
+        {
+            if (DetectMemory(0x500, 10) == 0) ErrorAndHang("Failed to get memory map");
+            Bios.EnableA20();
+
+            _gdt.KernelCodeSegment.segmentLength = 0xffff;
+            _gdt.KernelCodeSegment.flags1 = 0x9A;
+            _gdt.KernelCodeSegment.flags2 = 0xCF;
+
+            _gdt.KernelDataSegment.segmentLength = 0xffff;
+            _gdt.KernelDataSegment.flags1 = 0x92;
+            _gdt.KernelDataSegment.flags2 = 0xCF;
+
+            Bios.EnterProtectedMode(ref _gdt);
+            Write("Failed to enter protected mode");
+
+            while (true) ;
+        }
+
+        static void ErrorAndHang(string s)
+        {
+            Write(s);
             while (true) ;
         }
 
@@ -72,16 +87,72 @@ namespace TestIL
 
             do
             {
-                sectorsRead = Bios.LoadDisk(0x0000, 0x9000, disk, sectors);
+                sectorsRead = Bios.LoadDisk(highAddr, lowAddr, disk, sectors);
             } while (sectorsRead != sectors && retry++ < 3);
 
             return sectorsRead == sectors;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SMAP_entry
+        {
+            public uint BaseL;
+            public uint BaseH;
+            public uint LengthL;
+            public uint LengthH;
+            public uint Type;
+            public uint ACPI;
+        }
+
+        private static SMAP_entry _entry;
+
         static void Main32()
         {
             VGA.Clear();
             VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
+            VGA.WriteLine();
+
+            // check if A20 is enabled
+            CPU.WriteMemInt(0x112345, 0x112345);
+            CPU.WriteMemInt(0x012345, 0x012345);
+            uint val1 = CPU.ReadMemInt(0x112345);
+            uint val2 = CPU.ReadMemInt(0x012345);
+
+            if (val1 == val2) CPU.FastA20();
+
+            int entries = CPU.ReadMemShort(0x500);
+            VGA.WriteLine();
+            //VGA.WriteHex(entries);
+            /*for (int i = 0; i < entries * 24; i ++)
+            {
+                VGA.WriteHex(CPU.ReadMemByte((ushort)(0x502 + i)));
+                VGA.WriteVideoMemoryChar(' ');
+            }
+
+            VGA.WriteLine();
+            VGA.WriteHex(CPU.ReadMemByte((ushort)(0x502 + 9)));
+
+            VGA.WriteLine();*/
+            //VGA.WriteHex(0x12345678);
+
+            //_entry = Marshal.PtrToStructure<SMAP_entry>((IntPtr)0x502);
+            VGA.WriteVideoMemoryString("Memory Regions as given by BIOS:");
+            VGA.WriteLine();
+            //int i = 0;
+            for (int i = 0; i < entries; i++)
+            {
+                CopyTo((uint)(0x502 + 24 * i), ref _entry, 24);
+                VGA.WriteVideoMemoryString("Memory Region ");
+                VGA.WriteVideoMemoryChar(48 + i);
+                VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.BaseL); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.BaseH); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.LengthL); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.LengthH); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.Type); VGA.WriteLine();
+                //VGA.WriteHex(_entry.ACPI); VGA.WriteLine();
+            }
+
             VGA.WriteLine();
 
             for (int i = 0; i < 255; i++)
@@ -90,10 +161,17 @@ namespace TestIL
             }
 
             VGA.WriteLine();
+            VGA.WriteLine();
             VGA.WriteVideoMemoryString("CR0: 0x");
             VGA.WriteHex((int)CPU.ReadCR0());
 
             while (true) ;
+        }
+
+        public static void CopyTo(uint source, ref SMAP_entry destination, int size)
+        {
+            for (int i = 0; i < size; i++)
+                CPU.CopyByte<SMAP_entry>(source, (uint)i, ref destination, (uint)i);
         }
 
         public static int Factorial(int num)
@@ -116,7 +194,6 @@ namespace TestIL
         }
 
         #region Bios Helpers
-        [RealMode]
         public static void WriteHex(int value)
         {
             WriteHexChar(value >> 12);
@@ -125,14 +202,12 @@ namespace TestIL
             WriteHexChar(value);
         }
 
-        [RealMode]
         public static void WriteHex(byte value)
         {
             WriteHexChar(value >> 4);
             WriteHexChar(value);
         }
 
-        [RealMode]
         public static void WriteHexChar(int value)
         {
             value &= 0x0f;
@@ -140,7 +215,6 @@ namespace TestIL
             else Bios.WriteByte(value + 48);
         }
 
-        [RealMode]
         public static void WriteLine(string s)
         {
             Write(s);
@@ -148,7 +222,6 @@ namespace TestIL
             Bios.WriteByte((byte)'\r');
         }
 
-        [RealMode]
         public static void Write(string s)
         {
             int i = 0;
@@ -160,7 +233,6 @@ namespace TestIL
             }
         }
 
-        [RealMode]
         public static void WriteInt(int value)
         {
             int divisor = 1;

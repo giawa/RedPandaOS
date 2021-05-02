@@ -4,10 +4,15 @@ namespace CPUHelper
 {
     public class RealModeAttribute : Attribute
     {
+        public uint Offset;
 
+        public RealModeAttribute(uint offset)
+        {
+            Offset = offset;
+        }
     }
 
-    public class BootEntryPointAttribute : Attribute
+    public class BootSectorAttribute : Attribute
     {
 
     }
