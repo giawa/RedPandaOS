@@ -2,7 +2,7 @@
 
 namespace IL2Asm.Optimizer
 {
-    class MergePushPop
+    public class MergePushPop
     {
         private static char[] _split = new char[] { ' ', ';' };
 

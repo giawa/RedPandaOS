@@ -2,7 +2,7 @@
 
 namespace IL2Asm.Optimizer
 {
-    class MergePushPopAcrossMov
+    public class MergePushPopAcrossMov
     {
         private static char[] _split = new char[] { ' ', ';' };
 
