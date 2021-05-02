@@ -11,7 +11,7 @@ namespace IL2Asm.Assembler.x86
     {
         private Dictionary<string, AssembledMethod> _staticConstructors = new Dictionary<string, AssembledMethod>();
         private List<AssembledMethod> _methods = new List<AssembledMethod>();
-        private Dictionary<string, object> _initializedData = new Dictionary<string, object>();
+        private Dictionary<string, DataType> _initializedData = new Dictionary<string, DataType>();
         private Runtime _runtime = new Runtime();
 
         public const int BytesPerRegister = 4;
@@ -620,7 +620,7 @@ namespace IL2Asm.Assembler.x86
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
 
-            if (!_initializedData.ContainsKey(label)) _initializedData.Add(label, s);
+            if (!_initializedData.ContainsKey(label)) _initializedData.Add(label, new DataType(ElementType.EType.String, s));
             assembly.AddAsm($"push {label}");
         }
 
@@ -710,13 +710,15 @@ namespace IL2Asm.Assembler.x86
 
             switch (type.Type)
             {
-                case ElementType.EType.U1: _initializedData.Add(label, (byte)0); break;
-                case ElementType.EType.I1: _initializedData.Add(label, (sbyte)0); break;
-                case ElementType.EType.U2: _initializedData.Add(label, (ushort)0); break;
-                case ElementType.EType.I2: _initializedData.Add(label, (short)0); break;
-                case ElementType.EType.U4: _initializedData.Add(label, (uint)0); break;
-                case ElementType.EType.I4: _initializedData.Add(label, (int)0); break;
-                case ElementType.EType.ValueType: _initializedData.Add(label, new byte[_runtime.GetTypeSize(metadata, type)]); break;
+                case ElementType.EType.U1: _initializedData.Add(label, new DataType(type, (byte)0)); break;
+                case ElementType.EType.I1: _initializedData.Add(label, new DataType(type, (sbyte)0)); break;
+                case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
+                case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
+                case ElementType.EType.U4: _initializedData.Add(label, new DataType(type, (uint)0)); break;
+                case ElementType.EType.I4: _initializedData.Add(label, new DataType(type, (int)0)); break;
+                case ElementType.EType.ValueType: 
+                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); 
+                    break;
                 default: throw new Exception("Unsupported type");
             }
         }
@@ -954,47 +956,47 @@ namespace IL2Asm.Assembler.x86
                 output.Add("; Exporting initialized data");
                 foreach (var data in _initializedData)
                 {
-                    if (data.Value is string)
+                    if (data.Value.Type.Type == ElementType.EType.String)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    db '{data.Value}', 0");  // 0 for null termination after the string
+                        output.Add($"    db '{data.Value.Data}', 0");  // 0 for null termination after the string
                     }
-                    else if (data.Value is int)
+                    else if (data.Value.Type.Type == ElementType.EType.I4)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    dd {(int)data.Value}");
+                        output.Add($"    dd {(int)data.Value.Data}");
                     }
-                    else if (data.Value is uint)
+                    else if (data.Value.Type.Type == ElementType.EType.U4)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    dd {(uint)data.Value}");
+                        output.Add($"    dd {(uint)data.Value.Data}");
                     }
-                    else if (data.Value is short)
+                    else if (data.Value.Type.Type == ElementType.EType.I2)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    dw {(short)data.Value}");
+                        output.Add($"    dw {(short)data.Value.Data}");
                     }
-                    else if (data.Value is ushort)
+                    else if (data.Value.Type.Type == ElementType.EType.U2)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    dw {(ushort)data.Value}");
+                        output.Add($"    dw {(ushort)data.Value.Data}");
                     }
-                    else if (data.Value is byte)
+                    else if (data.Value.Type.Type == ElementType.EType.U1)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    db {(byte)data.Value}");
+                        output.Add($"    db {(byte)data.Value.Data}");
                     }
-                    else if (data.Value is sbyte)
+                    else if (data.Value.Type.Type == ElementType.EType.I1)
                     {
                         output.Add($"{data.Key}:");
-                        output.Add($"    db {(sbyte)data.Value}");
+                        output.Add($"    db {(sbyte)data.Value.Data}");
                     }
-                    else if (data.Value is byte[])
+                    else if (data.Value.Type.Type == ElementType.EType.ValueType)
                     {
                         StringBuilder sb = new StringBuilder();
                         output.Add($"{data.Key}:");
                         sb.Append($"    db ");
-                        var bytes = (byte[])data.Value;
+                        var bytes = (byte[])data.Value.Data;
                         for (int i = 0; i < bytes.Length; i++)
                         {
                             sb.Append(bytes[i]);
