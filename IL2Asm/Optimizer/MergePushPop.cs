@@ -16,19 +16,22 @@ namespace IL2Asm.Optimizer
                 for (int i = 0; i < assembly.Count - 1; i++)
                 {
                     var l1 = assembly[i].Trim().Split(_split);
-                    var l2 = assembly[i + 1].Trim().Split(_split);
+
+                    int offset = 1;
+                    while (i + offset < assembly.Count && assembly[i + offset].Trim().StartsWith(";")) offset++;
+                    var l2 = assembly[i + offset].Trim().Split(_split);
 
                     if (l1[0] == "push" && l2[0] == "pop")
                     {
                         if (l1[1] == l2[1])
                         {
-                            assembly.RemoveAt(i);
+                            assembly.RemoveAt(i + offset);
                             assembly.RemoveAt(i);
                             foundMerges = true;
                         }
                         else
                         {
-                            assembly.RemoveAt(i + 1);
+                            assembly.RemoveAt(i + offset);
                             assembly[i] = $"    mov {l2[1]}, {l1[1]}";
                             foundMerges = true;
                         }
