@@ -987,11 +987,30 @@ namespace IL2Asm.Assembler.x86
             i += 4;
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
+            var type = _runtime.GetFieldType(metadata, fieldToken);
 
             assembly.AddAsm("pop eax");
             assembly.AddAsm("pop ebx");
-            if (offset == 0) assembly.AddAsm("mov [ebx], eax");
-            else assembly.AddAsm($"mov [ebx + {offset}], eax");
+
+            if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
+            {
+                if (offset == 0) assembly.AddAsm("mov word [ebx], ax");
+                else assembly.AddAsm($"mov word [ebx + {offset}], ax");
+            }
+            else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+            {
+                if (offset == 0) assembly.AddAsm("mov byte [ebx], al");
+                else assembly.AddAsm($"mov byte [ebx + {offset}], al");
+            }
+            else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
+            {
+                throw new Exception("Unsupported type");
+            }
+            else
+            {
+                if (offset == 0) assembly.AddAsm("mov [ebx], eax");
+                else assembly.AddAsm($"mov [ebx + {offset}], eax");
+            }
         }
 
         private void LDSTR(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1015,10 +1034,32 @@ namespace IL2Asm.Assembler.x86
             i += 4;
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
+            var type = _runtime.GetFieldType(metadata, fieldToken);
 
             assembly.AddAsm("pop ebx");
-            if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
-            else assembly.AddAsm($"mov eax, [ebx + {offset}]");
+
+            if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
+            {
+                assembly.AddAsm("xor eax, eax");
+                if (offset == 0) assembly.AddAsm("mov word ax, [ebx]");
+                else assembly.AddAsm($"mov word ax, [ebx + {offset}]");
+            }
+            else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+            {
+                assembly.AddAsm("xor eax, eax");
+                if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
+                else assembly.AddAsm($"mov byte al, [ebx + {offset}], ");
+            }
+            else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
+            {
+                throw new Exception("Unsupported type");
+            }
+            else
+            {
+                if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
+                else assembly.AddAsm($"mov eax, [ebx + {offset}]");
+            }
+
             assembly.AddAsm("push eax");
 
             ebxType = _stack.Pop();
