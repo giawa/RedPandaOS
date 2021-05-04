@@ -51,17 +51,28 @@ namespace PELoader
 
             for (int i = startPosition; i < compressed.Length; i++)
             {
-                if (i < compressed.Length - 3 && (compressed[i + 3] & 0xE0) == 0xC0)
+                if ((compressed[i] & 0x80) == 0)
                 {
-                    uncompressed.Add(BitConverter.ToUInt32(compressed, i) & 0x1fffffff);
-                    i += 3;
+                    uncompressed.Add(compressed[i]);
                 }
-                else if (i < compressed.Length - 1 && (compressed[i + 1] & 0xC0) == 0x80)
+                else if ((compressed[i] & 0xC0) == 0x80)
                 {
-                    uncompressed.Add((uint)BitConverter.ToUInt16(compressed, i) & 0x3fff);
+                    uint temp = compressed[i];
+                    temp = (temp << 8) | compressed[i + 1];
+                    temp &= 0x3fff;
+                    uncompressed.Add(temp);
                     i++;
                 }
-                else uncompressed.Add(compressed[i]);
+                else
+                {
+                    uint temp = compressed[i];
+                    temp = (temp << 8) | compressed[i + 1];
+                    temp = (temp << 8) | compressed[i + 2];
+                    temp = (temp << 8) | compressed[i + 3];
+                    temp &= 0x1fffffff;
+                    uncompressed.Add(temp);
+                    i += 3;
+                }
             }
 
             return uncompressed.ToArray();
