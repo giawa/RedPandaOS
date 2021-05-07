@@ -21,20 +21,40 @@ namespace Kernel
         }
 
         private static SMAP_entry _entry;
+        private static CPU.CPUIDValue cpuId;
 
         static void Start()
         {
             VGA.Clear();
             VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
             VGA.WriteLine();
+            VGA.WriteLine();
 
-            // check if A20 is enabled
-            CPU.WriteMemInt(0x112345, 0x112345);
-            CPU.WriteMemInt(0x012345, 0x012345);
-            uint val1 = CPU.ReadMemInt(0x112345);
-            uint val2 = CPU.ReadMemInt(0x012345);
+            // make sure we're in 32 bit mode and have an FPU
+            if ((CPU.ReadCR0() & 0x00000011) != 0x00000011)
+            {
+                VGA.WriteVideoMemoryString("Failed to boot (invalid CR0 support)");
+                while (true) ;
+            }
 
-            if (val1 == val2) CPU.FastA20();
+            // check for SSE, long mode and SAHF/LAHF support
+            if (VerifyCompatibleCPU() != MissingCPUFeature.None)
+            {
+                VGA.WriteVideoMemoryString("Failed to boot (incompatible CPU) error 0x");
+                VGA.WriteHex((byte)VerifyCompatibleCPU());
+                while (true) ;
+            }
+
+            CPU.ReadCPUID(CPU.CPUIDLeaf.VirtualAndPhysicalAddressSizes, ref cpuId);
+            VGA.WriteVideoMemoryString("Found ");
+            PrintInt((int)(cpuId.ecx & 0xff) + 1);
+            VGA.WriteVideoMemoryString(" cpu cores!");
+            VGA.WriteLine();
+            VGA.WriteVideoMemoryString("We cannot use em ... YET!");
+
+            VerifyA20();
+
+            while (true) ;
 
             int entries = CPU.ReadMemShort(0x500);
             VGA.WriteLine();
@@ -69,6 +89,49 @@ namespace Kernel
             VGA.WriteHex((int)CPU.ReadCR0());
 
             while (true) ;
+        }
+
+        private enum MissingCPUFeature : byte
+        {
+            None,
+            SSE3,
+            Long_Mode,
+            LAHF_SAHF_Support
+        }
+
+        private static MissingCPUFeature VerifyCompatibleCPU()
+        {
+            CPU.ReadCPUID(CPU.CPUIDLeaf.ProcessorInfoAndFeatureBits, ref cpuId);
+            if ((cpuId.ecx & 0x01) == 0) return MissingCPUFeature.SSE3;
+
+            CPU.ReadCPUID(CPU.CPUIDLeaf.ExtendedProcessorInfoAndFeatureBits, ref cpuId);
+            if ((cpuId.edx & 0x20000000) == 0) return MissingCPUFeature.Long_Mode;
+            if ((cpuId.ecx & 0x01) == 0) return MissingCPUFeature.LAHF_SAHF_Support;
+
+            return MissingCPUFeature.None;
+        }
+
+        private static bool VerifyA20()
+        {
+            // check if A20 is enabled
+            CPU.WriteMemInt(0x112345, 0x112345);
+            CPU.WriteMemInt(0x012345, 0x012345);
+            uint val1 = CPU.ReadMemInt(0x112345);
+            uint val2 = CPU.ReadMemInt(0x012345);
+
+            if (val1 == val2)
+            {
+                CPU.FastA20();
+
+                CPU.WriteMemInt(0x112345, 0x112345);
+                CPU.WriteMemInt(0x012345, 0x012345);
+                val1 = CPU.ReadMemInt(0x112345);
+                val2 = CPU.ReadMemInt(0x012345);
+
+                return val1 != val2;
+            }
+
+            return true;
         }
 
         public static void CopyTo(uint source, ref SMAP_entry destination, int size)
