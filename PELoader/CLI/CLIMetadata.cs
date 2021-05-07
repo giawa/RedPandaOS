@@ -104,9 +104,19 @@ namespace PELoader
                 {
                     return US.Heap.AsSpan(addr, blob - 1).ToArray();
                 }
+                else if ((blob & 0xC0) == 0x80)
+                {
+                    int size = ((blob & 0x3f) << 8) + US.Heap[addr++];
+                    return US.Heap.AsSpan(addr, size - 1).ToArray();
+                }
+                else if ((blob & 0xE0) == 0xC0)
+                {
+                    int size = ((blob & 0x1f) << 24) | (US.Heap[addr] << 16) | (US.Heap[addr + 1] << 8) | US.Heap[addr + 2];
+                    return US.Heap.AsSpan(addr + 3, size - 1).ToArray();
+                }
                 else
                 {
-                    throw new Exception("No support yet for longer blobs.  See II.24.2.4");
+                    throw new Exception("Blob had an unsupported size.  See II.24.2.4");
                 }
             }
             else
