@@ -1316,6 +1316,8 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("pop ebp");
                     assembly.AddAsm("pop edx");
                     assembly.AddAsm("pop ecx");
+                    assembly.AddAsm("pop eax; pop arg 2");
+                    assembly.AddAsm("pop eax; pop arg 1");
                 }
                 else throw new Exception("Unable to handle this method");
             }
