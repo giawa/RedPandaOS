@@ -1181,8 +1181,6 @@ namespace IL2Asm.Assembler.x86
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
-
-
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
 
         private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1294,7 +1292,7 @@ namespace IL2Asm.Assembler.x86
                 }
                 else if (memberName == "CPUHelper.CPU.FastA20_Void")
                 {
-                    // fromm https://wiki.osdev.org/A20_Line
+                    // from https://wiki.osdev.org/A20_Line
                     assembly.AddAsm("in al, 0x92");
                     assembly.AddAsm("test al, 2");
                     assembly.AddAsm("jnz fasta20_enabled");
@@ -1302,6 +1300,22 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("and al, 0xFE");
                     assembly.AddAsm("out 0x92, al");
                     assembly.AddAsm("fasta20_enabled:");
+                }
+                else if (memberName == "CPUHelper.CPU.ReadCPUID_Void_ValueType_ByRefValueType")
+                {
+                    assembly.AddAsm("push ecx");
+                    assembly.AddAsm("push edx");
+                    assembly.AddAsm("push ebp");
+                    assembly.AddAsm("mov eax, [esp+16]");
+                    assembly.AddAsm("cpuid");
+                    assembly.AddAsm("mov ebp, [esp+12]");
+                    assembly.AddAsm("mov [ebp+12], edx");
+                    assembly.AddAsm("mov [ebp+8], ecx");
+                    assembly.AddAsm("mov [ebp+4], ebx");
+                    assembly.AddAsm("mov [ebp], eax");
+                    assembly.AddAsm("pop ebp");
+                    assembly.AddAsm("pop edx");
+                    assembly.AddAsm("pop ecx");
                 }
                 else throw new Exception("Unable to handle this method");
             }

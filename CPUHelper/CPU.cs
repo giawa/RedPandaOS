@@ -75,6 +75,31 @@ namespace CPUHelper
             return 0;
         }
 
+        public enum CPUIDLeaf : uint
+        {
+            HighestFunctionParameterAndManufacturerId = 0,
+            ProcessorInfoAndFeatureBits = 1,
+            CacheAndTLBDescriptorInformation = 2,
+            ProcessorSerialNumber = 3,
+            TheadCoreAndCacheTopology = 4,
+            ThermalAndPowerManagerment = 6,
+            ExtendedFeatures = 7,
+            ExtendedProcessorInfoAndFeatureBits = 0x80000001U,
+            VirtualAndPhysicalAddressSizes = 0x80000008U
+        }
+
+        public struct CPUIDValue
+        {
+            public uint eax;
+            public uint ebx;
+            public uint ecx;
+            public uint edx;
+        }
+
+        public static void ReadCPUID(CPUIDLeaf id, ref CPUIDValue value)
+        {
+        }
+
         public static void WriteMemInt(uint addr, uint data)
         {
 
