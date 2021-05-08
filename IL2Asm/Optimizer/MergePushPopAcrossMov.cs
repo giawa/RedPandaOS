@@ -27,14 +27,24 @@ namespace IL2Asm.Optimizer
                     string src = l1[1];
                     string dest = l3[1];
 
-                    // make sure the dest isn't the target of the mov (should never happen?)
-                    if (l2[1] == dest) continue;
+                    // we can either optimize the mov to occur before the center mov, or after
+                    if (l2[1].Trim(',') != l3[1] && l2[2] != l3[1])
+                    {
+                        // easy case, we can just put it before
+                        assembly.RemoveAt(i + offset2);
+                        
+                        if (src == dest) assembly.RemoveAt(i);
+                        else assembly[i] = $"    mov {dest}, {src}";
+                    }
+                    else if (l2[1].Trim(',') != src)
+                    {
+                        // src and dest can sometimes be equivalent, in this case the mov is redundant
+                        if (src == dest) assembly.RemoveAt(i + offset2);
+                        else assembly[i + offset2] = $"    mov {dest}, {src}";
 
-                    assembly[i] = $"    mov {dest}, {src}";
-                    assembly.RemoveAt(i + offset2);
-
-                    // src and dest can sometimes be equivalent, in this case the mov is redundant
-                    if (src == dest) assembly.RemoveAt(i);
+                        // remove the push since we took care of the assignment already
+                        assembly.RemoveAt(i);
+                    }
                 }
             }
         }
