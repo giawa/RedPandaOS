@@ -153,8 +153,22 @@ namespace PELoader
             else return $"{Type} {Token.ToString("X")}";
         }
 
-        public bool Is32BitCapable()
+        public bool Is32BitCapable(CLIMetadata metadata)
         {
+            if (Type == EType.ValueType)
+            {
+                var token = Token;
+                while ((Token & 0xff000000) == 0x02000000)
+                {
+                    var typeDef = metadata.TypeDefs[(int)(Token & 0x00ffffff) - 1];
+                    if ((typeDef.typeDefOrRef & 0xff000000) == 0x02000000) token = typeDef.typeDefOrRef;
+                    else
+                    {
+                        var typeRef = metadata.TypeRefs[(int)(typeDef.typeDefOrRef & 0x00ffffff) - 1];
+                        if (typeRef.Name == "Enum" && typeRef.Namespace == "System") return true;   // enums can work like ints
+                    }
+                }
+            }
             return (Type >= EType.Char && Type <= EType.U4);
         }
 

@@ -372,7 +372,7 @@ namespace IL2Asm.Assembler.x86
 
                     // BEQ.S
                     case 0x2E:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
@@ -389,7 +389,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -419,7 +419,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -449,7 +449,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -479,7 +479,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -509,7 +509,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -539,7 +539,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -568,7 +568,7 @@ namespace IL2Asm.Assembler.x86
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -627,7 +627,7 @@ namespace IL2Asm.Assembler.x86
 
                     // BLT
                     case 0x3F:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
@@ -648,7 +648,7 @@ namespace IL2Asm.Assembler.x86
 
                         _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
 
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop eax");        // value2
                             assembly.AddAsm("pop ebx");        // value1
@@ -679,7 +679,7 @@ namespace IL2Asm.Assembler.x86
                         ebxType = _stack.Pop();
                         _stack.Push(eaxType);
 
-                        if (eaxType.Is32BitCapable())
+                        if (eaxType.Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("mov ebx, [esp]");
                             assembly.AddAsm("mov eax, [esp + 4]");
@@ -707,7 +707,7 @@ namespace IL2Asm.Assembler.x86
                         ebxType = _stack.Pop();
                         _stack.Push(eaxType);
 
-                        if (eaxType.Is32BitCapable() && ebxType.Is32BitCapable())
+                        if (eaxType.Is32BitCapable(pe.Metadata) && ebxType.Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop ebx");
                             assembly.AddAsm("pop eax");
@@ -734,7 +734,7 @@ namespace IL2Asm.Assembler.x86
                         ebxType = _stack.Pop();
                         _stack.Push(eaxType);
 
-                        if (eaxType.Is32BitCapable())
+                        if (eaxType.Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("pop ebx");
                             assembly.AddAsm("pop eax");
@@ -853,7 +853,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CONV.I4
                     case 0x69:
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             // no conversion required, we're already 32 bit
                         }
@@ -873,7 +873,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CONV.R4
                     case 0x6B:
-                        if (_stack.Peek().Is32BitCapable())
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
                         {
                             assembly.AddAsm("fild dword [esp]");
                             assembly.AddAsm("fstp dword [esp]");
@@ -934,7 +934,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CEQ
                     case 0xFE01:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop eax");       // value2
                         assembly.AddAsm("pop ebx");       // value1
@@ -951,7 +951,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CGT
                     case 0xFE02:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop eax");       // value2
                         assembly.AddAsm("pop ebx");       // value1
@@ -968,7 +968,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CGT.UN (identical to CGT for now)
                     case 0xFE03:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop eax");       // value2
                         assembly.AddAsm("pop ebx");       // value1
@@ -985,7 +985,7 @@ namespace IL2Asm.Assembler.x86
 
                     // CLT
                     case 0xFE04:
-                        if (!_stack.Peek().Is32BitCapable()) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop eax");       // value2
                         assembly.AddAsm("pop ebx");       // value1
