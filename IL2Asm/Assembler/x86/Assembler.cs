@@ -616,10 +616,6 @@ namespace IL2Asm.Assembler.x86
 
                         if (eaxType.Is32BitCapable())
                         {
-                            /*assembly.AddAsm("pop ebx");
-                            assembly.AddAsm("pop eax");
-                            assembly.AddAsm("add eax, ebx");
-                            assembly.AddAsm("push eax");*/
                             assembly.AddAsm("mov ebx, [esp]");
                             assembly.AddAsm("mov eax, [esp + 4]");
                             assembly.AddAsm("add eax, ebx");
@@ -1403,15 +1399,15 @@ namespace IL2Asm.Assembler.x86
             output.Add("[bits 32]");
             output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
             output.Add("enter_pm:");
-            output.Add("mov ax, 16");
-            output.Add("mov ds, ax");
-            output.Add("mov ss, ax");
-            output.Add("mov es, ax");
-            output.Add("mov fs, ax");
-            output.Add("mov gs, ax");
-            output.Add("mov ebp, 0x9000 ; reset the stack");
-            output.Add("mov esp, ebp");
-            output.Add("finit");
+            output.Add("    mov ax, 16");
+            output.Add("    mov ds, ax");
+            output.Add("    mov ss, ax");
+            output.Add("    mov es, ax");
+            output.Add("    mov fs, ax");
+            output.Add("    mov gs, ax");
+            output.Add("    mov ebp, 0x9000 ; reset the stack");
+            output.Add("    mov esp, ebp");
+            output.Add("    finit");
             output.Add("");
 
             if (_staticConstructors.Count > 0)
@@ -1497,7 +1493,7 @@ namespace IL2Asm.Assembler.x86
             }
 
             // pad this file to 8kB, since that is what we load in from disk
-            output.Add($"times {size}-($-$$) db 0");
+            //output.Add($"times {size}-($-$$) db 0");
 
             return output;
         }

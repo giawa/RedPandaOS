@@ -43,7 +43,10 @@ namespace GiawaOS
                 assembler32.AddAssembly(file);
                 assembler32.Assemble(file, methodDef32);
 
-                var pm = assembler32.WriteAssembly(0xA000, 8192);
+                var pm = assembler32.WriteAssembly(0xA000, 90112);
+                IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
+                IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);
+                IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
                 File.WriteAllLines("pm.asm", pm.ToArray());
 
                 /*using (StreamWriter stream = new StreamWriter("bios.asm", true))
@@ -59,6 +62,8 @@ namespace GiawaOS
                 RunNASM("stage2.asm", "stage2.bin");
                 RunNASM("pm.asm", "pm.bin");
 
+                var pmBytes = File.ReadAllBytes("pm.bin");
+
                 // combine the assemblies by tacking the protected mode code on to the boot loader
                 try
                 {
@@ -67,6 +72,17 @@ namespace GiawaOS
                     {
                         stream.Write(File.ReadAllBytes("stage2.bin"));
                         stream.Write(File.ReadAllBytes("pm.bin"));
+
+                        Console.WriteLine($"Kernel is using {pmBytes.Length / 94720.0 * 100}% of available space.");
+
+                        stream.Write(new byte[512 - (pmBytes.Length % 512)]);
+
+                        while (stream.Length < 94720)
+                        {
+                            byte[] temp = new byte[512];
+                            for (int i = 0; i < 512; i++) temp[i] = (byte)(stream.Length / 512);
+                            stream.Write(temp);
+                        }
                     }
 
                     // then boot qemu
