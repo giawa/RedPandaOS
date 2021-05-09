@@ -43,9 +43,14 @@ namespace CPUHelper
 
         }
 
-        public static ushort LoadDisk(ushort highAddr, ushort lowAddr, byte drive, byte sectors)
+        public static ushort LoadDisk(byte cylinder, byte head, byte sector, ushort highAddr, ushort lowAddr, byte drive, byte sectors)
         {
             return 0;
+        }
+
+        public static void ResetDisk()
+        {
+
         }
 
         [StructLayout(LayoutKind.Sequential)]

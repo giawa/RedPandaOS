@@ -131,6 +131,14 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("push ax");
                         break;
 
+                    // LDARG.S
+                    case 0x0E:
+                        _byte = code[i++];
+                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
+                        assembly.AddAsm("push ax");
+                        break;
+
                     // STARG.S
                     case 0x10:
                         _byte = code[i++];
@@ -817,7 +825,12 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                     assembly.AddAsm("bios_a20_complete:");
                 }
-                else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U2_U2_U1_U1")
+                else if (memberName == "CPUHelper.Bios.ResetDisk_Void")
+                {
+                    assembly.AddAsm("mov ah, 0x00; reset disk drive");
+                    assembly.AddAsm("int 0x13");
+                }
+                else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U1_U1_U1_U2_U2_U1_U1")
                 {
                     assembly.AddAsm("call LoadDisk_U2_U2_U2_U1_U1");
                     assembly.AddAsm("push ax");
@@ -831,37 +844,38 @@ namespace IL2Asm.Assembler.x86_RealMode
                         loadDiskMethod.AddAsm("mov bp, sp");
                         loadDiskMethod.AddAsm("push cx");
                         loadDiskMethod.AddAsm("push dx");
+                        loadDiskMethod.AddAsm("push es");
 
-                        // bp + 4 is sectors
+                        // bp + 4 is sectors to read
                         // bp + 6 is drive
                         // bp + 8 is lowAddr
                         // bp + 10 is hiAddr
+                        // bp + 12 is sector
+                        // bp + 14 is head
+                        // bp + 16 is cylinder
                         loadDiskMethod.AddAsm("mov es, [bp + 10]");
                         loadDiskMethod.AddAsm("mov bx, [bp + 8]");
 
                         loadDiskMethod.AddAsm("mov ah, 0x02");
                         loadDiskMethod.AddAsm("mov al, [bp + 4]");
 
-                        loadDiskMethod.AddAsm("mov cl, 0x02");      // starting at sector 2, sector 1 is our boot sector and already in memory
-                        loadDiskMethod.AddAsm("mov ch, 0x00");      // cyliner 0
-                        loadDiskMethod.AddAsm("mov dh, 0x00");      // head number 0
+                        loadDiskMethod.AddAsm("mov cl, [bp + 12]"); // starting at sector 2, sector 1 is our boot sector and already in memory
+                        loadDiskMethod.AddAsm("mov ch, [bp + 16]"); // first 8 bits of cylinder
+                        loadDiskMethod.AddAsm("mov dh, [bp + 14]"); // head
                         loadDiskMethod.AddAsm("mov dl, [bp + 6]");  // drive number from bios
 
                         loadDiskMethod.AddAsm("int 0x13");
                         //loadDiskMethod.AddAsm("mov al, dl");
 
-                        loadDiskMethod.AddAsm("jc LoadDisk_U2_U2_U2_U1_U1_Error");
+                        loadDiskMethod.AddAsm("jc LoadDisk_U2_U2_U2_U1_U1_Cleanup");
                         loadDiskMethod.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
 
                         loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
+                        loadDiskMethod.AddAsm("pop es");
                         loadDiskMethod.AddAsm("pop dx");
                         loadDiskMethod.AddAsm("pop cx");
                         loadDiskMethod.AddAsm("pop bp");
-                        loadDiskMethod.AddAsm("ret 8");
-
-                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Error:");
-                        loadDiskMethod.AddAsm("mov al, ah");
-                        loadDiskMethod.AddAsm("jmp LoadDisk_U2_U2_U2_U1_U1_Cleanup");
+                        loadDiskMethod.AddAsm("ret 14");
 
                         _methods.Add(loadDiskMethod);
                         _addedLoadDisk = true;

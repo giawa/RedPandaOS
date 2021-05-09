@@ -53,6 +53,11 @@ namespace IL2Asm.Optimizer
                         canSimplify = false;
                         break;
                     }
+                    if (l[0].StartsWith("sh") && dest == "cx")
+                    {
+                        canSimplify = false;
+                        break;
+                    }
 
                     if (l[0] == "mul" && dest == l[1])
                     {
@@ -90,7 +95,7 @@ namespace IL2Asm.Optimizer
                 {
                     int optimizations = 0;
 
-                    for (int k = i + 1; k <= j; k++)
+                    for (int k = i + 1; k <= j && k < assembly.Count; k++)
                     {
                         var l = assembly[k].Trim().Split(_split);
 
