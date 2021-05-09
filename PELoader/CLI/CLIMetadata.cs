@@ -261,6 +261,18 @@ namespace PELoader
                     {
                         _typeSpecs.Add(new TypeSpecLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.PropertyMap)
+                    {
+                        _propertyMaps.Add(new PropertyMapLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.Property)
+                    {
+                        _properties.Add(new PropertyLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.MethodSemantics)
+                    {
+                        _methodSemantics.Add(new MethodSemanticsLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -278,7 +290,7 @@ namespace PELoader
                 _typeDefs[i].endOfMethodList = _typeDefs[i + 1].methodList;
             }
 
-            for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(_fields, _methodDefs);
+            for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(_fields, _methodDefs, _properties);
 
             for (int i = 0; i < _memberRefs.Count; i++) _memberRefs[i].FindParentType(this);
         }
@@ -300,6 +312,9 @@ namespace PELoader
         private List<InterfaceImplLayout> _interfaceImpls = new List<InterfaceImplLayout>();
         private List<MethodSpecLayout> _methodSpecs = new List<MethodSpecLayout>();
         private List<GenericParamLayout> _genericParams = new List<GenericParamLayout>();
+        private List<PropertyMapLayout> _propertyMaps = new List<PropertyMapLayout>();
+        private List<PropertyLayout> _properties = new List<PropertyLayout>();
+        private List<MethodSemanticsLayout> _methodSemantics = new List<MethodSemanticsLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }

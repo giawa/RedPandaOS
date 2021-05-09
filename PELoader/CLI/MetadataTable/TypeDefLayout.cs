@@ -11,12 +11,15 @@ namespace PELoader
         public uint typeDefOrRef;
         public uint fieldList;
         public uint methodList;
+        public uint propertyList;
 
         public uint endOfFieldList;
         public uint endOfMethodList;
+        public uint endOfPropertyList;
 
         public List<FieldLayout> Fields = new List<FieldLayout>();
         public List<MethodDefLayout> Methods = new List<MethodDefLayout>();
+        public List<PropertyLayout> Properties = new List<PropertyLayout>();
 
         public TypeDefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -62,7 +65,14 @@ namespace PELoader
                 offset += 2;
             }
 
-            if (metadata.TableSizes[0x04] > ushort.MaxValue)
+            switch (firstByte & 0x03)
+            {
+                case 0x00: typeDefOrRef = 0x02000000 | (typeDefOrRef >> 2); break;
+                case 0x01: typeDefOrRef = 0x01000000 | (typeDefOrRef >> 2); break;
+                case 0x02: typeDefOrRef = 0x1B000000 | (typeDefOrRef >> 2); break;
+            }
+
+            if (metadata.TableSizes[MetadataTable.Field] > ushort.MaxValue)
             {
                 fieldList = BitConverter.ToUInt32(metadata.Table.Heap, offset);
                 offset += 4;
@@ -73,7 +83,7 @@ namespace PELoader
                 offset += 2;
             }
 
-            if (metadata.TableSizes[0x06] > ushort.MaxValue)
+            if (metadata.TableSizes[MetadataTable.MethodDef] > ushort.MaxValue)
             {
                 methodList = BitConverter.ToUInt32(metadata.Table.Heap, offset);
                 offset += 4;
@@ -88,10 +98,11 @@ namespace PELoader
             Namespace = metadata.GetString(typeNamespace);
         }
 
-        public void FindFieldsAndMethods(List<FieldLayout> fields, List<MethodDefLayout> methodDefs)
+        public void FindFieldsAndMethods(List<FieldLayout> fields, List<MethodDefLayout> methodDefs, List<PropertyLayout> properties)
         {
             if (endOfFieldList == 0) endOfFieldList = (uint)(fields.Count + 1);
             if (endOfMethodList == 0) endOfMethodList = (uint)(methodDefs.Count + 1);
+            if (endOfPropertyList == 0) endOfPropertyList = (uint)(properties.Count + 1);
 
             for (uint i = fieldList; i < endOfFieldList; i++)
             {
@@ -102,6 +113,14 @@ namespace PELoader
             {
                 Methods.Add(methodDefs[(int)i - 1]);
                 methodDefs[(int)i - 1].Parent = this;
+            }
+            if (propertyList != 0)
+            {
+                for (uint i = propertyList; i < endOfPropertyList; i++)
+                {
+                    Properties.Add(properties[(int)i - 1]);
+                    properties[(int)i - 1].Parent = this;
+                }
             }
         }
 
