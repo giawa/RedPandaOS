@@ -180,6 +180,14 @@ namespace IL2Asm.Assembler.x86
                         eaxType = _stack.Pop();
                         break;
 
+                    // LDARG.S
+                    case 0x0E:
+                        _byte = code[i++];
+                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
+                        assembly.AddAsm("push eax");
+                        break;
+
                     // STARG.S
                     case 0x10:
                         _byte = code[i++];
@@ -604,6 +612,38 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm("pop ebx");        // value1
                         assembly.AddAsm("cmp ebx, eax");    // compare values
                         assembly.AddAsm($"jl {_jmpLabel}");
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        break;
+
+                    // BNE.UN
+                    case 0x40:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+
+                        if (_stack.Peek().Is32BitCapable())
+                        {
+                            assembly.AddAsm("pop eax");        // value2
+                            assembly.AddAsm("pop ebx");        // value1
+                            assembly.AddAsm("cmp ebx, eax");    // compare values
+                            assembly.AddAsm($"jne {_jmpLabel}");
+                        }
+                        else if (_stack.Peek().Type == ElementType.EType.R4)
+                        {
+                            assembly.AddAsm("fld dword [esp]");
+                            assembly.AddAsm("fld dword [esp + 4]");
+                            assembly.AddAsm("fcomip");
+                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
+                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
+                            assembly.AddAsm($"jne {_jmpLabel}");
+                        }
+                        else
+                        {
+                            throw new Exception("Unsupported type");
+                        }
+
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();
                         break;
