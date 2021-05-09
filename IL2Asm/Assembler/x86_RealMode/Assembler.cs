@@ -743,16 +743,16 @@ namespace IL2Asm.Assembler.x86_RealMode
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToAsmString();
 
-                if (memberName == "CPUHelper.Bios.WriteByte_Void_I4" || memberName == "CPUHelper.Bios.WriteByte_Void_U1")
+                assembly.AddAsm($"; start {memberName} plug");
+
+                if (memberName == "CPUHelper.Bios.WriteByte_Void_U1")
                 {
-                    assembly.AddAsm("; Bios.WriteByte plug");
                     assembly.AddAsm("pop ax");
                     assembly.AddAsm("mov ah, 0x0e");
                     assembly.AddAsm("int 0x10");
                 }
                 else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ByRefValueType")
                 {
-                    assembly.AddAsm("; Bios.EnterProtectedMode plug");
                     assembly.AddAsm("pop bx");
                     assembly.AddAsm("mov [gdt_ptr + 2], bx");
                     assembly.AddAsm("cli");
@@ -768,33 +768,28 @@ namespace IL2Asm.Assembler.x86_RealMode
                 }
                 else if (memberName == "CPUHelper.CPU.ReadDX_U2")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.ReadDX_U2 plug");
                     assembly.AddAsm("push dx");
                 }
                 else if (memberName == "CPUHelper.CPU.ReadMem_U2_U2")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
                     assembly.AddAsm("pop bx");
                     assembly.AddAsm("mov ax, [bx]");
                     assembly.AddAsm("push ax");
                 }
                 else if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.WriteMemory_Void_I4_I4 plug");
                     assembly.AddAsm("pop ax");
                     assembly.AddAsm("pop bx");
                     assembly.AddAsm("mov [bx], ax");
                 }
                 else if (memberName == "CPUHelper.CPU.Jump_Void_U4")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.Jump_Void_U4 plug");
                     assembly.AddAsm("pop ax");
                     assembly.AddAsm("jmp ax");
                 }
                 else if (memberName == "CPUHelper.Bios.EnableA20_Boolean")
                 {
                     // from https://wiki.osdev.org/A20_Line
-                    assembly.AddAsm("; CPUHelper.CPU.EnableA20_Boolean plug");
                     assembly.AddAsm("mov ax, 0x2403");
                     assembly.AddAsm("int 0x15");
                     assembly.AddAsm("jb bios_a20_failed");

@@ -1207,6 +1207,8 @@ namespace IL2Asm.Assembler.x86
                 eaxType = null;
                 ebxType = null;
 
+                assembly.AddAsm($"; start {memberName} plug");
+
                 if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
                 {
                     assembly.AddAsm("pop eax"); // character
@@ -1238,7 +1240,6 @@ namespace IL2Asm.Assembler.x86
                 }
                 else if (memberName == "CPUHelper.CPU.ReadMemShort_U2_U2")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
                     assembly.AddAsm("pop ebx");
                     assembly.AddAsm("mov ax, [bx]");
                     assembly.AddAsm("and eax, 65535");
@@ -1246,7 +1247,6 @@ namespace IL2Asm.Assembler.x86
                 }
                 else if (memberName == "CPUHelper.CPU.ReadMemByte_U1_U2")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.ReadMem_U2_U2 plug");
                     assembly.AddAsm("pop ebx");
                     assembly.AddAsm("mov ax, [bx]");
                     assembly.AddAsm("and eax, 255");
@@ -1254,7 +1254,6 @@ namespace IL2Asm.Assembler.x86
                 }
                 else if (memberName == "CPUHelper.CPU.CopyByte<SMAP_entry>_Void_U4_U4_ByRef")
                 {
-                    assembly.AddAsm("; CPUHelper.CPU.CopyByte plug");
                     assembly.AddAsm("push ecx");
 
                     assembly.AddAsm("mov eax, [esp + 16]");
@@ -1315,7 +1314,11 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("pop eax; pop arg 2");
                     assembly.AddAsm("pop eax; pop arg 1");
                 }
-                else throw new Exception("Unable to handle this method");
+                else
+                {
+                    throw new Exception("Unable to handle this method");
+                }
+                assembly.AddAsm("; end plug");
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
