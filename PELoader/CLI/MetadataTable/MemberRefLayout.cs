@@ -74,6 +74,18 @@ namespace PELoader
             Type = type;
         }
 
+        public ElementType(EType type, uint token)
+        {
+            Type = type;
+            Token = token;
+        }
+
+        public ElementType(ElementType type)
+        {
+            Type = type.Type;
+            Token = type.Token;
+        }
+
         public ElementType(uint[] data, ref uint i)
         {
             Init(data, ref i);
@@ -145,12 +157,19 @@ namespace PELoader
         {
             return (Type >= EType.Char && Type <= EType.U4);
         }
+
+        public bool IsPointer()
+        {
+            var lowerByte = (EType)((uint)Type & 0xff);
+            return (lowerByte == EType.ValueType || lowerByte == EType.Class || lowerByte == EType.Ptr || lowerByte == EType.Object || lowerByte == EType.ByRef);
+        }
     }
 
     public class MethodRefSig
     {
         public SigFlags Flags { get; private set; }
         public uint ParamCount { get; private set; }
+        public uint GenParamCount { get; private set; }
         public ElementType RetType { get; private set; }
         public ElementType[] Params { get; private set; }
 
@@ -174,7 +193,8 @@ namespace PELoader
                 Flags = (SigFlags)blob[0];
 
                 uint i = 0;
-                if ((Flags & SigFlags.GENERIC) != 0) i++;   // TODO?
+                if ((Flags & SigFlags.GENERIC) != 0)
+                    GenParamCount = data[i++];
 
                 ParamCount = data[i++];
                 

@@ -75,15 +75,13 @@ namespace PELoader
                     {
                         Types[i] = new ElementType(data, ref offset);
 
-                        if ((Types[i].Token & 0x02000000) != 0) TypeNames[i] = metadata.TypeDefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
+                        if ((Types[i].Token & 0xff000000) == 0x02000000)
+                        {
+                            TypeNames[i] = metadata.TypeDefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
+                        }
                         else if (Types[i].Type == ElementType.EType.MVar)
                         {
-                            if ((methodSpec.method & 0x06000000) != 0)
-                            {
-                                var parent = metadata.MethodDefs[(int)(methodSpec.method & 0x00ffffff) - 1];
-                                throw new Exception("Incomplete");
-                            }
-                            else throw new Exception("Broken");
+                            //Types[i].Token = methodSpec.method;
                         }
                         else throw new Exception("No implementation for this table type");
                     }
