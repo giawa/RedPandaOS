@@ -50,11 +50,10 @@ namespace Kernel
             PrintInt((int)(cpuId.ecx & 0xff) + 1);
             VGA.WriteVideoMemoryString(" cpu cores!");
             VGA.WriteLine();
-            VGA.WriteVideoMemoryString("We cannot use em ... YET!");
+            VGA.WriteLine();
 
             VerifyA20();
-
-            while (true) ;
+            PCI.ScanBus();
 
             int entries = CPU.ReadMemShort(0x500);
             VGA.WriteLine();
@@ -65,16 +64,25 @@ namespace Kernel
             for (int i = 0; i < entries; i++)
             {
                 CopyTo((uint)(0x502 + 24 * i), ref _entry, 24);
+                if ((_entry.Type & 1) != 1) continue;
                 VGA.WriteVideoMemoryString("Memory Region ");
                 VGA.WriteVideoMemoryChar(48 + i);
                 VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.BaseL); VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.BaseH); VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.LengthL); VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.LengthH); VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.Type); VGA.WriteLine();
-                //VGA.WriteHex(_entry.ACPI); VGA.WriteLine();
+                VGA.WriteHex(_entry.BaseH); VGA.WriteHex(_entry.BaseL); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteHex(_entry.LengthH); VGA.WriteHex(_entry.LengthL); VGA.WriteLine();
             }
+
+            // verify memory looks correct
+            /*int j = 0;
+            for (uint i = 0xA000; i < 0x20000; i += 512)
+            {
+                var b = CPU.ReadMemInt(i);
+                VGA.WriteHex((byte)b);
+                VGA.WriteVideoMemoryChar(' ');
+                if (Math32.Modulo(j + 10, 16) == 0) VGA.WriteLine();
+                j++;
+            }
+            VGA.WriteLine();*/
 
             VGA.WriteLine();
 
@@ -84,6 +92,7 @@ namespace Kernel
             }
 
             VGA.WriteLine();
+
             VGA.WriteLine();
             VGA.WriteVideoMemoryString("CR0: 0x");
             VGA.WriteHex((int)CPU.ReadCR0());
@@ -138,6 +147,57 @@ namespace Kernel
         {
             for (int i = 0; i < size; i++)
                 CPU.CopyByte<SMAP_entry>(source, (uint)i, ref destination, (uint)i);
+        }
+
+        public static void PrintFloat(float f)
+        {
+            float tens = 0;
+            float temp = f;
+
+            while (temp < 1 && temp != 0)
+            {
+                tens--;
+                temp *= 10;
+            }
+
+            while (temp >= 10 && temp != 0)
+            {
+                tens++;
+                temp /= 10;
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                int integer = (int)temp;
+                temp -= integer;
+                temp *= 10;
+                VGA.WriteVideoMemoryChar(integer + 48);
+
+                if (i == 0) VGA.WriteVideoMemoryChar('.');
+            }
+
+            VGA.WriteVideoMemoryChar('e');
+            PrintInt((int)tens);
+        }
+
+        public static void PrintInt(int value)
+        {
+            int divisor = 1;
+
+            while (divisor * 10 <= value)
+            {
+                divisor *= 10;
+            }
+
+            if (value < 0) VGA.WriteVideoMemoryChar('-');
+
+            while (divisor > 0)
+            {
+                int c = Math32.Divide(value, divisor);
+                VGA.WriteVideoMemoryChar(Math32.Modulo(c, 10) + 48);
+
+                divisor = Math32.Divide(divisor, 10);
+            }
         }
     }
 }
