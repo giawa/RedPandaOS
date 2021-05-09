@@ -625,6 +625,22 @@ namespace IL2Asm.Assembler.x86
                         eaxType = _stack.Pop();
                         break;
 
+                    // BEQ
+                    case 0x3B:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop eax");        // value2
+                        assembly.AddAsm("pop ebx");        // value1
+                        assembly.AddAsm("cmp ebx, eax");    // compare values
+                        assembly.AddAsm($"je {_jmpLabel}");
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        break;
+
                     // BLT
                     case 0x3F:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
