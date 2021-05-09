@@ -69,7 +69,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             {
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 for (int i = 2; i < localVarCount; i++)
-                    assembly.AddAsm($"push 0; localvar.{i + 1}");
+                    assembly.AddAsm($"push 0; localvar.{i}");
             }
 
             for (ushort i = 0; i < code.Length;)

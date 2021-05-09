@@ -62,13 +62,13 @@ namespace IL2Asm.Assembler.x86
                     int localVarCount = method.LocalVars.LocalVariables.Length;
                     if (localVarCount > 0)
                     {
-                        assembly.AddAsm("push ecx; localvar.1");
+                        assembly.AddAsm("push ecx; localvar.0");
                         assembly.AddAsm("mov ecx, 0");
                         localVarOffset = BytesPerRegister;
                     }
                     if (localVarCount > 1)
                     {
-                        assembly.AddAsm("push edx; localvar.2");
+                        assembly.AddAsm("push edx; localvar.1");
                         assembly.AddAsm("mov edx, 0");
                         localVarOffset = BytesPerRegister * 2;
                     }
@@ -80,7 +80,7 @@ namespace IL2Asm.Assembler.x86
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 for (int i = 2; i < localVarCount; i++)
                 {
-                    assembly.AddAsm($"push 0; localvar.{i + 1}");
+                    assembly.AddAsm($"push 0; localvar.{i}");
                     _stack.Push(method.LocalVars.LocalVariables[i]);
                 }
             }
