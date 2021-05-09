@@ -36,6 +36,13 @@ namespace IL2Asm.Optimizer
                         usedLabels.Add(split[1]);
                     }
                 }
+                else if (l.StartsWith("dd IL"))
+                {
+                    // jump table
+                    var split = l.Split(_split);
+                    for (int i = 1; i < split.Length; i++)
+                        usedLabels.Add(split[i].Trim(','));
+                }
             }
 
             for (int i = assembly.Count - 1; i >= 0; i--)

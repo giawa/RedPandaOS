@@ -692,7 +692,7 @@ namespace IL2Asm.Assembler.x86
                     // SWITCH
                     case 0x45:
                         var defaultLabel = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_Default";
-                        var jmpTableName = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_JmpTable";
+                        var jmpTableName = $"DD_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_JmpTable";
 
                         _uint = BitConverter.ToUInt32(code, i);
                         i += 4;
