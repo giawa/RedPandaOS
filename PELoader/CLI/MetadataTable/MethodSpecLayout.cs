@@ -53,6 +53,18 @@ namespace PELoader
             MemberSignature = new MethodSpecSig(metadata, instantiation, this);
         }
 
+        private MethodSpecLayout() { }
+
+        public MethodSpecLayout Clone()
+        {
+            MethodSpecLayout methodSpec = new MethodSpecLayout();
+            methodSpec.method = method;
+            methodSpec.instantiation = instantiation;
+            methodSpec.MemberSignature = MemberSignature.Clone();
+
+            return methodSpec;
+        }
+
         public class MethodSpecSig  // II.23.2.15
         {
             public ElementType[] Types;
@@ -105,6 +117,18 @@ namespace PELoader
 
                 sb.Append(">");
                 return sb.ToString();
+            }
+
+            private MethodSpecSig() { }
+
+            public MethodSpecSig Clone()
+            {
+                MethodSpecSig methodSig = new MethodSpecSig();
+                methodSig.Types = new ElementType[Types.Length];
+                for (int i = 0; i < methodSig.Types.Length; i++)
+                    methodSig.Types[i] = new ElementType(Types[i]);
+                methodSig.TypeNames = (string[])TypeNames.Clone();
+                return methodSig;
             }
         }
     }
