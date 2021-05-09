@@ -22,13 +22,19 @@ namespace Bootloader
         public static void WriteHexChar(int value)
         {
             value &= 0x0f;
-            if (value >= 10) Bios.WriteByte(value + 55);
-            else Bios.WriteByte(value + 48);
+            if (value >= 10) Bios.WriteByte((byte)(value + 55));
+            else Bios.WriteByte((byte)(value + 48));
         }
 
         public static void WriteLine(string s)
         {
             Write(s);
+            Bios.WriteByte((byte)'\n');
+            Bios.WriteByte((byte)'\r');
+        }
+
+        public static void WriteLine()
+        {
             Bios.WriteByte((byte)'\n');
             Bios.WriteByte((byte)'\r');
         }
@@ -56,7 +62,7 @@ namespace Bootloader
             while (divisor > 0)
             {
                 short c = Math16.Divide(value, divisor);
-                Bios.WriteByte(Math16.Modulo(c, 10) + 48);
+                Bios.WriteByte((byte)(Math16.Modulo(c, 10) + 48));
 
                 divisor = Math16.Divide(divisor, 10);
             }

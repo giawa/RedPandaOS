@@ -211,8 +211,8 @@ namespace TestIL
         public static void WriteHexChar(int value)
         {
             value &= 0x0f;
-            if (value >= 10) Bios.WriteByte(value + 55);
-            else Bios.WriteByte(value + 48);
+            if (value >= 10) Bios.WriteByte((byte)(value + 55));
+            else Bios.WriteByte((byte)(value + 48));
         }
 
         public static void WriteLine(string s)
@@ -245,7 +245,7 @@ namespace TestIL
             while (divisor > 0)
             {
                 int c = MathHelper.Divide(value, divisor);
-                Bios.WriteByte(MathHelper.Modulo(c, 10) + 48);
+                Bios.WriteByte((byte)(MathHelper.Modulo(c, 10) + 48));
 
                 divisor = MathHelper.Divide(divisor, 10);
             }

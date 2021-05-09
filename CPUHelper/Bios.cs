@@ -33,10 +33,10 @@ namespace CPUHelper
             Console.Write((char)c);
         }
 
-        public static void WriteByte(int c)
+        /*public static void WriteByte(int c)
         {
             Console.Write((char)(c & 0xff));
-        }
+        }*/
 
         public static void EnterProtectedMode(ref CPU.GDT gdt)
         {
