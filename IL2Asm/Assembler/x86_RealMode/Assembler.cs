@@ -1080,17 +1080,17 @@ namespace IL2Asm.Assembler.x86_RealMode
                     }
                 }
                 output.Add("");
+            }
 
-                // should only do this for boot sector attribute code
-                if (bootSector)
-                {
-                    output.Add("times 510-($-$$) db 0");
-                    output.Add("dw 0xaa55");
-                }
-                else
-                {
-                    output.Add($"times {size}-($-$$) db 0");
-                }
+            // should only do this for boot sector attribute code
+            if (bootSector)
+            {
+                output.Add("times 510-($-$$) db 0");
+                output.Add("dw 0xaa55");
+            }
+            else
+            {
+                output.Add($"times {size}-($-$$) db 0");
             }
 
             return output;
