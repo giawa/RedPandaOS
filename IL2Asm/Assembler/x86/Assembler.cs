@@ -1361,7 +1361,7 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("out dx, al");
                     assembly.AddAsm("pop edx");
                 }
-                else if (memberName == "CPUHelper.CPU.InDx_U1_U2")
+                else if (memberName == "CPUHelper.CPU.InDxByte_U1_U2")
                 {
                     assembly.AddAsm("pop eax"); // address
                     assembly.AddAsm("push edx");
@@ -1465,6 +1465,24 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("mov ebx, eax");
                     assembly.AddAsm("mov eax, [ebx]");
                     assembly.AddAsm("and eax, 255");
+                    assembly.AddAsm("push eax");
+                }
+                else if (memberName == "CPUHelper.CPU.OutDxEax_Void_U2_U4")
+                {
+                    assembly.AddAsm("pop eax"); // al
+                    assembly.AddAsm("pop ebx"); // dx
+                    assembly.AddAsm("push edx");
+                    assembly.AddAsm("mov edx, ebx");
+                    assembly.AddAsm("out dx, eax");
+                    assembly.AddAsm("pop edx");
+                }
+                else if (memberName == "CPUHelper.CPU.InDxDword_U4_U2")
+                {
+                    assembly.AddAsm("pop eax"); // address
+                    assembly.AddAsm("push edx");
+                    assembly.AddAsm("mov edx, eax");
+                    assembly.AddAsm("in eax, dx");
+                    assembly.AddAsm("pop edx");
                     assembly.AddAsm("push eax");
                 }
                 else

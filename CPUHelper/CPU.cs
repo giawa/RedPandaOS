@@ -55,7 +55,17 @@ namespace CPUHelper
 
         }
 
-        public static byte InDx(ushort dx)
+        public static void OutDxEax(ushort edx, uint eax)
+        {
+
+        }
+
+        public static byte InDxByte(ushort dx)
+        {
+            return 0;
+        }
+
+        public static uint InDxDword(ushort dx)
         {
             return 0;
         }

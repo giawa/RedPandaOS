@@ -65,10 +65,10 @@ namespace TestIL
         public static void EnableCursor(byte start, byte end)
         {
             CPU.OutDxAl(0x3D4, 0x0A);
-            CPU.OutDxAl(0x3D5, (byte)((CPU.InDx(0x3D5) & 0xC0) | start));
+            CPU.OutDxAl(0x3D5, (byte)((CPU.InDxByte(0x3D5) & 0xC0) | start));
 
             CPU.OutDxAl(0x3D4, 0x0B);
-            CPU.OutDxAl(0x3D5, (byte)((CPU.InDx(0x3D5) & 0xE0) | end));
+            CPU.OutDxAl(0x3D5, (byte)((CPU.InDxByte(0x3D5) & 0xE0) | end));
         }
 
         public static void SetCursorPos(int x, int y)
