@@ -42,7 +42,8 @@ namespace IL2Asm
 
                 Assembler.x86.Assembler assembler32 = new Assembler.x86.Assembler();
                 assembler32.AddAssembly(file);
-                assembler32.Assemble(file, methodDef32);
+                var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
+                assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));//methodDef32, null);
 
                 var pm = assembler32.WriteAssembly(0xA000, 8192);
                 File.WriteAllLines("pm.asm", pm.ToArray());

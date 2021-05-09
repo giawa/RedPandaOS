@@ -33,7 +33,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             if (methodDef != null && _methods.Where(m => m.Method != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()).Any()) return;
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
-            var assembly = new AssembledMethod(pe.Metadata, method);
+            var assembly = new AssembledMethod(pe.Metadata, method, null);
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
 
@@ -832,7 +832,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                     if (!_addedLoadDisk)
                     {
-                        AssembledMethod loadDiskMethod = new AssembledMethod(null, null);
+                        AssembledMethod loadDiskMethod = new AssembledMethod(null, null, null);
                         loadDiskMethod.AddAsm("; Bios.LoadDisk_U2_U2_U2_U1_U1 plug");
                         loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1:");
                         loadDiskMethod.AddAsm("push bp");
@@ -883,7 +883,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                     if (!_addedDetectMemory)
                     {
-                        AssembledMethod detectMemMethod = new AssembledMethod(null, null);
+                        AssembledMethod detectMemMethod = new AssembledMethod(null, null, null);
                         detectMemMethod.AddAsm("; Bios.DetectMemory_U2_U2_ByRef plug");
                         detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef:");
                         detectMemMethod.AddAsm("push bp");

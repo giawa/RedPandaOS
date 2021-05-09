@@ -36,13 +36,14 @@ namespace IL2Asm.Assembler.x86
 
         private ElementType eaxType, ebxType;
 
-        public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
+        public void Assemble(PortableExecutableFile pe, AssembledMethod assembly)//MethodDefLayout methodDef, MethodSpecLayout methodSpec)
         {
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
-            if (methodDef != null && _methods.Where(m => m.Method != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()).Any()) return;
+            if (assembly.Method != null && _methods.Where(m => m.Method.MethodDef == assembly.Method.MethodDef && m.MethodSpec == assembly.MethodSpec).Any()) return;
 
-            var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
-            var assembly = new AssembledMethod(pe.Metadata, method);
+            var method = assembly.Method;//new MethodHeader(pe.Memory, pe.Metadata, assembly.Method.MethodDef);
+            //var assembly = new AssembledMethod(pe.Metadata, method, methodSpec);
+            var methodDef = assembly.Method.MethodDef;
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
 
@@ -51,7 +52,7 @@ namespace IL2Asm.Assembler.x86
 
             if (_methods.Count > 1)
             {
-                string label = methodDef.ToAsmString();
+                string label = assembly.ToAsmString();
                 assembly.AddAsm($"{label}:");
                 assembly.AddAsm("push ebp");
                 assembly.AddAsm("mov ebp, esp");
@@ -102,33 +103,41 @@ namespace IL2Asm.Assembler.x86
                     // LDARG.0
                     case 0x02:
                         _uint = method.MethodDef.MethodSignature.ParamCount - 0;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        eaxType = methodDef.MethodSignature.Params[0];
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = new ElementType(ElementType.EType.Object);
+                        else eaxType = methodDef.MethodSignature.Params[0];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.1
                     case 0x03:
                         _uint = method.MethodDef.MethodSignature.ParamCount - 1;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        eaxType = methodDef.MethodSignature.Params[1];
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[0];
+                        else eaxType = methodDef.MethodSignature.Params[1];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.2
                     case 0x04:
                         _uint = method.MethodDef.MethodSignature.ParamCount - 2;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        eaxType = methodDef.MethodSignature.Params[2];
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[1];
+                        else eaxType = methodDef.MethodSignature.Params[2];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.3
                     case 0x05:
                         _uint = method.MethodDef.MethodSignature.ParamCount - 3;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        eaxType = methodDef.MethodSignature.Params[3];
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[2];
+                        else eaxType = methodDef.MethodSignature.Params[3];
                         _stack.Push(eaxType);
                         break;
 
@@ -184,8 +193,12 @@ namespace IL2Asm.Assembler.x86
                     case 0x0E:
                         _byte = code[i++];
                         _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
+                        else eaxType = methodDef.MethodSignature.Params[_byte];
+                        _stack.Push(eaxType);
                         break;
 
                     // STARG.S
@@ -214,14 +227,25 @@ namespace IL2Asm.Assembler.x86
                     // LDLOCA.S
                     case 0x12:
                         _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("push 2");      // This is my made up address for ECX
-                        else if (_byte == 1) assembly.AddAsm("push 3"); // This is my made up address for EDX
+
+                        var locType = assembly.Method.LocalVars.LocalVariables[_byte];
+
+                        if (locType.IsPointer())
+                        {
+                            if (_byte == 0) assembly.AddAsm("push ecx");
+                            else if (_byte == 1) assembly.AddAsm("push edx");
+                            else
+                            {
+                                //assembly.AddAsm("mov eax, ebp");
+                                //assembly.AddAsm($"sub eax, {BytesPerRegister * (_byte + 1)}");
+                                assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
+                                assembly.AddAsm("push eax");
+                                eaxType = new ElementType(ElementType.EType.ByRef);
+                            }
+                        }
                         else
                         {
-                            assembly.AddAsm("mov eax, bp");
-                            assembly.AddAsm($"sub eax, {BytesPerRegister * (_byte + 1)}");
-                            assembly.AddAsm("push eax");
-                            eaxType = new ElementType(ElementType.EType.ByRef);
+                            throw new Exception("Unsupported");
                         }
                         _stack.Push(new ElementType(ElementType.EType.ByRef));
                         break;
@@ -288,8 +312,8 @@ namespace IL2Asm.Assembler.x86
                         eaxType = _stack.Pop();
                         break;
 
-                    case 0x28: CALL(assembly, pe.Metadata, code, ref i); break;
-                    case 0x6F: CALLVIRT(assembly, pe.Metadata, code, ref i); break;
+                    case 0x28: CALL(pe, assembly, code, ref i); break;
+                    case 0x6F: CALL(pe, assembly, code, ref i, true); break;
 
                     // RET
                     case 0x2A:
@@ -314,6 +338,7 @@ namespace IL2Asm.Assembler.x86
                         }
 
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         assembly.AddAsm("pop ebp");
                         assembly.AddAsm($"ret {bytes}");
                         break;
@@ -1010,7 +1035,8 @@ namespace IL2Asm.Assembler.x86
                     {
                         int methodIndex = _methods.Count;
 
-                        Assemble(pe, childMethod);
+                        var methodHeader = new MethodHeader(pe.Memory, pe.Metadata, childMethod);
+                        Assemble(pe, new AssembledMethod(pe.Metadata, methodHeader, null));
                         _staticConstructors[methodDef.Parent.FullName] = _methods[methodIndex];
                     }
                 }
@@ -1192,8 +1218,8 @@ namespace IL2Asm.Assembler.x86
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
                 case ElementType.EType.U4: _initializedData.Add(label, new DataType(type, (uint)0)); break;
                 case ElementType.EType.I4: _initializedData.Add(label, new DataType(type, (int)0)); break;
-                case ElementType.EType.ValueType: 
-                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); 
+                case ElementType.EType.ValueType:
+                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)]));
                     break;
                 default: throw new Exception("Unsupported type");
             }
@@ -1217,18 +1243,39 @@ namespace IL2Asm.Assembler.x86
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
-        private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
+        private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
 
-        private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false)
         {
+            var metadata = pe.Metadata;
+
             uint methodDesc = BitConverter.ToUInt32(code, i);
             i += 4;
             string generic = string.Empty;
 
+            MethodSpecLayout methodSpec = null;
+
             if ((methodDesc & 0xff000000) == 0x2b000000)
             {
-                var methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
+                methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
                 methodDesc = methodSpec.method;
+
+                // use the parent methodSpec to work out the types
+                if (assembly.MethodSpec != null)
+                {
+                    methodSpec = methodSpec.Clone();
+                    for (int j = 0; j < methodSpec.MemberSignature.Types.Length; j++)
+                    {
+                        var type = methodSpec.MemberSignature.Types[j];
+
+                        if (type.Type == ElementType.EType.MVar)
+                        {
+                            var token = methodSpec.MemberSignature.Types[j].Token;
+                            methodSpec.MemberSignature.Types[j] = assembly.MethodSpec.MemberSignature.Types[token];
+                            methodSpec.MemberSignature.TypeNames[j] = assembly.MethodSpec.MemberSignature.TypeNames[token];
+                        }
+                    }
+                }
                 generic = methodSpec.MemberSignature.ToAsmString();
             }
 
@@ -1237,11 +1284,6 @@ namespace IL2Asm.Assembler.x86
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToAsmString();
                 if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
-
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
-                    _stack.Pop();
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
 
                 // eax and ebx may have been clobbered
                 eaxType = null;
@@ -1354,71 +1396,14 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("pop eax; pop arg 2");
                     assembly.AddAsm("pop eax; pop arg 1");
                 }
-                else
+                else if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                 {
-                    throw new Exception("Unable to handle this method");
+                    int size = _runtime.GetTypeSize(metadata, methodSpec.MemberSignature.Types[0]);
+                    assembly.AddAsm($"mov eax, {size}");
+                    assembly.AddAsm("push eax");
                 }
-                assembly.AddAsm("; end plug");
-            }
-            else if ((methodDesc & 0xff000000) == 0x06000000)
-            {
-                var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
-                var memberName = methodDef.ToAsmString();
-                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
-
-                for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
-                    _stack.Pop();
-                if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(methodDef.MethodSignature.RetType);
-
-                // eax and ebx may have been clobbered
-                eaxType = null;
-                ebxType = null;
-
-                bool methodAlreadyCompiled = false;
-                foreach (var method in _methods)
-                    if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
-                        methodAlreadyCompiled = true;
-
-                if (!methodAlreadyCompiled)
+                else if (memberName == "System.String.get_Chars_Char_I4")
                 {
-                    bool methodWaitingToCompile = false;
-                    foreach (var method in _methodsToCompile)
-                        if (method.ToAsmString() == methodDef.ToAsmString())
-                            methodWaitingToCompile = true;
-                    if (!methodWaitingToCompile) _methodsToCompile.Add(methodDef);
-                }
-
-                string callsite = methodDef.ToAsmString().Replace(".", "_");
-                assembly.AddAsm($"call {callsite}");
-
-                if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
-            }
-            else throw new Exception("Unhandled CALL target");
-        }
-
-        private void CALLVIRT(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
-        {
-            uint methodDesc = BitConverter.ToUInt32(code, i);
-            i += 4;
-
-            if ((methodDesc & 0xff000000) == 0x0a000000)
-            {
-                var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
-                var memberName = memberRef.ToAsmString();
-
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
-                    _stack.Pop();
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
-
-                // eax and ebx may have been clobbered
-                eaxType = null;
-                ebxType = null;
-
-                if (memberName == "System.String.get_Chars_Char_I4")
-                {
-                    assembly.AddAsm("; System.String.get_Chars plug");
                     assembly.AddAsm("pop eax");  // pop index
                     assembly.AddAsm("pop ebx");  // pop this
                     assembly.AddAsm("add eax, ebx");
@@ -1431,6 +1416,59 @@ namespace IL2Asm.Assembler.x86
                 {
                     throw new Exception("Unable to handle this method");
                 }
+                assembly.AddAsm("; end plug");
+
+                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                    _stack.Pop();
+                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(memberRef.MemberSignature.RetType);
+            }
+            else if ((methodDesc & 0xff000000) == 0x06000000)
+            {
+                var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
+                var memberName = methodDef.ToAsmString();
+
+                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
+
+                if (methodDef.Name.StartsWith("PtrToObject"))
+                {
+                    assembly.AddAsm("; PtrToObject nop");
+                    // this is a nop
+                }
+                else
+                {
+                    bool methodAlreadyCompiled = false;
+                    foreach (var method in _methods)
+                        if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
+                            methodAlreadyCompiled = true;
+
+                    var methodHeaderToCompile = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
+                    var methodToCompile = new AssembledMethod(metadata, methodHeaderToCompile, methodSpec);
+
+                    if (!methodAlreadyCompiled)
+                    {
+                        bool methodWaitingToCompile = false;
+                        foreach (var method in _methodsToCompile)
+                            if (method.Method.MethodDef == methodDef && method.MethodSpec == methodSpec)
+                                methodWaitingToCompile = true;
+                        if (!methodWaitingToCompile)
+                            _methodsToCompile.Add(methodToCompile);
+                    }
+
+                    string callsite = methodToCompile.ToAsmString().Replace(".", "_");
+                    assembly.AddAsm($"call {callsite}");
+
+                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
+                }
+
+                for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
+                    _stack.Pop();
+                if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(methodDef.MethodSignature.RetType);
+
+                // eax and ebx may have been clobbered
+                eaxType = null;
+                ebxType = null;
             }
             else throw new Exception("Unhandled CALL target");
         }

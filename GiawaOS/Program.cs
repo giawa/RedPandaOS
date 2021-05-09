@@ -41,7 +41,8 @@ namespace GiawaOS
 
                 var assembler32 = new IL2Asm.Assembler.x86.Assembler();
                 assembler32.AddAssembly(file);
-                assembler32.Assemble(file, methodDef32);
+                var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
+                assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
