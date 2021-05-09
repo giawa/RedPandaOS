@@ -16,4 +16,9 @@ namespace CPUHelper
     {
 
     }
+
+    public class AsmMethodAttribute : Attribute
+    {
+
+    }
 }
