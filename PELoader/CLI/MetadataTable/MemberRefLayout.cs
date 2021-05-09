@@ -60,10 +60,11 @@ namespace PELoader
             Property = 0x54,
             Enum = 0x55,
 
-
             // custom types
             ByRefValueType = 0x1011,
-            ByRefPtr = 0x0f11
+            ByRefPtr = 0x0f11,
+
+            JmpTable = 0x5252
         }
 
         public EType Type;

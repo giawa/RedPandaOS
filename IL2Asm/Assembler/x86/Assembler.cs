@@ -673,6 +673,45 @@ namespace IL2Asm.Assembler.x86
                         ebxType = _stack.Pop();
                         break;
 
+                    // SWITCH
+                    case 0x45:
+                        var defaultLabel = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_Default";
+                        var jmpTableName = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_JmpTable";
+
+                        _uint = BitConverter.ToUInt32(code, i);
+                        i += 4;
+                        uint ilPosition = i + 4 * _uint;
+
+                        assembly.AddAsm("pop eax");
+                        eaxType = _stack.Pop();
+
+                        // if eax >= N then jump to end
+                        assembly.AddAsm($"cmp eax, {_uint}");
+                        assembly.AddAsm($"jae {defaultLabel}");
+
+                        // implement a jump table
+                        assembly.AddAsm($"jmp [eax*4 + {jmpTableName}]");
+
+                        StringBuilder sb = new StringBuilder();
+                        
+                        for (uint j = 0; j < _uint; j++)
+                        {
+                            _int = BitConverter.ToInt32(code, i);
+                            i += 4;
+
+                            _jmpLabel = $"IL_{(ilPosition + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+
+                            sb.Append(_jmpLabel);
+                            if (j < _uint - 1) sb.Append(", ");
+                        }
+
+                        DataType jmpTableData = new DataType(ElementType.EType.JmpTable, sb.ToString());
+                        _initializedData.Add(jmpTableName, jmpTableData);
+
+                        assembly.AddAsm($"{defaultLabel}:");
+
+                        break;
+
                     // ADD
                     case 0x58:
                         eaxType = _stack.Pop();
@@ -1564,6 +1603,11 @@ namespace IL2Asm.Assembler.x86
                             if (i != bytes.Length - 1) sb.Append(", ");
                         }
                         output.Add(sb.ToString());
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.JmpTable)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dd {data.Value.Data}");
                     }
                     else
                     {
