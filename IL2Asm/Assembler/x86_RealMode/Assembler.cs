@@ -1003,6 +1003,10 @@ namespace IL2Asm.Assembler.x86_RealMode
             output.Add("[bits 16]");      // for bootsector code only
             output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
             output.Add("");
+            output.Add("    xor ax, ax");
+            output.Add("    mov ds, ax");
+            output.Add("    mov es, ax");
+            output.Add("    mov ss, ax");
             output.Add("    mov bp, 0x9000");
             output.Add("    mov sp, bp");
 
