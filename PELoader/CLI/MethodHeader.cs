@@ -44,7 +44,7 @@ namespace PELoader
         {
             MethodDef = methodDef;
 
-            uint rva = methodDef.rva;
+            uint rva = methodDef.RVA;
 
             byte type = memory.GetByte(rva);
 

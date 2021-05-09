@@ -292,6 +292,14 @@ namespace PELoader
 
             for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(_fields, _methodDefs, _properties);
 
+            // similarly, for MethodDefs find the param list end
+            for (int i = 0; i < _methodDefs.Count - 1; i++)
+            {
+                _methodDefs[i].endOfParamList = _methodDefs[i + 1].paramList;
+            }
+
+            for (int i = 0; i < _methodDefs.Count; i++) _methodDefs[i].FindParams(_params);
+
             for (int i = 0; i < _memberRefs.Count; i++) _memberRefs[i].FindParentType(this);
         }
 

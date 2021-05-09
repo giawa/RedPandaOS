@@ -8,6 +8,8 @@ namespace PELoader
         public ushort sequence;
         public uint name;
 
+        public MethodDefLayout Parent;
+
         public ParamLayout(CLIMetadata metadata, ref int offset)
         {
             flags = BitConverter.ToUInt16(metadata.Table.Heap, offset);
