@@ -709,7 +709,7 @@ namespace IL2Asm.Assembler.x86
                         assembly.AddAsm($"jmp [eax*4 + {jmpTableName}]");
 
                         StringBuilder sb = new StringBuilder();
-                        
+
                         for (uint j = 0; j < _uint; j++)
                         {
                             _int = BitConverter.ToInt32(code, i);
@@ -970,6 +970,9 @@ namespace IL2Asm.Assembler.x86
                     // LDELEMA
                     case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
+                    // LDELEM_REF
+                    case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
+
                     // CONV.U2
                     case 0xD1:
                         assembly.AddAsm("pop eax");
@@ -988,6 +991,13 @@ namespace IL2Asm.Assembler.x86
                         _stack.Pop();
                         eaxType = new ElementType(ElementType.EType.U1);
                         _stack.Push(eaxType);
+                        break;
+
+                    // CONV.U
+                    case 0xE0:
+                        if (_stack.Peek().Type != ElementType.EType.Pinned && !_stack.Peek().Is32BitCapable(pe.Metadata))
+                            throw new Exception("Unsupported type");
+                        // there is no difference for us between managed and unmanaged pointers, so this is a nop
                         break;
 
                     // CEQ
@@ -1058,6 +1068,17 @@ namespace IL2Asm.Assembler.x86
                         _stack.Push(eaxType);
                         break;
 
+                    // SIZEOF
+                    case 0xFE1C:
+                        uint type = BitConverter.ToUInt32(code, i);
+                        i += 4;
+
+                        var sizeOfType = _runtime.GetTypeSize(pe.Metadata, new ElementType(ElementType.EType.ValueType, type));
+
+                        assembly.AddAsm($"push {sizeOfType}");
+                        _stack.Push(new ElementType(ElementType.EType.U4));
+                        break;
+
                     default: throw new Exception($"Unknown IL opcode 0x{opcode.ToString("X")} at {label} in method {method.MethodDef.Name}");
                 }
 
@@ -1101,10 +1122,14 @@ namespace IL2Asm.Assembler.x86
             }
         }
 
-        private void LDELEMA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void LDELEMA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i, bool ldelem_ref = false)
         {
-            uint type = BitConverter.ToUInt32(code, i);
-            i += 4;
+            uint type = 0;
+            if (!ldelem_ref)
+            {
+                type = BitConverter.ToUInt32(code, i);
+                i += 4;
+            }
 
             assembly.AddAsm("pop ebx"); // index
             ebxType = _stack.Pop();
@@ -1112,7 +1137,7 @@ namespace IL2Asm.Assembler.x86
             eaxType = _stack.Pop();
 
             if (eaxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
-            if (eaxType.NestedType.Token != type) throw new Exception("Type mismatch");
+            if (!ldelem_ref && eaxType.NestedType.Token != type) throw new Exception("Type mismatch");
 
             // going to use ecx to store the array position
             assembly.AddAsm("push ecx");
