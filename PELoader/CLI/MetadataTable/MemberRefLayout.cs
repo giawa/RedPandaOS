@@ -67,6 +67,7 @@ namespace PELoader
             JmpTable = 0x5252
         }
 
+        public ElementType NestedType;
         public EType Type;
         public uint Token;
 
@@ -146,6 +147,10 @@ namespace PELoader
             {
                 Token = data[i++];
             }
+            else if (Type == EType.SzArray)
+            {
+                NestedType = new ElementType(data, ref i);
+            }
         }
 
         public override string ToString()
@@ -159,7 +164,7 @@ namespace PELoader
             if (Type == EType.ValueType)
             {
                 var token = Token;
-                while ((Token & 0xff000000) == 0x02000000)
+                while ((token & 0xff000000) == 0x02000000)
                 {
                     var typeDef = metadata.TypeDefs[(int)(Token & 0x00ffffff) - 1];
                     if ((typeDef.typeDefOrRef & 0xff000000) == 0x02000000) token = typeDef.typeDefOrRef;
@@ -167,6 +172,7 @@ namespace PELoader
                     {
                         var typeRef = metadata.TypeRefs[(int)(typeDef.typeDefOrRef & 0x00ffffff) - 1];
                         if (typeRef.Name == "Enum" && typeRef.Namespace == "System") return true;   // enums can work like ints
+                        else break;
                     }
                 }
             }

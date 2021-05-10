@@ -95,6 +95,10 @@ namespace PELoader
                         {
                             //Types[i].Token = methodSpec.method;
                         }
+                        else if (Types[i].Type == ElementType.EType.SzArray)
+                        {
+
+                        }
                         else throw new Exception("No implementation for this table type");
                     }
                 }
