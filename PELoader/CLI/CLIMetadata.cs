@@ -273,6 +273,10 @@ namespace PELoader
                     {
                         _methodSemantics.Add(new MethodSemanticsLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.DeclSecurity)
+                    {
+                        _declSecurities.Add(new DeclSecurityLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -323,6 +327,7 @@ namespace PELoader
         private List<PropertyMapLayout> _propertyMaps = new List<PropertyMapLayout>();
         private List<PropertyLayout> _properties = new List<PropertyLayout>();
         private List<MethodSemanticsLayout> _methodSemantics = new List<MethodSemanticsLayout>();
+        private List<DeclSecurityLayout> _declSecurities = new List<DeclSecurityLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
