@@ -967,6 +967,9 @@ namespace IL2Asm.Assembler.x86
                     // STSFLD
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
+                    // LDELEMA
+                    case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
+
                     // CONV.U2
                     case 0xD1:
                         assembly.AddAsm("pop eax");
@@ -1096,6 +1099,39 @@ namespace IL2Asm.Assembler.x86
                     }
                 }
             }
+        }
+
+        private void LDELEMA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint type = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            assembly.AddAsm("pop ebx"); // index
+            ebxType = _stack.Pop();
+            assembly.AddAsm("pop eax"); // array
+            eaxType = _stack.Pop();
+
+            if (eaxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
+            if (eaxType.NestedType.Token != type) throw new Exception("Type mismatch");
+
+            // going to use ecx to store the array position
+            assembly.AddAsm("push ecx");
+            assembly.AddAsm("mov ecx, eax");
+
+            // edx will get clobbered by the multiply
+            assembly.AddAsm("push edx");
+
+            var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
+            assembly.AddAsm($"mov eax, {sizePerElement}");
+            assembly.AddAsm("mul ebx");
+            assembly.AddAsm("add eax, ecx");
+
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("pop ecx");
+
+            assembly.AddAsm("push eax");
+            eaxType = eaxType.NestedType;
+            _stack.Push(eaxType);
         }
 
         private void STFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
