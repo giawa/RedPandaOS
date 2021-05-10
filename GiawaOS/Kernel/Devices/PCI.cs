@@ -8,38 +8,39 @@
             VGA.WriteLine();
             for (int i = 0; i < 256; i++)
             {
-                var result = ReadDword((byte)i, 0, 0, 0);
-                if ((result & 0x0000ffff) == 0x0000ffff) continue;
+                var reg0 = ReadDword((byte)i, 0, 0, 0);
+                if ((reg0 & 0x0000ffff) == 0x0000ffff) continue;
 
                 var reg2 = ReadDword((byte)i, 0, 0, 8);
 
-                VGA.WriteVideoMemoryString("PCI addr 0x");
-                VGA.WriteHex((byte)i);
-                VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(result);
-                VGA.WriteVideoMemoryChar(' ');
-                PrintClass(reg2);
-                VGA.WriteLine();
+                PrintPCIDevice(reg0, reg2, (byte)i);
 
                 for (int j = 0; j < 256; j++)
                 {
-                    result = ReadDword((byte)i, (byte)j, 0, 0);
-                    if ((result & 0x0000ffff) == 0x0000ffff) continue;
+                    reg0 = ReadDword((byte)i, (byte)j, 0, 0);
+                    if ((reg0 & 0x0000ffff) == 0x0000ffff) continue;
 
                     reg2 = ReadDword((byte)i, (byte)j, 0, 8);
 
-                    VGA.WriteVideoMemoryString(" |-> Slot 0x");
-                    VGA.WriteHex((byte)j);
-                    VGA.WriteVideoMemoryChar(' ');
-                    VGA.WriteHex(result);
-                    VGA.WriteVideoMemoryChar(' ');
-                    PrintClass(reg2);
-                    VGA.WriteLine();
+                    PrintPCIDevice(reg0, reg2, (byte)j, true);
                 }
             }
         }
 
-        public static void PrintClass(uint reg2)
+        private static void PrintPCIDevice(uint reg0, uint reg2, byte address, bool isSlot = false)
+        {
+            if (isSlot) VGA.WriteVideoMemoryString("|-> slot 0x");
+            else VGA.WriteVideoMemoryString("PCI addr 0x");
+
+            VGA.WriteHex(address);
+            VGA.WriteVideoMemoryChar(' ');
+            VGA.WriteHex(reg0);
+            VGA.WriteVideoMemoryChar(' ');
+            PrintClass(reg2);
+            VGA.WriteLine();
+        }
+
+        private static void PrintClass(uint reg2)
         {
             ClassCode code = (ClassCode)((reg2 >> 24) & 0xff);
             VGA.WriteHex(reg2);
