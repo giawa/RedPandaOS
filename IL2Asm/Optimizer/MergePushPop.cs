@@ -4,41 +4,45 @@ namespace IL2Asm.Optimizer
 {
     public class MergePushPop
     {
-        private static char[] _split = new char[] { ' ', ';' };
-
         public static void ProcessAssembly(List<string> assembly)
         {
-            bool foundMerges = false;
-            do
+            for (int i = 0; i < assembly.Count - 1; i++)
             {
-                foundMerges = false;
+                var l1 = assembly[i].Trim();
 
-                for (int i = 0; i < assembly.Count - 1; i++)
+                int offset = 1;
+                while (i + offset < assembly.Count && assembly[i + offset].Trim().StartsWith(";")) offset++;
+                var l2 = assembly[i + offset].Trim();
+
+                if (l1.StartsWith("push") && l2.StartsWith("pop"))
                 {
-                    var l1 = assembly[i].Trim().Split(_split);
+                    string dest = l2.Substring(4).Trim();
+                    string src = l1.Substring(5).Trim();
+                    string comment = "";
 
-                    int offset = 1;
-                    while (i + offset < assembly.Count && assembly[i + offset].Trim().StartsWith(";")) offset++;
-                    var l2 = assembly[i + offset].Trim().Split(_split);
-
-                    if (l1[0] == "push" && l2[0] == "pop")
+                    if (dest.Contains(";"))
                     {
-                        if (l1[1] == l2[1])
-                        {
-                            assembly.RemoveAt(i + offset);
-                            assembly.RemoveAt(i);
-                            foundMerges = true;
-                        }
-                        else
-                        {
-                            assembly.RemoveAt(i + offset);
-                            assembly[i] = $"    mov {l2[1]}, {l1[1]}";
-                            foundMerges = true;
-                        }
+                        comment = dest.Substring(dest.IndexOf(";"));
+                        dest = dest.Substring(0, dest.IndexOf(";"));
+                    }
+                    if (src.Contains(";"))
+                    {
+                        comment += src.Substring(src.IndexOf(";"));
+                        src = src.Substring(0, src.IndexOf(";"));
+                    }
+
+                    if (src == dest)
+                    {
+                        assembly.RemoveAt(i + offset);
+                        assembly.RemoveAt(i);
+                    }
+                    else
+                    {
+                        assembly.RemoveAt(i + offset);
+                        assembly[i] = $"    mov {dest}, {src}{comment}";
                     }
                 }
-
-            } while (foundMerges);
+            }
         }
     }
 }
