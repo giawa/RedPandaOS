@@ -198,8 +198,10 @@ namespace IL2Asm
                     case ElementType.EType.Char:
                     case ElementType.EType.U2:
                     case ElementType.EType.I2: return 2;
+                    case ElementType.EType.R4:
                     case ElementType.EType.U4:
                     case ElementType.EType.I4: return 4;
+                    case ElementType.EType.R8:
                     case ElementType.EType.U8:
                     case ElementType.EType.I8: return 8;
                     case ElementType.EType.Void: return 0;
