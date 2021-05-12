@@ -87,9 +87,17 @@ namespace PELoader
                     {
                         Types[i] = new ElementType(data, ref offset);
 
-                        if ((Types[i].Token & 0xff000000) == 0x02000000)
+                        if (Types[i].Type != ElementType.EType.End && Types[i].Type <= ElementType.EType.R8)
+                        {
+                            TypeNames[i] = Types[i].Type.ToString();
+                        }
+                        else if ((Types[i].Token & 0xff000000) == 0x02000000)
                         {
                             TypeNames[i] = metadata.TypeDefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
+                        }
+                        else if ((Types[i].Token & 0xff000000) == 0x01000000)
+                        {
+                            TypeNames[i] = metadata.TypeRefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
                         }
                         else if (Types[i].Type == ElementType.EType.MVar)
                         {
