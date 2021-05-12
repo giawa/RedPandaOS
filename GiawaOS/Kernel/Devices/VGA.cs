@@ -26,6 +26,7 @@ namespace Kernel.Devices
                 offset += 2;
             }
 
+            Scroll();
             SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
@@ -35,6 +36,8 @@ namespace Kernel.Devices
             offset -= VIDEO_MEMORY;
             offset -= Math32.Modulo(offset, 160);
             offset += VIDEO_MEMORY;
+
+            Scroll();
         }
 
         public static void Delete()
@@ -54,6 +57,7 @@ namespace Kernel.Devices
         {
             CPU.WriteMemory((int)offset, (ushort)((c & 255) | effect));
             offset += 2;
+            Scroll();
             SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
@@ -130,6 +134,24 @@ namespace Kernel.Devices
             value &= 0x0f;
             if (value >= 10) WriteVideoMemoryChar(value + 55);
             else WriteVideoMemoryChar(value + 48);
+        }
+
+        public static void Scroll()
+        {
+            if (offset >= VIDEO_MEMORY + 25 * VGA_WIDTH * 2)
+            {
+                for (int i = 0; i < (VGA_HEIGHT - 1) * VGA_WIDTH * 2; i += 4)
+                {
+                    CPU.WriteMemInt((uint)((int)VIDEO_MEMORY + i), CPU.ReadMemInt((int)VIDEO_MEMORY + 160 + (uint)i));
+                }
+
+                for (int i = (VGA_HEIGHT - 1) * VGA_WIDTH * 2; i < VGA_HEIGHT * VGA_WIDTH * 2; i += 4)
+                {
+                    CPU.WriteMemInt((uint)((int)VIDEO_MEMORY + i), 0x00200020);
+                }
+
+                offset = VIDEO_MEMORY + 24 * VGA_WIDTH * 2;
+            }
         }
     }
 }
