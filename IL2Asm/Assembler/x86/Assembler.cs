@@ -1528,7 +1528,7 @@ namespace IL2Asm.Assembler.x86
 
                 assembly.AddAsm($"; start {memberName} plug");
 
-                if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
+                if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_U2")
                 {
                     assembly.AddAsm("pop eax"); // character
                     assembly.AddAsm("pop ebx"); // address
@@ -1636,8 +1636,7 @@ namespace IL2Asm.Assembler.x86
                 else if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                 {
                     int size = _runtime.GetTypeSize(metadata, methodSpec.MemberSignature.Types[0]);
-                    assembly.AddAsm($"mov eax, {size}");
-                    assembly.AddAsm("push eax");
+                    assembly.AddAsm($"push {size}");
                 }
                 else if (memberName == "System.String.get_Chars_Char_I4")
                 {

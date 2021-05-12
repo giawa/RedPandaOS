@@ -21,7 +21,7 @@ namespace Kernel.Devices
 
             while (s[i] != 0)
             {
-                CPU.WriteMemory((int)offset, s[i] | effect);
+                CPU.WriteMemory((int)offset, (ushort)(s[i] | effect));
                 i++;
                 offset += 2;
             }
@@ -52,7 +52,7 @@ namespace Kernel.Devices
 
         public static void WriteVideoMemoryChar(int c, ushort effect = 0x0f00)
         {
-            CPU.WriteMemory((int)offset, (c & 255) | effect);
+            CPU.WriteMemory((int)offset, (ushort)((c & 255) | effect));
             offset += 2;
             SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }

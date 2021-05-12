@@ -57,7 +57,7 @@ namespace CPUHelper
 
         }
 
-        public static void WriteMemory(int addr, int c)
+        public static void WriteMemory(int addr, ushort c)
         {
 
         }

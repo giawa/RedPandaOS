@@ -32,9 +32,9 @@ namespace Bootloader
             while (true) ;
         }
 
-        public static short DetectMemory(ushort address, int maxEntries)
+        public static ushort DetectMemory(ushort address, int maxEntries)
         {
-            short entries = 0;
+            ushort entries = 0;
 
             do
             {
