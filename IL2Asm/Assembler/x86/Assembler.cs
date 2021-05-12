@@ -340,7 +340,7 @@ namespace IL2Asm.Assembler.x86
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         assembly.AddAsm("pop ebp");
-                        if (method.MethodDef.Name.StartsWith("IsrHandler")) assembly.AddAsm("ret");
+                        if (method.MethodDef.Name.StartsWith("IsrHandler") || method.MethodDef.Name.StartsWith("IrqHandler")) assembly.AddAsm("ret");
                         else assembly.AddAsm($"ret {bytes}");
                         break;
 
@@ -1405,14 +1405,17 @@ namespace IL2Asm.Assembler.x86
         }
 
         private bool _addedISRMethods = false;
+        private bool _addedIRQMethods = false;
 
-        private void AddISRMethods()
+        private void AddISRMethods(bool irqStub = false)
         {
-            if (!_addedISRMethods)
+            string stubName = (irqStub ? "irq_stub" : "isr_stub");
+
+            if ((!_addedISRMethods && !irqStub) || (!_addedIRQMethods && irqStub))
             {
                 AssembledMethod isrMethods = new AssembledMethod(null, null, null);
 
-                isrMethods.AddAsm("isr_stub:");
+                isrMethods.AddAsm($"{stubName}:");
                 isrMethods.AddAsm("pusha");
                 isrMethods.AddAsm("mov ax, ds");
                 isrMethods.AddAsm("push eax");
@@ -1422,7 +1425,8 @@ namespace IL2Asm.Assembler.x86
                 isrMethods.AddAsm("mov fs, ax");
                 isrMethods.AddAsm("mov gs, ax");
 
-                isrMethods.AddAsm("call Kernel_Interrupts_Interrupts_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
+                if (irqStub) isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IrqHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
+                else isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
 
                 isrMethods.AddAsm("pop eax");
                 isrMethods.AddAsm("mov ds, ax");
@@ -1430,23 +1434,40 @@ namespace IL2Asm.Assembler.x86
                 isrMethods.AddAsm("mov fs, ax");
                 isrMethods.AddAsm("mov gs, ax");
                 isrMethods.AddAsm("popa");
-                isrMethods.AddAsm("add esp, 8");    // pop error code and ISR number
+                isrMethods.AddAsm("add esp, 8");    // pop error code and interrupt number
                 isrMethods.AddAsm("sti");
                 isrMethods.AddAsm("iret");
                 isrMethods.AddAsm("");
-                
-                for (int i = 0; i < 32; i++)
+
+                if (irqStub)
                 {
-                    isrMethods.AddAsm($"ISR{i}:");
-                    isrMethods.AddAsm("cli");
-                    if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push byte 0; error code");
-                    isrMethods.AddAsm($"push byte {i}; interrupt number");
-                    isrMethods.AddAsm("jmp isr_stub");
-                    isrMethods.AddAsm("");
+                    for (int i = 0; i < 16; i++)
+                    {
+                        isrMethods.AddAsm($"IRQ{i}:");
+                        isrMethods.AddAsm("cli");
+                        isrMethods.AddAsm("push byte 0; error code");
+                        isrMethods.AddAsm($"push byte {i + 32}; interrupt number");
+                        isrMethods.AddAsm($"jmp {stubName}");
+                        isrMethods.AddAsm("");
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < 32; i++)
+                    {
+                        isrMethods.AddAsm($"ISR{i}:");
+                        isrMethods.AddAsm("cli");
+                        if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push byte 0; error code");
+                        isrMethods.AddAsm($"push byte {i}; interrupt number");
+                        isrMethods.AddAsm($"jmp {stubName}");
+                        isrMethods.AddAsm("");
+                    }
                 }
 
                 _methods.Add(isrMethods);
-                _addedISRMethods = true;
+
+                if (irqStub) _addedIRQMethods = true;
+                else _addedISRMethods = true;
             }
         }
 
@@ -1467,6 +1488,18 @@ namespace IL2Asm.Assembler.x86
                     _initializedData.Add(label, new DataType(isrType, isrNames.ToString()));
 
                     AddISRMethods();
+                }
+                else if (field.Name == "IRQ_ADDRESSES" && !_addedIRQMethods)
+                {
+                    // special case for inserting the 32 ISR addresses for the kernel
+                    StringBuilder irqNames = new StringBuilder();
+                    for (int i = 0; i < 15; i++) irqNames.Append($"IRQ{i}, ");
+                    irqNames.Append("IRQ15");
+                    var irqType = new ElementType(ElementType.EType.SzArray);
+                    irqType.NestedType = new ElementType(ElementType.EType.I4);
+                    _initializedData.Add(label, new DataType(irqType, irqNames.ToString()));
+
+                    AddISRMethods(true);
                 }
                 else if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
                 {
@@ -1678,6 +1711,10 @@ namespace IL2Asm.Assembler.x86
                 else if (memberName == "CPUHelper.CPU.Interrupt4_Void")
                 {
                     assembly.AddAsm("int 4");
+                }
+                else if (memberName == "CPUHelper.CPU.Sti_Void")
+                {
+                    assembly.AddAsm("sti");
                 }
                 else
                 {

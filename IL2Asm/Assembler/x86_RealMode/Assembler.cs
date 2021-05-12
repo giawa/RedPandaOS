@@ -776,7 +776,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("mov ax, [bx]");
                     assembly.AddAsm("push ax");
                 }
-                else if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_I4")
+                else if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_U2")
                 {
                     assembly.AddAsm("pop ax");
                     assembly.AddAsm("pop bx");

@@ -166,5 +166,10 @@ namespace CPUHelper
         {
 
         }
+
+        public static void Sti()
+        {
+
+        }
     }
 }
