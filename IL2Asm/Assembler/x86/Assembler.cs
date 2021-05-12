@@ -340,7 +340,8 @@ namespace IL2Asm.Assembler.x86
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         assembly.AddAsm("pop ebp");
-                        assembly.AddAsm($"ret {bytes}");
+                        if (method.MethodDef.Name.StartsWith("IsrHandler")) assembly.AddAsm("ret");
+                        else assembly.AddAsm($"ret {bytes}");
                         break;
 
                     // BR.S
@@ -1346,7 +1347,14 @@ namespace IL2Asm.Assembler.x86
             eaxType = _initializedData[label].Type;
             _stack.Push(eaxType);
 
-            assembly.AddAsm($"mov eax, [{label}]");
+            if (eaxType.Type == ElementType.EType.SzArray || eaxType.Type == ElementType.EType.ValueType)
+            {
+                // if the data is stored as part of the program data then pass the label directly
+                // but if we are storing an address only then we need to redirect
+                if (_initializedData[label].Data is string || _initializedData[label].Data is byte[]) assembly.AddAsm($"mov eax, {label}");
+                else assembly.AddAsm($"mov eax, [{label}]");
+            }
+            else assembly.AddAsm($"mov eax, [{label}]");
             assembly.AddAsm($"push eax");
         }
 
@@ -1388,10 +1396,57 @@ namespace IL2Asm.Assembler.x86
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
                 case ElementType.EType.U4: _initializedData.Add(label, new DataType(type, (uint)0)); break;
                 case ElementType.EType.I4: _initializedData.Add(label, new DataType(type, (int)0)); break;
+                case ElementType.EType.SzArray: _initializedData.Add(label, new DataType(type, (uint)0)); break;  // just a pointer
                 case ElementType.EType.ValueType:
                     _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)]));
                     break;
                 default: throw new Exception("Unsupported type");
+            }
+        }
+
+        private bool _addedISRMethods = false;
+
+        private void AddISRMethods()
+        {
+            if (!_addedISRMethods)
+            {
+                AssembledMethod isrMethods = new AssembledMethod(null, null, null);
+
+                isrMethods.AddAsm("isr_stub:");
+                isrMethods.AddAsm("pusha");
+                isrMethods.AddAsm("mov ax, ds");
+                isrMethods.AddAsm("push eax");
+                isrMethods.AddAsm("mov ax, 0x10");
+                isrMethods.AddAsm("mov ds, ax");
+                isrMethods.AddAsm("mov es, ax");
+                isrMethods.AddAsm("mov fs, ax");
+                isrMethods.AddAsm("mov gs, ax");
+
+                isrMethods.AddAsm("call Kernel_Interrupts_Interrupts_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
+
+                isrMethods.AddAsm("pop eax");
+                isrMethods.AddAsm("mov ds, ax");
+                isrMethods.AddAsm("mov es, ax");
+                isrMethods.AddAsm("mov fs, ax");
+                isrMethods.AddAsm("mov gs, ax");
+                isrMethods.AddAsm("popa");
+                isrMethods.AddAsm("add esp, 8");    // pop error code and ISR number
+                isrMethods.AddAsm("sti");
+                isrMethods.AddAsm("iret");
+                isrMethods.AddAsm("");
+                
+                for (int i = 0; i < 32; i++)
+                {
+                    isrMethods.AddAsm($"ISR{i}:");
+                    isrMethods.AddAsm("cli");
+                    if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push byte 0; error code");
+                    isrMethods.AddAsm($"push byte {i}; interrupt number");
+                    isrMethods.AddAsm("jmp isr_stub");
+                    isrMethods.AddAsm("");
+                }
+
+                _methods.Add(isrMethods);
+                _addedISRMethods = true;
             }
         }
 
@@ -1401,7 +1456,19 @@ namespace IL2Asm.Assembler.x86
             {
                 var field = metadata.Fields[(fieldToken & 0x00ffffff) - 1];
 
-                if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
+                if (field.Name == "ISR_ADDRESSES" && !_addedISRMethods)
+                {
+                    // special case for inserting the 32 ISR addresses for the kernel
+                    StringBuilder isrNames = new StringBuilder();
+                    for (int i = 0; i < 31; i++) isrNames.Append($"ISR{i}, ");
+                    isrNames.Append("ISR31");
+                    var isrType = new ElementType(ElementType.EType.SzArray);
+                    isrType.NestedType = new ElementType(ElementType.EType.I4);
+                    _initializedData.Add(label, new DataType(isrType, isrNames.ToString()));
+
+                    AddISRMethods();
+                }
+                else if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
                 {
                     AddStaticField(metadata, label, field.Type);
                 }
@@ -1600,6 +1667,19 @@ namespace IL2Asm.Assembler.x86
                     assembly.AddAsm("pop edx");
                     assembly.AddAsm("push eax");
                 }
+                else if (memberName == "CPUHelper.CPU.LoadIDT_Void_ValueType")
+                {
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm("lidt [eax]");
+                }
+                else if (memberName == "CPUHelper.CPU.Interrupt3_Void")
+                {
+                    assembly.AddAsm("int 3");
+                }
+                else if (memberName == "CPUHelper.CPU.Interrupt4_Void")
+                {
+                    assembly.AddAsm("int 4");
+                }
                 else
                 {
                     throw new Exception("Unable to handle this method");
@@ -1618,9 +1698,9 @@ namespace IL2Asm.Assembler.x86
 
                 if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
 
-                if (methodDef.Name.StartsWith("PtrToObject"))
+                if (methodDef.Name.StartsWith("PtrToObject") || methodDef.Name.StartsWith("ObjectToPtr"))
                 {
-                    assembly.AddAsm("; PtrToObject nop");
+                    assembly.AddAsm($"; {methodDef.Name} nop");
                     // this is a nop
                 }
                 else
@@ -1757,6 +1837,19 @@ namespace IL2Asm.Assembler.x86
                     {
                         output.Add($"{data.Key}:");
                         output.Add($"    dd {data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.SzArray)
+                    {
+                        if (data.Value.Data is string)
+                        {
+                            output.Add($"{data.Key}:");
+                            output.Add($"    dd {data.Value.Data}");
+                        }
+                        else
+                        {
+                            output.Add($"{data.Key}:");
+                            output.Add($"    dd {(uint)data.Value.Data}");
+                        }
                     }
                     else
                     {

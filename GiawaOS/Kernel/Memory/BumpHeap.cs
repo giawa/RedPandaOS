@@ -34,7 +34,7 @@ namespace Kernel.Memory
         public static T Malloc<T>() where T : new()
         {
             uint size = (uint)Marshal.SizeOf<T>();
-            uint addr = Malloc(size, 0);
+            uint addr = Malloc(size);
 
             return PtrToObject<T>(addr);
         }
@@ -43,15 +43,21 @@ namespace Kernel.Memory
         {
             uint size = (uint)Marshal.SizeOf<T>();
             size *= arraySize;
-            uint addr = Malloc(size, 0);
+            uint addr = Malloc(size);
 
             return PtrToObject<T[]>(addr);
         }
 
         [AsmMethod]
-        private static T PtrToObject<T>(uint addr)
+        public static T PtrToObject<T>(uint addr)
         {
             return default(T);
+        }
+
+        [AsmMethod]
+        public static uint ObjectToPtr<T>(T obj)
+        {
+            return 0;
         }
     }
 }

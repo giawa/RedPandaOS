@@ -97,6 +97,12 @@ namespace Kernel
             VGA.WriteVideoMemoryString("CR0: 0x");
             VGA.WriteHex((int)CPU.ReadCR0());
 
+            Interrupts.Interrupts.Init();
+
+            CPU.Interrupt3();
+            VGA.WriteLine();
+            CPU.Interrupt4();
+
             while (true) ;
         }
 

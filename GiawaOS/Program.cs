@@ -16,6 +16,7 @@ namespace GiawaOS
             var bootloader1 = FindEntryPoint(file, "Stage1", "Start");
             var bootloader2 = FindEntryPoint(file, "Stage2", "Start");
             var methodDef32 = FindEntryPoint(file, "Init", "Start");
+            var isrHandler = FindEntryPoint(file, "Interrupts", "IsrHandler");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -43,6 +44,8 @@ namespace GiawaOS
                 assembler32.AddAssembly(file);
                 var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));
+                var isrHeader = new MethodHeader(file.Memory, file.Metadata, isrHandler);
+                assembler32.Assemble(file, new AssembledMethod(file.Metadata, isrHeader, null));
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);

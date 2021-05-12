@@ -35,12 +35,24 @@ namespace CPUHelper
             public uint offset;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct IDTPointer
+        {
+            public ushort limit;
+            public uint address;
+        }
+
         public static void DisableInterrupts()
         {
 
         }
 
         public static void LoadGDT(GDT gdt)
+        {
+
+        }
+
+        public static void LoadIDT(IDTPointer idt)
         {
 
         }
@@ -141,6 +153,16 @@ namespace CPUHelper
         }
 
         public static void FastA20()
+        {
+
+        }
+
+        public static void Interrupt3()
+        {
+
+        }
+
+        public static void Interrupt4()
         {
 
         }
