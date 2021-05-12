@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using CPUHelper;
+using Kernel.Devices;
 
 namespace TestIL
 {
@@ -14,7 +15,79 @@ namespace TestIL
 
         static void Main()
         {
+            double[] k = new double[int.MaxValue / 2];
+            k[0] = 0;
+            k[int.MaxValue / 4] = 10;
+            for (int i = 0; i < k.Length; i++) k[i] = 11;
+            Console.ReadKey();
 
+            float temp = 725.12f;
+
+            PrintFloat(temp);
+
+            /*var bytes = BitConverter.GetBytes(temp);
+            uint toInt = BitConverter.ToUInt32(bytes);
+
+            Console.WriteLine(temp);
+            Console.WriteLine(toInt);
+
+            bool sign = (toInt & 0x80000000U) != 0;
+            int bExponent = (int)((toInt >> 23) & 255) - 127 - 23;
+            uint mantissa = (toInt & 0x007fffffU) | 0x00800000U;
+
+            uint significand = mantissa;
+            int exponent = 0;
+            while ((significand & 1) == 0)
+            {
+                significand = significand >> 1;
+                exponent++;
+            }
+
+            double t = mantissa * Math.Pow(2, bExponent);
+            Console.WriteLine(t);*/
+
+            
+
+            /*int integerPart = (int)(mantissa >> (bExponent + 3));
+            int exponent = bExponent;
+
+            while ((mantissa & 0x01) == 0)
+            {
+                mantissa = mantissa >> 1;
+                exponent = exponent + 1;
+            }*/
+
+            Console.ReadKey();
+        }
+
+        static void PrintFloat(float f)
+        {
+            float tens = 0;
+            float temp = f;
+
+            while (temp < 1)
+            {
+                tens--;
+                temp *= 10;
+            }
+
+            while (temp >= 10)
+            {
+                tens++;
+                temp /= 10;
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                int integer = (int)temp;
+                temp -= integer;
+                temp *= 10;
+                Console.Write(integer);
+                if (i == 0) Console.Write(".");
+            }
+
+            Console.Write("e");
+            Console.WriteLine(tens);
         }
 
         [BootSector]
@@ -65,9 +138,9 @@ namespace TestIL
 
         private static Bios.SMAP_ret _smap_ret;
 
-        public static short DetectMemory(ushort address, int maxEntries)
+        public static ushort DetectMemory(ushort address, int maxEntries)
         {
-            short entries = 0;
+            ushort entries = 0;
 
             do
             {
@@ -92,6 +165,11 @@ namespace TestIL
 
             return sectorsRead == sectors;
         }
+
+        private const string _welcomeMessage = "Hello from C#!";
+        private const string _fakeUser = "giawa";
+        private const string _fakeCommand = "uname";
+        private const string _fakeResponse = "GiawaOS";
 
         [StructLayout(LayoutKind.Sequential)]
         public struct SMAP_entry
@@ -157,13 +235,30 @@ namespace TestIL
 
             for (int i = 0; i < 255; i++)
             {
-                VGA.WriteVideoMemoryChar(MathHelper.Modulo(i, 10) + 48, (ushort)(i << 8));
+                VGA.WriteVideoMemoryChar(Runtime.Math32.Modulo(i, 10) + 48, (ushort)(i << 8));
             }
 
             VGA.WriteLine();
             VGA.WriteLine();
             VGA.WriteVideoMemoryString("CR0: 0x");
             VGA.WriteHex((int)CPU.ReadCR0());
+
+            VGA.WriteLine();
+            VGA.WriteLine();
+            VGA.WriteVideoMemoryString(_fakeUser, 0x0A00);
+            VGA.WriteVideoMemoryChar(':');
+            VGA.WriteVideoMemoryChar('/', 0x0300);
+            VGA.WriteVideoMemoryChar('$');
+            VGA.WriteVideoMemoryChar(' ');
+            VGA.WriteVideoMemoryString(_fakeCommand);
+            VGA.WriteLine();
+            VGA.WriteVideoMemoryString(_fakeResponse);
+            VGA.WriteLine();
+            VGA.WriteVideoMemoryString(_fakeUser, 0x0A00);
+            VGA.WriteVideoMemoryChar(':');
+            VGA.WriteVideoMemoryChar('/', 0x0300);
+            VGA.WriteVideoMemoryChar('$');
+            VGA.WriteVideoMemoryChar(' ');
 
             while (true) ;
         }
@@ -187,7 +282,7 @@ namespace TestIL
             {
                 for (int i = 2; i < num; i++)
                 {
-                    if (MathHelper.Modulo(num, i) == 0) return 0;
+                    if (Runtime.Math32.Modulo(num, i) == 0) return 0;
                 }
                 return num;
             }
@@ -244,10 +339,10 @@ namespace TestIL
 
             while (divisor > 0)
             {
-                int c = MathHelper.Divide(value, divisor);
-                Bios.WriteByte((byte)(MathHelper.Modulo(c, 10) + 48));
+                int c = Runtime.Math32.Divide(value, divisor);
+                Bios.WriteByte((byte)(Runtime.Math32.Modulo(c, 10) + 48));
 
-                divisor = MathHelper.Divide(divisor, 10);
+                divisor = Runtime.Math32.Divide(divisor, 10);
             }
         }
         #endregion
