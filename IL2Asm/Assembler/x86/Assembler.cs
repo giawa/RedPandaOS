@@ -970,8 +970,14 @@ namespace IL2Asm.Assembler.x86
                     // LDELEMA
                     case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
+                    // LDELEM_U4
+                    case 0x95: LDELEM(assembly, pe.Metadata, code, ref i); break;
+
                     // LDELEM_REF
                     case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
+
+                    // STELEM_I4
+                    case 0x9E: STELEM(assembly, pe.Metadata, code, ref i); break;
 
                     // CONV.U2
                     case 0xD1:
@@ -1120,6 +1126,54 @@ namespace IL2Asm.Assembler.x86
                     }
                 }
             }
+        }
+
+        private void STELEM(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            // value = esp
+            // index = esp+4
+            // array = esp+8
+
+            assembly.AddAsm("mov eax, [esp+4]");    // get index
+            assembly.AddAsm("shl eax, 2");          // multiply by 4 to get offset
+            assembly.AddAsm("mov ebx, [esp+8]");    // get address of array
+            assembly.AddAsm("add eax, ebx");        // now we have the final address
+            assembly.AddAsm("pop ebx");             // pop value off the stack
+            assembly.AddAsm("mov [eax], ebx");      // move value into the location
+            assembly.AddAsm("add esp, 8");          // clean up the stack
+
+            ebxType = _stack.Pop();
+            _stack.Pop();
+            eaxType = _stack.Pop();
+        }
+
+        private void LDELEM(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            assembly.AddAsm("pop ebx"); // index
+            ebxType = _stack.Pop();
+            assembly.AddAsm("pop eax"); // array
+            eaxType = _stack.Pop();
+
+            if (eaxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
+
+            // going to use ecx to store the array position
+            assembly.AddAsm("push ecx");
+            assembly.AddAsm("mov ecx, eax");
+
+            // edx will get clobbered by the multiply
+            assembly.AddAsm("push edx");
+
+            var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
+            assembly.AddAsm($"mov eax, {sizePerElement}");
+            assembly.AddAsm("mul ebx");
+            assembly.AddAsm("add eax, ecx");
+
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("pop ecx");
+
+            assembly.AddAsm("push dword [eax]");
+            eaxType = eaxType.NestedType;
+            _stack.Push(eaxType);
         }
 
         private void LDELEMA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i, bool ldelem_ref = false)
