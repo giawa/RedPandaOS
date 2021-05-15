@@ -4,8 +4,8 @@ namespace PELoader
 {
     public class NestedClassLayout
     {
-        public uint nestedClass;
-        public uint enclosingClass;
+        private uint nestedClass;
+        private uint enclosingClass;
 
         public TypeDefLayout NestedClass { get; private set; }
         public TypeDefLayout EnclosingClass { get; private set; }

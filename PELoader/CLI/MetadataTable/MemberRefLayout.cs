@@ -139,9 +139,11 @@ namespace PELoader
             }
             else if (Type == EType.GenericInst)
             {
-                var type = new ElementType(data, ref i);
+                NestedType = new ElementType(data, ref i);
                 uint typeArgCount = data[i++];
-                i += typeArgCount;
+                var genericTypes = new ElementType[typeArgCount];
+                for (int j = 0; j < typeArgCount; j++)
+                    genericTypes[j] = new ElementType(data, ref i);
             }
             else if (Type == EType.RequiredModifier || Type == EType.OptionalModifier)
             {
@@ -245,20 +247,8 @@ namespace PELoader
 
         public MemberRefLayout(CLIMetadata metadata, ref int offset)
         {
-            byte firstByte = metadata.Table.Heap[offset];
-
-            uint tableSize = 0;
+            uint tableSize = metadata.MemberRefParentCount;
             uint maxTableSize = (1 << 13);
-
-            switch (firstByte & 0x07)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.TypeDef]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.TypeRef]; break;
-                case 0x02: tableSize = metadata.TableSizes[MetadataTable.ModuleRef]; break;
-                case 0x03: tableSize = metadata.TableSizes[MetadataTable.MethodDef]; break;
-                case 0x04: tableSize = metadata.TableSizes[MetadataTable.TypeSpec]; break;
-                default: throw new Exception("Invalid table");
-            }
 
             if (tableSize >= maxTableSize)
             {
@@ -301,7 +291,7 @@ namespace PELoader
 
         private string _parent = null;
 
-        public uint GetParentToken()
+        private uint GetParentToken()
         {
             uint addr = (classIndex >> 3);
             switch (classIndex & 0x07)
@@ -311,6 +301,7 @@ namespace PELoader
                 case 0x02: addr |= 0x0A000000U; break;
                 case 0x03: addr |= 0x06000000U; break;
                 case 0x04: addr |= 0x1B000000U; break;
+                default: throw new Exception("Unsupported classIndex");
             }
             return addr;
         }
@@ -321,7 +312,7 @@ namespace PELoader
             {
                 case 0x00: _parent = metadata.TypeDefs[(int)(classIndex >> 3) - 1].ToString(); break;
                 case 0x01: _parent = metadata.TypeRefs[(int)(classIndex >> 3) - 1].ToString(); break;
-                case 0x02: _parent = metadata.ModuleRefs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x02: _parent = metadata.Modules[(int)(classIndex >> 3) - 1].ToString(); break;
                 case 0x03: _parent = metadata.MethodDefs[(int)(classIndex >> 3) - 1].ToString(); break;
                 case 0x04: _parent = metadata.TypeSpecs[(int)(classIndex >> 3) - 1].ToString(); break;
             }

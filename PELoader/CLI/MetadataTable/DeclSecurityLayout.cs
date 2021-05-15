@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace PELoader
 {
@@ -17,16 +15,8 @@ namespace PELoader
 
             byte firstByte = metadata.Table.Heap[offset];
 
-            uint tableSize = 0;
+            uint tableSize = metadata.HasDeclSecurityAttributeCount;
             uint maxTableSize = (1 << 14);
-
-            switch (firstByte & 0x03)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.TypeDef]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.MethodDef]; break;
-                case 0x02: tableSize = metadata.TableSizes[MetadataTable.Assembly]; break;
-                default: throw new Exception("Invalid table");
-            }
 
             if (tableSize >= maxTableSize)
             {

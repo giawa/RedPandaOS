@@ -7,11 +7,13 @@ namespace PELoader
         public ushort majorVersion, minorVersion, buildNumber, revisionNumber;
         public uint flags;
         public uint publicKeyOrToken;
-        public uint name;
-        public uint culture;
+        private uint name;
+        private uint culture;
         public uint hashValue;
 
         public string Name { get; private set; }
+
+        public string Culture { get; private set; }
 
         public AssemblyRefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -70,6 +72,7 @@ namespace PELoader
             }
 
             Name = metadata.GetString(name);
+            Culture = metadata.GetString(name);
         }
     }
 }

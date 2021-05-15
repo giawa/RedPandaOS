@@ -9,7 +9,7 @@ namespace PELoader
         public ushort number;
         public ushort flags;
         public uint owner;
-        public uint name;
+        private uint name;
 
         public string Name { get; private set; }
 
@@ -21,16 +21,8 @@ namespace PELoader
             flags = BitConverter.ToUInt16(metadata.Table.Heap, offset);
             offset += 2;
 
-            byte firstByte = metadata.Table.Heap[offset];
-
-            uint tableSize = 0;
+            uint tableSize = metadata.TypeOrMethodDefCount;
             uint maxTableSize = (1 << 15);
-
-            switch (firstByte & 0x01)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.TypeDef]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.MethodDef]; break;
-            }
 
             if (tableSize >= maxTableSize)
             {

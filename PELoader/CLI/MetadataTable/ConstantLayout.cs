@@ -13,18 +13,8 @@ namespace PELoader
             type = (ElementType.EType)metadata.Table.Heap[offset];
             offset += 2;    // padded with one byte
 
-            byte firstByte = metadata.Table.Heap[offset];
-
-            uint tableSize = 0;
+            uint tableSize = metadata.HasConstantCount;
             uint maxTableSize = (1 << 14);
-
-            switch (firstByte & 0x03)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.Field]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.Param]; break;
-                case 0x02: tableSize = metadata.TableSizes[MetadataTable.Property]; break;
-                default: throw new Exception("Invalid table");
-            }
 
             if (tableSize >= maxTableSize)
             {

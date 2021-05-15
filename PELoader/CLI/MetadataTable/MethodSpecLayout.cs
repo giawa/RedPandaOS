@@ -11,16 +11,8 @@ namespace PELoader
 
         public MethodSpecLayout(CLIMetadata metadata, ref int offset)
         {
-            byte firstByte = metadata.Table.Heap[offset];
-
-            uint tableSize = 0;
+            uint tableSize = metadata.MethodDefOrRefCount;
             uint maxTableSize = (1 << 15);
-
-            switch (firstByte & 0x01)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.MethodDef]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.MemberRef]; break;
-            }
 
             if (tableSize >= maxTableSize)
             {
@@ -87,7 +79,9 @@ namespace PELoader
                     {
                         Types[i] = new ElementType(data, ref offset);
 
-                        if (Types[i].Type != ElementType.EType.End && Types[i].Type <= ElementType.EType.R8)
+                        if ((Types[i].Type != ElementType.EType.End && Types[i].Type <= ElementType.EType.String) || 
+                            Types[i].Type == ElementType.EType.IntPtr || Types[i].Type == ElementType.EType.UIntPtr ||
+                            Types[i].Type == ElementType.EType.Object)
                         {
                             TypeNames[i] = Types[i].Type.ToString();
                         }
@@ -104,6 +98,14 @@ namespace PELoader
                             //Types[i].Token = methodSpec.method;
                         }
                         else if (Types[i].Type == ElementType.EType.SzArray)
+                        {
+
+                        }
+                        else if (Types[i].Type == ElementType.EType.GenericInst)
+                        {
+                            // generic types were already read (but not stored) by the ElementType constructor
+                        }
+                        else if (Types[i].Type == ElementType.EType.Var)
                         {
 
                         }

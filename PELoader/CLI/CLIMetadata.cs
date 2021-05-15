@@ -182,10 +182,12 @@ namespace PELoader
                 if ((_metadataLayout.valid & (1UL << j)) != 0)
                 {
                     rowCount++;
-                    TableSizes[j] = BitConverter.ToUInt32(Table.Heap, offset);// Marshal.SizeOf<MetadataLayout>() + 4 * j);
+                    TableSizes[j] = BitConverter.ToUInt32(Table.Heap, offset);
                     offset += 4;
                 }
             }
+
+            GetIndexCounts();
 
             for (int bit = 0; bit < TableSizes.Length; bit++)
             {
@@ -195,7 +197,7 @@ namespace PELoader
                 {
                     if (bit == MetadataTable.Module)
                     {
-                        _moduleRefs.Add(new ModuleRefLayout(this, ref offset));
+                        _modules.Add(new ModuleLayout(this, ref offset));
                     }
                     else if (bit == MetadataTable.TypeRef)
                     {
@@ -277,6 +279,54 @@ namespace PELoader
                     {
                         _declSecurities.Add(new DeclSecurityLayout(this, ref offset));
                     }
+                    else if (bit == MetadataTable.ExportedType)
+                    {
+                        _exportedTypes.Add(new ExportedTypeLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.FieldMarshal)
+                    {
+                        _fieldMarshals.Add(new FieldMarshalLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.ClassLayout)
+                    {
+                        _classLayouts.Add(new ClassLayoutLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.FieldLayout)
+                    {
+                        _fieldLayouts.Add(new FieldLayoutLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.EventMap)
+                    {
+                        _eventMaps.Add(new EventMapLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.Event)
+                    {
+                        _events.Add(new EventLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.MethodImpl)
+                    {
+                        _methodImpls.Add(new MethodImplLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.ModuleRef)
+                    {
+                        _moduleRefs.Add(new ModuleRefLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.ImplMap)
+                    {
+                        _implMaps.Add(new ImplMapLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.FieldRVA)
+                    {
+                        _fieldRVAs.Add(new FieldRVALayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.ManifestResource)
+                    {
+                        _manifestResources.Add(new ManifestResourceLayout(this, ref offset));
+                    }
+                    else if (bit == MetadataTable.GenericParamConstraint)
+                    {
+                        _genericParamConstraints.Add(new GenericParamConstraintLayout(this, ref offset));
+                    }
                     else
                     {
                         throw new Exception("Unknown bit index");
@@ -307,6 +357,51 @@ namespace PELoader
             for (int i = 0; i < _memberRefs.Count; i++) _memberRefs[i].FindParentType(this);
         }
 
+        private void GetIndexCounts()
+        {
+            TypeDefOrRefCount = GetIndexCount(MetadataTable.TypeDef, MetadataTable.TypeRef, MetadataTable.TypeSpec);
+            HasConstantCount = GetIndexCount(MetadataTable.Field, MetadataTable.Param, MetadataTable.Property);
+            HasCustomAttributeCount = GetIndexCount(MetadataTable.MethodDef, MetadataTable.Field, MetadataTable.TypeRef,
+                MetadataTable.TypeDef, MetadataTable.Param, MetadataTable.InterfaceImpl, MetadataTable.MemberRef,
+                MetadataTable.Module, /*MetadataTable.Permission,*/ MetadataTable.Property, MetadataTable.Event,
+                MetadataTable.StandAloneSig, MetadataTable.ModuleRef, MetadataTable.TypeSpec, MetadataTable.TypeSpec,
+                MetadataTable.Assembly, MetadataTable.AssemblyRef, MetadataTable.File, MetadataTable.ExportedType,
+                MetadataTable.ManifestResource, MetadataTable.GenericParam, MetadataTable.GenericParamConstraint,
+                MetadataTable.MethodSpec);
+            HasFieldMarshallAttributeCount = GetIndexCount(MetadataTable.Field, MetadataTable.Param);
+            HasDeclSecurityAttributeCount = GetIndexCount(MetadataTable.TypeDef, MetadataTable.MethodDef, MetadataTable.Assembly);
+            MemberRefParentCount = GetIndexCount(MetadataTable.TypeDef, MetadataTable.TypeRef, MetadataTable.ModuleRef, MetadataTable.MethodDef, MetadataTable.TypeSpec);
+            HasSemanticsCount = GetIndexCount(MetadataTable.Event, MetadataTable.Property);
+            MethodDefOrRefCount = GetIndexCount(MetadataTable.MethodDef, MetadataTable.MemberRef);
+            MemberForwardedCount = GetIndexCount(MetadataTable.Field, MetadataTable.MethodDef);
+            ImplementationCount = GetIndexCount(MetadataTable.File, MetadataTable.AssemblyRef, MetadataTable.ExportedType);
+            CustomAttributeTypeCount = GetIndexCount(MetadataTable.MethodDef, MetadataTable.MemberRef);
+            ResolutionScopeCount = GetIndexCount(MetadataTable.Module, MetadataTable.ModuleRef, MetadataTable.AssemblyRef, MetadataTable.TypeRef);
+            TypeOrMethodDefCount = GetIndexCount(MetadataTable.TypeDef, MetadataTable.MethodDef);
+        }
+
+        private uint GetIndexCount(params byte[] tables)
+        {
+            uint count = 0;
+            foreach (var table in tables) count = Math.Max(count, TableSizes[table]);
+            return count;
+        }
+
+        internal uint TypeDefOrRefCount { get; private set; }
+        internal uint HasConstantCount { get; private set; }
+        internal uint HasCustomAttributeCount { get; private set; }
+        internal uint HasFieldMarshallAttributeCount { get; private set; }
+        internal uint HasDeclSecurityAttributeCount { get; private set; }
+        internal uint MemberRefParentCount { get; private set; }
+        internal uint HasSemanticsCount { get; private set; }
+        internal uint MethodDefOrRefCount { get; private set; }
+        internal uint MemberForwardedCount { get; private set; }
+        internal uint ImplementationCount { get; private set; }
+        internal uint CustomAttributeTypeCount { get; private set; }
+        internal uint ResolutionScopeCount { get; private set; }
+        internal uint TypeOrMethodDefCount { get; private set; }
+
+        private List<ModuleLayout> _modules = new List<ModuleLayout>();
         private List<ModuleRefLayout> _moduleRefs = new List<ModuleRefLayout>();
         private List<TypeRefLayout> _typeRefs = new List<TypeRefLayout>();
         private List<TypeDefLayout> _typeDefs = new List<TypeDefLayout>();
@@ -328,10 +423,21 @@ namespace PELoader
         private List<PropertyLayout> _properties = new List<PropertyLayout>();
         private List<MethodSemanticsLayout> _methodSemantics = new List<MethodSemanticsLayout>();
         private List<DeclSecurityLayout> _declSecurities = new List<DeclSecurityLayout>();
+        private List<ExportedTypeLayout> _exportedTypes = new List<ExportedTypeLayout>();
+        private List<FieldMarshalLayout> _fieldMarshals = new List<FieldMarshalLayout>();
+        private List<ClassLayoutLayout> _classLayouts = new List<ClassLayoutLayout>();
+        private List<FieldLayoutLayout> _fieldLayouts = new List<FieldLayoutLayout>();
+        private List<EventMapLayout> _eventMaps = new List<EventMapLayout>();
+        private List<EventLayout> _events = new List<EventLayout>();
+        private List<MethodImplLayout> _methodImpls = new List<MethodImplLayout>();
+        private List<ImplMapLayout> _implMaps = new List<ImplMapLayout>();
+        private List<FieldRVALayout> _fieldRVAs = new List<FieldRVALayout>();
+        private List<ManifestResourceLayout> _manifestResources = new List<ManifestResourceLayout>();
+        private List<GenericParamConstraintLayout> _genericParamConstraints = new List<GenericParamConstraintLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
-        public List<ModuleRefLayout> ModuleRefs { get { return _moduleRefs; } }
+        public List<ModuleLayout> Modules { get { return _modules; } }
         public List<MethodDefLayout> MethodDefs { get { return _methodDefs; } }
         public List<TypeSpecLayout> TypeSpecs { get { return _typeSpecs; } }
         public List<MemberRefLayout> MemberRefs { get { return _memberRefs; } }
@@ -339,6 +445,9 @@ namespace PELoader
         public List<FieldLayout> Fields { get { return _fields; } }
         public List<AssemblyRefLayout> AssemblyRefs { get { return _assemblyRefs; } }
         public List<MethodSpecLayout> MethodSpecs { get { return _methodSpecs; } }
+        public List<ExportedTypeLayout> ExportedTypes { get { return _exportedTypes; } }
+        public List<ModuleRefLayout> ModuleRefs { get { return _moduleRefs; } }
+        public List<GenericParamLayout> GenericParams { get { return _genericParams; } }
 
         public uint[] TableSizes = new uint[64];
     }

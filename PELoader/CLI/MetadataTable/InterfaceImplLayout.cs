@@ -21,17 +21,8 @@ namespace PELoader
             }
 
             byte firstByte = metadata.Table.Heap[offset];
-
-            uint tableSize = 0;
+            uint tableSize = metadata.TypeDefOrRefCount;
             uint maxTableSize = (1 << 14);
-
-            switch (firstByte & 0x03)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.TypeDef]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.TypeRef]; break;
-                case 0x02: tableSize = metadata.TableSizes[MetadataTable.TypeSpec]; break;
-                default: throw new Exception("Invalid table");
-            }
 
             if (tableSize >= maxTableSize)
             {
@@ -42,6 +33,14 @@ namespace PELoader
             {
                 interfaceIndex = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
+            }
+
+            switch (firstByte & 0x03)
+            {
+                case 0x00: interfaceIndex = 0x02000000 | (interfaceIndex >> 2); break;
+                case 0x01: interfaceIndex = 0x01000000 | (interfaceIndex >> 2); break;
+                case 0x02: interfaceIndex = 0x1B000000 | (interfaceIndex >> 2); break;
+                default: throw new Exception("Invalid table");
             }
         }
     }

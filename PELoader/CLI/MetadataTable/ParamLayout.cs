@@ -6,7 +6,9 @@ namespace PELoader
     {
         public ushort flags;
         public ushort sequence;
-        public uint name;
+        private uint name;
+
+        public string Name { get; private set; }
 
         public MethodDefLayout Parent;
 
@@ -28,11 +30,13 @@ namespace PELoader
                 name = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
+
+            Name = metadata.GetString(name);
         }
 
-        public string GetName(CLIMetadata metadata)
+        public override string ToString()
         {
-            return metadata.GetString(name);
+            return Name;
         }
     }
 }

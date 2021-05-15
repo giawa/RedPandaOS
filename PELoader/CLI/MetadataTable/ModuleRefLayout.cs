@@ -1,19 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace PELoader
 {
     public class ModuleRefLayout
     {
-        public ushort generation;
-        public uint name;
-        public ushort mvid;
-        public ushort encId;
-        public ushort encBaseId;
+        private uint name;
+
+        public string Name { get; private set; }
 
         public ModuleRefLayout(CLIMetadata metadata, ref int offset)
         {
-            offset += 2;
-
             if (metadata.WideStrings)
             {
                 name = BitConverter.ToUInt32(metadata.Table.Heap, offset);
@@ -25,16 +23,7 @@ namespace PELoader
                 offset += 2;
             }
 
-            mvid = BitConverter.ToUInt16(metadata.Table.Heap, offset);
-            offset += 2;
-
-            // last 4 bytes are reserved, so skip them as well
-            offset += 4;
-        }
-
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(name);
+            Name = metadata.GetString(name);
         }
     }
 }

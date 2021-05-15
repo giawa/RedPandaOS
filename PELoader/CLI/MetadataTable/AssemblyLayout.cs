@@ -8,8 +8,11 @@ namespace PELoader
         public ushort majorVersion, minorVersion, buildNumber, revisionNumber;
         public uint flags;
         public uint publicKey;
-        public uint name;
-        public uint culture;
+        private uint name;
+        private uint culture;
+
+        public string Name { get; private set; }
+        public string Culture { get; private set; }
 
         public AssemblyLayout(CLIMetadata metadata, ref int offset)
         {
@@ -58,11 +61,9 @@ namespace PELoader
                 culture = BitConverter.ToUInt16(metadata.Table.Heap, offset);
                 offset += 2;
             }
-        }
 
-        public string GetName(CLIMetadata metadata)
-        {
-            return metadata.GetString(name);
+            Name = metadata.GetString(name);
+            Culture = metadata.GetString(culture);
         }
     }
 }

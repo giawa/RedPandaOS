@@ -40,14 +40,8 @@ namespace PELoader
 
             byte firstByte = metadata.Table.Heap[offset];
 
-            uint tableSize = 0;
+            uint tableSize = metadata.HasSemanticsCount;
             uint maxTableSize = (1 << 15);
-
-            switch (firstByte & 0x01)
-            {
-                case 0x00: tableSize = metadata.TableSizes[MetadataTable.Event]; break;
-                case 0x01: tableSize = metadata.TableSizes[MetadataTable.Property]; break;
-            }
 
             if (tableSize >= maxTableSize)
             {
