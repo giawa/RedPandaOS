@@ -2,7 +2,7 @@
 
 namespace Kernel.Devices
 {
-    public static class Timer
+    public static class PIT
     {
         public static void Init(int frequency)
         {

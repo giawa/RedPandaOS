@@ -83,7 +83,7 @@ namespace Kernel.Interrupts
             }
             CPU.OutDxAl(0x20, 0x20);
 
-            if (int_no == 32) Timer.Tick();
+            if (int_no == 32) PIT.Tick();
             else
             {
                 VGA.WriteVideoMemoryString("IRQ ");
