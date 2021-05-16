@@ -78,41 +78,46 @@ namespace PELoader
                     for (int i = 0; i < genArgCount; i++)
                     {
                         Types[i] = new ElementType(data, ref offset);
-
-                        if ((Types[i].Type != ElementType.EType.End && Types[i].Type <= ElementType.EType.String) || 
-                            Types[i].Type == ElementType.EType.IntPtr || Types[i].Type == ElementType.EType.UIntPtr ||
-                            Types[i].Type == ElementType.EType.Object)
-                        {
-                            TypeNames[i] = Types[i].Type.ToString();
-                        }
-                        else if ((Types[i].Token & 0xff000000) == 0x02000000)
-                        {
-                            TypeNames[i] = metadata.TypeDefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
-                        }
-                        else if ((Types[i].Token & 0xff000000) == 0x01000000)
-                        {
-                            TypeNames[i] = metadata.TypeRefs[(int)(Types[i].Token & 0x00ffffff) - 1].Name;
-                        }
-                        else if (Types[i].Type == ElementType.EType.MVar)
-                        {
-                            //Types[i].Token = methodSpec.method;
-                        }
-                        else if (Types[i].Type == ElementType.EType.SzArray)
-                        {
-
-                        }
-                        else if (Types[i].Type == ElementType.EType.GenericInst)
-                        {
-                            // generic types were already read (but not stored) by the ElementType constructor
-                        }
-                        else if (Types[i].Type == ElementType.EType.Var)
-                        {
-
-                        }
-                        else throw new Exception("No implementation for this table type");
+                        TypeNames[i] = NameFromType(Types[i], metadata);
                     }
                 }
                 else throw new Exception("Unexpected blob type");
+            }
+
+            private string NameFromType(ElementType type, CLIMetadata metadata)
+            {
+                if ((type.Type != ElementType.EType.End && type.Type <= ElementType.EType.String) ||
+                            type.Type == ElementType.EType.IntPtr || type.Type == ElementType.EType.UIntPtr ||
+                            type.Type == ElementType.EType.Object)
+                {
+                    return type.Type.ToString();
+                }
+                else if ((type.Token & 0xff000000) == 0x02000000)
+                {
+                    return metadata.TypeDefs[(int)(type.Token & 0x00ffffff) - 1].Name;
+                }
+                else if ((type.Token & 0xff000000) == 0x01000000)
+                {
+                    return metadata.TypeRefs[(int)(type.Token & 0x00ffffff) - 1].Name;
+                }
+                else if (type.Type == ElementType.EType.MVar)
+                {
+                    //type.Token = methodSpec.method;
+                    return "";
+                }
+                else if (type.Type == ElementType.EType.SzArray)
+                {
+                    return "@" + NameFromType(type.NestedType, metadata);
+                }
+                else if (type.Type == ElementType.EType.GenericInst)
+                {
+                    return NameFromType(type.NestedType, metadata);
+                }
+                else if (type.Type == ElementType.EType.Var)
+                {
+                    return "";
+                }
+                else throw new Exception("No implementation for this table type");
             }
 
             public string ToAsmString()

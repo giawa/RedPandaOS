@@ -74,7 +74,7 @@ namespace IL2Asm
                 var type = field.MemberSignature.RetType;
 
                 uint typeRefToken = type.Token;
-                if (typeRefToken == 0) typeRefToken = field.GetParentToken();
+                if (typeRefToken == 0) typeRefToken = field.Parent;
 
                 var pe = GetParentAssembly(metadata, typeRefToken);
 
@@ -116,7 +116,7 @@ namespace IL2Asm
                 var type = field.MemberSignature.RetType;
 
                 uint typeRefToken = type.Token;
-                if (typeRefToken == 0) typeRefToken = field.GetParentToken();
+                if (typeRefToken == 0) typeRefToken = field.Parent;
 
                 var pe = GetParentAssembly(metadata, typeRefToken);
 

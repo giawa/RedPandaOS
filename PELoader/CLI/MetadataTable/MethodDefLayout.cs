@@ -143,7 +143,11 @@ namespace PELoader
         public string ToAsmString()
         {
             StringBuilder sb = new StringBuilder(ToString().Replace(".", "_"));
-            sb.Append($"_{MethodSignature.RetType.Type}");
+            if (MethodSignature.RetType.Type == ElementType.EType.SzArray)
+            {
+                sb.Append($"_@{MethodSignature.RetType.NestedType}");
+            }
+            else sb.Append($"_{MethodSignature.RetType.Type}");
 
             for (int i = 0; i < MethodSignature.ParamCount; i++)
             {
