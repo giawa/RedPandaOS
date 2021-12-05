@@ -186,6 +186,22 @@ namespace PELoader
             var lowerByte = (EType)((uint)Type & 0xff);
             return (lowerByte == EType.ValueType || lowerByte == EType.Class || lowerByte == EType.Ptr || lowerByte == EType.Object || lowerByte == EType.ByRef);
         }
+
+        public static bool operator==(ElementType e1, ElementType e2)
+        {
+            if (object.ReferenceEquals(e1, null) || object.ReferenceEquals(e2, null)) return false;
+
+            if (e1.Type != e2.Type) return false;
+            if (e1.Token != e2.Token) return false;
+            if (!object.ReferenceEquals(e1.NestedType, null)) return e1.NestedType == e2.NestedType;
+
+            return true;
+        }
+
+        public static bool operator !=(ElementType e1, ElementType e2)
+        {
+            return !(e1 == e2);
+        }
     }
 
     public class MethodRefSig

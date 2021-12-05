@@ -54,7 +54,7 @@ namespace ILInterpreter
             var signature = member.MemberSignature;
 
             if (signature.Flags != Flags) return false;
-            if (signature.RetType.Type != RetType.Type || signature.RetType.Token != RetType.Token) return false;
+            if (signature.RetType.Type != RetType.Type/* || signature.RetType.Token != RetType.Token*/) return false;
             if (!member.ToString().StartsWith(_className)) return false;
 
             // if neither takes any params then finish up here

@@ -97,6 +97,9 @@ namespace ILInterpreter.Gen3
                     _stack.Push(new Variable(temp));
                     break;
 
+                // POP
+                case 0x0026: _stack.Pop(); break;
+
                 // CALL
                 case 0x0028: CALL(); break;
 
@@ -149,6 +152,7 @@ namespace ILInterpreter.Gen3
 
                 case 0xFE01: CEQ(); break;  // CEQ
                 case 0xFE02: CGT(); break;  // CGT
+                case 0xFE03: CGT(); break;  // CGT.UN
                 case 0xFE04: CLT(); break;  // CLT
 
                 default: throw new Exception("Unknown opcode " + opcode.ToString("X"));

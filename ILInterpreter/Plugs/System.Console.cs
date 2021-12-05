@@ -20,5 +20,12 @@ namespace ILInterpreter.Plugs
             if (s.Type != ObjType.String) throw new InvalidOperationException();
             Console.WriteLine(interpreter.StringHeap[(int)s.Integer]);
         }
+
+        [Plug("System.Console", ElementType.EType.ValueType)]
+        public static void ReadKey(IInterpreter interpreter)
+        {
+            Console.ReadKey();
+            interpreter.Stack.Push(new Variable(0));
+        }
     }
 }

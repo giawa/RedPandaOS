@@ -35,17 +35,21 @@ namespace IL2Asm
                 var assemblyRef = metadata.AssemblyRefs[(int)(typeRefToken & 0x00ffffff) - 1];
 
                 var path = _assemblies[0].Filename.Substring(0, _assemblies[0].Filename.LastIndexOf("/"));
-                path += $"/{assemblyRef.Name}";
+                //path += $"/{assemblyRef.Name}";
 
                 PortableExecutableFile pe = null;
 
-                foreach (var a in _assemblies) if (a.Filename == path + ".dll" || a.Filename == path + ".exe") pe = a;
+                foreach (var a in _assemblies) 
+                    if (a.Filename == path + $"/{assemblyRef.Name}.dll" || 
+                        a.Filename == path + $"/publish/{assemblyRef.Name}.dll" ||
+                        a.Filename == path + $"/{assemblyRef.Name}.exe") pe = a;
 
                 if (pe == null)
                 {
-                    if (File.Exists(path + ".dll")) pe = new PortableExecutableFile(path + ".dll");
-                    else if (File.Exists(path + ".exe")) pe = new PortableExecutableFile(path + ".exe");
-                    else new FileNotFoundException(path);
+                    if (File.Exists(path + $"/{assemblyRef.Name}.dll")) pe = new PortableExecutableFile(path + $"/{assemblyRef.Name}.dll");
+                    else if (File.Exists(path + $"/publish/{assemblyRef.Name}.dll")) pe = new PortableExecutableFile(path + $"/publish/{assemblyRef.Name}.dll");
+                    else if (File.Exists(path + $"/{assemblyRef.Name}.exe")) pe = new PortableExecutableFile(path + $"/{assemblyRef.Name}.exe");
+                    else throw new FileNotFoundException(path + $"/{assemblyRef.Name}");
 
                     AddAssembly(pe);
                 }
@@ -178,6 +182,33 @@ namespace IL2Asm
 
                             _typeSizes.Add(typeDef.FullName, size);
                             return size;
+                        }
+                    }
+
+                    if (pe.Metadata.ExportedTypes != null)
+                    {
+                        foreach (var exportedType in pe.Metadata.ExportedTypes)
+                        {
+                            if (exportedType.TypeName == typeRef.Name && exportedType.TypeNamespace == typeRef.Namespace)
+                            {
+                                var nestedPe = GetParentAssembly(pe.Metadata, exportedType.implementation);
+
+                                foreach (var typeDef in nestedPe.Metadata.TypeDefs)
+                                {
+                                    if (typeDef.Name == typeRef.Name && typeDef.Namespace == typeRef.Namespace)
+                                    {
+                                        if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
+
+                                        foreach (var field in typeDef.Fields)
+                                        {
+                                            size += GetTypeSize(nestedPe.Metadata, field.Type);
+                                        }
+
+                                        _typeSizes.Add(typeDef.FullName, size);
+                                        return size;
+                                    }
+                                }
+                            }
                         }
                     }
 

@@ -39,7 +39,7 @@ namespace Kernel.Memory
             return PtrToObject<T>(addr);
         }
 
-        public static T[] MallocArray<T>(uint arraySize) where T : new()
+        public static T[] MallocArray<T>(uint arraySize)
         {
             uint size = (uint)Marshal.SizeOf<T>();
             size *= arraySize;
