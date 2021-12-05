@@ -10,6 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Assembler\x86\Ver2\" />
     <Folder Include="Assembler\x86_64\" />
   </ItemGroup>
 

@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace IL2Asm.Assembler.x86
+namespace IL2Asm.Assembler.x86.Ver1
 {
     public class Assembler : IAssembler
     {
@@ -201,6 +201,18 @@ namespace IL2Asm.Assembler.x86
                         _stack.Push(eaxType);
                         break;
 
+                    // LDARGA.S
+                    case 0x0F:
+                        _byte = code[i++];
+                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
+                        assembly.AddAsm("push eax");
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
+                        else eaxType = methodDef.MethodSignature.Params[_byte];
+                        _stack.Push(eaxType);
+                        break;
+
                     // STARG.S
                     case 0x10:
                         _byte = code[i++];
@@ -263,6 +275,9 @@ namespace IL2Asm.Assembler.x86
                         if (_byte > 1) eaxType = _stack.Pop();
                         else _stack.Pop();
                         break;
+
+                    // LDNULL
+                    case 0x14: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.Object)); break;
 
                     // LDC.I4.0-8
                     case 0x16: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.I4)); break;
@@ -729,6 +744,28 @@ namespace IL2Asm.Assembler.x86
 
                         break;
 
+                    // LDIND.U4
+                    case 0x4B:
+                        eaxType = _stack.Pop();
+                        ebxType = new ElementType(ElementType.EType.I4);
+                        _stack.Push(ebxType);
+
+                        assembly.AddAsm("pop eax");
+                        assembly.AddAsm("mov ebx, [eax]");
+                        assembly.AddAsm("push ebx");
+                        break;
+
+                    // STIND.I4
+                    case 0x54:
+                        ebxType = _stack.Pop();
+                        eaxType = _stack.Pop();
+                        if (ebxType.Type != ElementType.EType.I4) throw new Exception("Unexpected type");
+
+                        assembly.AddAsm("pop ebx"); // value
+                        assembly.AddAsm("pop eax"); // address
+                        assembly.AddAsm("mov [eax], ebx");
+                        break;
+
                     // ADD
                     case 0x58:
                         eaxType = _stack.Pop();
@@ -950,6 +987,9 @@ namespace IL2Asm.Assembler.x86
                     // LDSTR
                     case 0x72: LDSTR(assembly, pe.Metadata, code, ref i); break;
 
+                    // NEWOBJ
+                    case 0x73: NEWOBJ(pe, assembly, code, ref i); break;
+
                     // LDFLD
                     case 0x7B: LDFLD(assembly, pe.Metadata, code, ref i); break;
 
@@ -1073,6 +1113,11 @@ namespace IL2Asm.Assembler.x86
                         ebxType = _stack.Pop();
                         eaxType = new ElementType(ElementType.EType.I4);
                         _stack.Push(eaxType);
+                        break;
+
+                    // LDFTN
+                    case 0xFE06:
+                        CALL(pe, assembly, code, ref i, ldftn: true);
                         break;
 
                     // SIZEOF
@@ -1328,11 +1373,23 @@ namespace IL2Asm.Assembler.x86
             string label = $"DB_{addr.ToString("X")}";
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+            var labelType = _initializedData[label].Type;
 
             eaxType = _stack.Pop();
+            if (!IsEquivalentType(labelType, eaxType)) throw new Exception("Mismatched types");
 
             assembly.AddAsm($"pop eax");
             assembly.AddAsm($"mov [{label}], eax");
+        }
+
+        private bool IsEquivalentType(ElementType type1, ElementType type2)
+        {
+            if (type1 == type2) return true;
+
+            if (type1.Type == ElementType.EType.U4 || type1.Type == ElementType.EType.I4)
+                return (type2.Type == ElementType.EType.U4 || type2.Type == ElementType.EType.I4);
+
+            return false;
         }
 
         private void LDSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1513,9 +1570,7 @@ namespace IL2Asm.Assembler.x86
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
-        private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
-
-        private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false)
+        private void NEWOBJ(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
         {
             var metadata = pe.Metadata;
 
@@ -1560,6 +1615,75 @@ namespace IL2Asm.Assembler.x86
                 ebxType = null;
 
                 assembly.AddAsm($"; start {memberName} plug");
+
+                if (memberName == "System.Action..ctor_Void_Object_IntPtr")
+                {
+                    assembly.AddAsm("pop eax"); // function pointer
+                    assembly.AddAsm("pop ebx"); // this (which is always null)
+                    
+                }
+                else
+                {
+                    throw new Exception("Unable to handle this method");
+                }
+                assembly.AddAsm("; end plug");
+
+                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                    _stack.Pop();
+                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(memberRef.MemberSignature.RetType);
+            }
+            else throw new Exception("Unsupported");
+        }
+
+        private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
+
+        private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false, bool ldftn = false)
+        {
+            var metadata = pe.Metadata;
+
+            uint methodDesc = BitConverter.ToUInt32(code, i);
+            i += 4;
+            string generic = string.Empty;
+
+            MethodSpecLayout methodSpec = null;
+
+            if ((methodDesc & 0xff000000) == 0x2b000000)
+            {
+                methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
+                methodDesc = methodSpec.method;
+
+                // use the parent methodSpec to work out the types
+                if (assembly.MethodSpec != null)
+                {
+                    methodSpec = methodSpec.Clone();
+                    for (int j = 0; j < methodSpec.MemberSignature.Types.Length; j++)
+                    {
+                        var type = methodSpec.MemberSignature.Types[j];
+
+                        if (type.Type == ElementType.EType.MVar)
+                        {
+                            var token = methodSpec.MemberSignature.Types[j].Token;
+                            methodSpec.MemberSignature.Types[j] = assembly.MethodSpec.MemberSignature.Types[token];
+                            methodSpec.MemberSignature.TypeNames[j] = assembly.MethodSpec.MemberSignature.TypeNames[token];
+                        }
+                    }
+                }
+                generic = methodSpec.MemberSignature.ToAsmString();
+            }
+
+            if ((methodDesc & 0xff000000) == 0x0a000000)
+            {
+                var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
+                var memberName = memberRef.ToAsmString();
+                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
+
+                // eax and ebx may have been clobbered
+                eaxType = null;
+                ebxType = null;
+
+                assembly.AddAsm($"; start {memberName} plug");
+                if (ldftn) throw new Exception("Plugs are unsupported with ldftn");
 
                 if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_U2")
                 {
@@ -1760,7 +1884,8 @@ namespace IL2Asm.Assembler.x86
                     }
 
                     string callsite = methodToCompile.ToAsmString().Replace(".", "_");
-                    assembly.AddAsm($"call {callsite}");
+                    if (ldftn) assembly.AddAsm($"push {callsite}");
+                    else assembly.AddAsm($"call {callsite}");
 
                     if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
                 }

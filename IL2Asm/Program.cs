@@ -40,7 +40,7 @@ namespace IL2Asm
                 var stage2 = assembler16.WriteAssembly(0x9000, 4096, false);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
-                Assembler.x86.Assembler assembler32 = new Assembler.x86.Assembler();
+                Assembler.x86.Ver1.Assembler assembler32 = new Assembler.x86.Ver1.Assembler();
                 assembler32.AddAssembly(file);
                 var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));//methodDef32, null);

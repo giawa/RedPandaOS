@@ -41,7 +41,7 @@ namespace GiawaOS
                 var stage2 = assembler16.WriteAssembly(0x9000, 4096, false);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
-                var assembler32 = new IL2Asm.Assembler.x86.Assembler();
+                var assembler32 = new IL2Asm.Assembler.x86.Ver2.Assembler();
                 assembler32.AddAssembly(file);
                 var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));
