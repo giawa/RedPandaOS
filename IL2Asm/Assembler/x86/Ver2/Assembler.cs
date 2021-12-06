@@ -1298,7 +1298,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             uint metadataToken = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            string label = $"DB_{metadataToken.ToString("X")}";
+            string label = $"BLOB_{metadataToken.ToString("X")}";
 
             string s = Encoding.Unicode.GetString(metadata.GetMetadata(metadataToken));
 
@@ -1367,12 +1367,27 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
         }
 
+        private string GetStaticLabel(int addr, CLIMetadata metadata)
+        {
+            if ((addr & 0xff000000) == 0x04000000)
+            {
+                var field = metadata.Fields[(addr & 0x00ffffff) - 1];
+                var parent = field.Parent;
+
+                return $"{parent.FullName}.{field.Name}".Replace('.', '_');
+            }
+            else
+            {
+                throw new Exception("Unexpected static type");
+            }
+        }
+
         private void STSFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
             int addr = BitConverter.ToInt32(code, i);
             i += 4;
 
-            string label = $"DB_{addr.ToString("X")}";
+            string label = GetStaticLabel(addr, metadata);
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
             var labelType = _initializedData[label].Type;
@@ -1399,7 +1414,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             int addr = BitConverter.ToInt32(code, i);
             i += 4;
 
-            string label = $"DB_{addr.ToString("X")}";
+            string label = GetStaticLabel(addr, metadata);
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
 
@@ -1422,7 +1437,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             int addr = BitConverter.ToInt32(code, i);
             i += 4;
 
-            string label = $"DB_{addr.ToString("X")}";
+            string label = GetStaticLabel(addr, metadata);
 
             if ((addr & 0xff000000) == 0x04000000)
             {
