@@ -355,6 +355,13 @@ namespace PELoader
             for (int i = 0; i < _methodDefs.Count; i++) _methodDefs[i].FindParams(_params);
 
             for (int i = 0; i < _memberRefs.Count; i++) _memberRefs[i].FindParentType(this);
+
+            for (int i = 0; i < _customAttributes.Count; i++)
+            {
+                var attribute = _customAttributes[i];
+                if ((attribute.parent & 0xff000000) == 0x04000000) _fields[(int)(attribute.parent & 0x00ffffff) - 1].Attributes.Add(attribute);
+                else if ((attribute.parent & 0xff000000) == 0x06000000) _methodDefs[(int)(attribute.parent & 0x00ffffff) - 1].Attributes.Add(attribute);
+            }
         }
 
         private void GetIndexCounts()

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace PELoader
 {
@@ -9,6 +10,8 @@ namespace PELoader
         public uint signature;
 
         public TypeDefLayout Parent;
+
+        public List<CustomAttributeLayout> Attributes = new List<CustomAttributeLayout>();
 
         [Flags]
         public enum FieldLayoutFlags : ushort

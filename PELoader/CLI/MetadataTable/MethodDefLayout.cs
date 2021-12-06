@@ -75,6 +75,7 @@ namespace PELoader
         public MethodRefSig MethodSignature { get; private set; }
 
         public List<ParamLayout> Params = new List<ParamLayout>();
+        public List<CustomAttributeLayout> Attributes = new List<CustomAttributeLayout>();
 
         public MethodDefLayout(CLIMetadata metadata, ref int offset)
         {
