@@ -1655,7 +1655,28 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
 
-        private Dictionary<string, System.Reflection.Assembly> _loadedAssemblies = new Dictionary<string, System.Reflection.Assembly>();
+        private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
+
+        private bool CheckForPlugAndInvoke(string dllPath, string memberName, AssembledMethod assembly)
+        {
+            if (File.Exists(dllPath))
+            {
+                if (!_loadedAssemblies.ContainsKey(dllPath)) _loadedAssemblies[dllPath] = Assembly.LoadFile(dllPath);
+
+                var possiblePlugs = _loadedAssemblies[dllPath].GetTypes().
+                    SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
+                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
+                               m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86).ToArray();
+
+                if (possiblePlugs.Length == 1)
+                {
+                    possiblePlugs[0].Invoke(null, new object[] { assembly });
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false, bool ldftn = false)
         {
@@ -1706,20 +1727,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 var file = memberName.Substring(0, memberName.IndexOf('.'));
                 var path = $"{Environment.CurrentDirectory}\\{file}.dll";
-                if (!File.Exists(path)) throw new FileNotFoundException(path);
 
-                if (!_loadedAssemblies.ContainsKey(path)) _loadedAssemblies[path] = Assembly.LoadFile(path);
-
-                var possiblePlugs = _loadedAssemblies[path].GetTypes().
-                    SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
-                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
-                               m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86).ToArray();
-
-                if (possiblePlugs.Length == 1)
-                {
-                    possiblePlugs[0].Invoke(null, new object[] { assembly });
-                }
-                else
+                if (!CheckForPlugAndInvoke(path, memberName, assembly))
                 {
                     if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                     {
@@ -1753,15 +1762,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = methodDef.ToAsmString();
 
-                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
+                if (!CheckForPlugAndInvoke(pe.Filename, memberName, assembly))
+                {
+                    if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
 
-                if (methodDef.Name.StartsWith("PtrToObject") || methodDef.Name.StartsWith("ObjectToPtr"))
-                {
-                    assembly.AddAsm($"; {methodDef.Name} nop");
-                    // this is a nop
-                }
-                else
-                {
                     bool methodAlreadyCompiled = false;
                     foreach (var method in _methods)
                         if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
