@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\IL2Asm.BaseTypes\IL2Asm.BaseTypes.csproj" />
     <ProjectReference Include="..\PELoader\PELoader.csproj" />
   </ItemGroup>
 

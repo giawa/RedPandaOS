@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace IL2Asm
 {
-    public class AssembledMethod
+    public class AssembledMethod : BaseTypes.IAssembledMethod
     {
         public MethodHeader Method { get; private set; }
         public MethodSpecLayout MethodSpec { get; private set; }

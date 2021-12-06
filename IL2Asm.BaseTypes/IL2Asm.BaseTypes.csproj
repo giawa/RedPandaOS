@@ -4,8 +4,4 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\IL2Asm.BaseTypes\IL2Asm.BaseTypes.csproj" />
-  </ItemGroup>
-
 </Project>
