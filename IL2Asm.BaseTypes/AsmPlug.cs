@@ -10,8 +10,11 @@ namespace IL2Asm.BaseTypes
         ARM32,
         ARM64,
         IA32,
-        IA64
+        IA64,
+        MIPS,
+        RiscV
     }
+
     public class AsmPlugAttribute : Attribute
     {
         public string AsmMethodName { get; private set; }
