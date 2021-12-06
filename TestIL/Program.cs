@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using CPUHelper;
+using IL2Asm.BaseTypes;
 using Kernel.Devices;
 
 namespace TestIL

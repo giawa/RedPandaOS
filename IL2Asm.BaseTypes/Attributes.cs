@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CPUHelper
+namespace IL2Asm.BaseTypes
 {
     public class RealModeAttribute : Attribute
     {

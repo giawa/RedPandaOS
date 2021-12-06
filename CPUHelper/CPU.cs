@@ -43,16 +43,19 @@ namespace CPUHelper
             public uint address;
         }
 
+        [AsmMethod]
         public static void DisableInterrupts()
         {
 
         }
 
+        [AsmMethod]
         public static void LoadGDT(GDT gdt)
         {
 
         }
 
+        [AsmMethod]
         public static void LoadIDT(IDTPointer idt)
         {
 
@@ -65,6 +68,7 @@ namespace CPUHelper
             assembly.AddAsm("lidt [eax]");
         }
 
+        [AsmMethod]
         public static void WriteMemory(int addr, ushort c)
         {
 
@@ -78,6 +82,7 @@ namespace CPUHelper
             assembly.AddAsm("mov [ebx], ax");
         }
 
+        [AsmMethod]
         public static void OutDxAl(ushort dx, byte al)
         {
 
@@ -94,6 +99,7 @@ namespace CPUHelper
             assembly.AddAsm("pop edx");
         }
 
+        [AsmMethod]
         public static void OutDxEax(ushort edx, uint eax)
         {
 
@@ -110,6 +116,7 @@ namespace CPUHelper
             assembly.AddAsm("pop edx");
         }
 
+        [AsmMethod]
         public static byte InDxByte(ushort dx)
         {
             return 0;
@@ -126,6 +133,7 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
         public static uint InDxDword(ushort dx)
         {
             return 0;
@@ -142,16 +150,19 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
         public static ushort ReadDX()
         {
             return 0;
         }
 
+        [AsmMethod]
         public static ushort ReadAX()
         {
             return 0;
         }
 
+        [AsmMethod]
         public static uint ReadCR0()
         {
             return 0;
@@ -185,6 +196,7 @@ namespace CPUHelper
             public uint edx;
         }
 
+        [AsmMethod]
         public static void ReadCPUID(CPUIDLeaf id, ref CPUIDValue value)
         {
         }
@@ -209,6 +221,7 @@ namespace CPUHelper
             assembly.AddAsm("pop eax; pop arg 1");
         }
 
+        [AsmMethod]
         public static void WriteMemInt(uint addr, uint data)
         {
 
@@ -222,6 +235,7 @@ namespace CPUHelper
             assembly.AddAsm("mov [ebx], eax");
         }
 
+        [AsmMethod]
         public static uint ReadMemInt(uint addr)
         {
             return 0;
@@ -235,6 +249,7 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
         public static ushort ReadMemShort(ushort addr)
         {
             return 0;
@@ -249,6 +264,7 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
         public static byte ReadMemByte(ushort addr)
         {
             return 0;
@@ -263,6 +279,7 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
         public static void CopyByte<T>(uint source, uint sourceOffset, ref T destination, uint destinationOffset)
         {
             
@@ -291,11 +308,13 @@ namespace CPUHelper
             assembly.AddAsm("pop eax");
         }
 
+        [AsmMethod]
         public static void Jump(uint addr)
         {
 
         }
 
+        [AsmMethod]
         public static void FastA20()
         {
 
@@ -314,6 +333,7 @@ namespace CPUHelper
             assembly.AddAsm("fasta20_enabled:");
         }
 
+        [AsmMethod]
         public static void Interrupt3()
         {
 
@@ -325,6 +345,7 @@ namespace CPUHelper
             assembly.AddAsm("int 3");
         }
 
+        [AsmMethod]
         public static void Interrupt4()
         {
 
@@ -336,6 +357,7 @@ namespace CPUHelper
             assembly.AddAsm("int 4");
         }
 
+        [AsmMethod]
         public static void Sti()
         {
 

@@ -1,4 +1,5 @@
 ﻿using CPUHelper;
+using IL2Asm.BaseTypes;
 
 namespace Bootloader
 {
