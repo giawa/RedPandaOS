@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace IL2Asm.Assembler.x86.Ver2
@@ -1638,6 +1639,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
 
+        private Dictionary<string, System.Reflection.Assembly> _loadedAssemblies = new Dictionary<string, System.Reflection.Assembly>();
+
         private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false, bool ldftn = false)
         {
             var metadata = pe.Metadata;
@@ -1685,164 +1688,42 @@ namespace IL2Asm.Assembler.x86.Ver2
                 assembly.AddAsm($"; start {memberName} plug");
                 if (ldftn) throw new Exception("Plugs are unsupported with ldftn");
 
-                if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_U2")
-                {
-                    assembly.AddAsm("pop eax"); // character
-                    assembly.AddAsm("pop ebx"); // address
-                    assembly.AddAsm("mov [ebx], ax");
-                }
-                else if (memberName == "CPUHelper.CPU.OutDxAl_Void_U2_U1")
-                {
-                    assembly.AddAsm("pop eax"); // al
-                    assembly.AddAsm("pop ebx"); // dx
-                    assembly.AddAsm("push edx");
-                    assembly.AddAsm("mov edx, ebx");
-                    assembly.AddAsm("out dx, al");
-                    assembly.AddAsm("pop edx");
-                }
-                else if (memberName == "CPUHelper.CPU.InDxByte_U1_U2")
-                {
-                    assembly.AddAsm("pop eax"); // address
-                    assembly.AddAsm("push edx");
-                    assembly.AddAsm("mov edx, eax");
-                    assembly.AddAsm("in al, dx");
-                    assembly.AddAsm("pop edx");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadCR0_U4")
-                {
-                    assembly.AddAsm("mov eax, cr0");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadMemShort_U2_U2")
-                {
-                    assembly.AddAsm("pop ebx");
-                    assembly.AddAsm("mov ax, [bx]");
-                    assembly.AddAsm("and eax, 65535");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadMemByte_U1_U2")
-                {
-                    assembly.AddAsm("pop ebx");
-                    assembly.AddAsm("mov ax, [bx]");
-                    assembly.AddAsm("and eax, 255");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.CopyByte<SMAP_entry>_Void_U4_U4_ByRef")
-                {
-                    assembly.AddAsm("push ecx");
+                var file = memberName.Substring(0, memberName.IndexOf('.'));
+                var path = $"{Environment.CurrentDirectory}\\{file}.dll";
+                if (!File.Exists(path)) throw new FileNotFoundException(path);
 
-                    assembly.AddAsm("mov eax, [esp + 16]");
-                    assembly.AddAsm("add eax, [esp + 12]"); // source + sourceOffset
-                    assembly.AddAsm("mov ebx, eax");
-                    assembly.AddAsm("mov al, [ebx]");       // read source
-                    assembly.AddAsm("mov cl, al");
+                if (!_loadedAssemblies.ContainsKey(path)) _loadedAssemblies[path] = Assembly.LoadFile(path);
 
-                    assembly.AddAsm("mov eax, [esp + 8]");
-                    assembly.AddAsm("add eax, [esp + 4]"); // dest + destOffset
-                    assembly.AddAsm("mov ebx, eax");
-                    assembly.AddAsm("mov [ebx], cl");       // copy source to destination
+                var possiblePlugs = _loadedAssemblies[path].GetTypes().
+                    SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
+                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
+                               m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86).ToArray();
 
-                    assembly.AddAsm("pop ecx");
-                    assembly.AddAsm("pop eax");
-                    assembly.AddAsm("pop eax");
-                    assembly.AddAsm("pop eax");
-                    assembly.AddAsm("pop eax");
-                }
-                else if (memberName == "CPUHelper.CPU.WriteMemInt_Void_U4_U4")
+                if (possiblePlugs.Length == 1)
                 {
-                    assembly.AddAsm("pop eax");
-                    assembly.AddAsm("pop ebx");
-                    assembly.AddAsm("mov [ebx], eax");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadMemInt_U4_U4")
-                {
-                    assembly.AddAsm("pop ebx");
-                    assembly.AddAsm("mov eax, [ebx]");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.FastA20_Void")
-                {
-                    // from https://wiki.osdev.org/A20_Line
-                    assembly.AddAsm("in al, 0x92");
-                    assembly.AddAsm("test al, 2");
-                    assembly.AddAsm("jnz fasta20_enabled");
-                    assembly.AddAsm("or al, 2");
-                    assembly.AddAsm("and al, 0xFE");
-                    assembly.AddAsm("out 0x92, al");
-                    assembly.AddAsm("fasta20_enabled:");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadCPUID_Void_ValueType_ByRefValueType")
-                {
-                    assembly.AddAsm("push ecx");
-                    assembly.AddAsm("push edx");
-                    assembly.AddAsm("push ebp");
-                    assembly.AddAsm("mov eax, [esp+16]");
-                    assembly.AddAsm("cpuid");
-                    assembly.AddAsm("mov ebp, [esp+12]");
-                    assembly.AddAsm("mov [ebp+12], edx");
-                    assembly.AddAsm("mov [ebp+8], ecx");
-                    assembly.AddAsm("mov [ebp+4], ebx");
-                    assembly.AddAsm("mov [ebp], eax");
-                    assembly.AddAsm("pop ebp");
-                    assembly.AddAsm("pop edx");
-                    assembly.AddAsm("pop ecx");
-                    assembly.AddAsm("pop eax; pop arg 2");
-                    assembly.AddAsm("pop eax; pop arg 1");
-                }
-                else if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
-                {
-                    int size = _runtime.GetTypeSize(metadata, methodSpec.MemberSignature.Types[0]);
-                    assembly.AddAsm($"push {size}");
-                }
-                else if (memberName == "System.String.get_Chars_Char_I4")
-                {
-                    assembly.AddAsm("pop eax");  // pop index
-                    assembly.AddAsm("pop ebx");  // pop this
-                    assembly.AddAsm("add eax, ebx");
-                    assembly.AddAsm("mov ebx, eax");
-                    assembly.AddAsm("mov eax, [ebx]");
-                    assembly.AddAsm("and eax, 255");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.OutDxEax_Void_U2_U4")
-                {
-                    assembly.AddAsm("pop eax"); // al
-                    assembly.AddAsm("pop ebx"); // dx
-                    assembly.AddAsm("push edx");
-                    assembly.AddAsm("mov edx, ebx");
-                    assembly.AddAsm("out dx, eax");
-                    assembly.AddAsm("pop edx");
-                }
-                else if (memberName == "CPUHelper.CPU.InDxDword_U4_U2")
-                {
-                    assembly.AddAsm("pop eax"); // address
-                    assembly.AddAsm("push edx");
-                    assembly.AddAsm("mov edx, eax");
-                    assembly.AddAsm("in eax, dx");
-                    assembly.AddAsm("pop edx");
-                    assembly.AddAsm("push eax");
-                }
-                else if (memberName == "CPUHelper.CPU.LoadIDT_Void_ValueType")
-                {
-                    assembly.AddAsm("pop eax");
-                    assembly.AddAsm("lidt [eax]");
-                }
-                else if (memberName == "CPUHelper.CPU.Interrupt3_Void")
-                {
-                    assembly.AddAsm("int 3");
-                }
-                else if (memberName == "CPUHelper.CPU.Interrupt4_Void")
-                {
-                    assembly.AddAsm("int 4");
-                }
-                else if (memberName == "CPUHelper.CPU.Sti_Void")
-                {
-                    assembly.AddAsm("sti");
+                    possiblePlugs[0].Invoke(null, new object[] { assembly });
                 }
                 else
                 {
-                    throw new Exception("Unable to handle this method");
+                    if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
+                    {
+                        int size = _runtime.GetTypeSize(metadata, methodSpec.MemberSignature.Types[0]);
+                        assembly.AddAsm($"push {size}");
+                    }
+                    else if (memberName == "System.String.get_Chars_Char_I4")
+                    {
+                        assembly.AddAsm("pop eax");  // pop index
+                        assembly.AddAsm("pop ebx");  // pop this
+                        assembly.AddAsm("add eax, ebx");
+                        assembly.AddAsm("mov ebx, eax");
+                        assembly.AddAsm("mov eax, [ebx]");
+                        assembly.AddAsm("and eax, 255");
+                        assembly.AddAsm("push eax");
+                    }
+                    else
+                    {
+                        throw new Exception("Unable to handle this method");
+                    }
                 }
                 assembly.AddAsm("; end plug");
 

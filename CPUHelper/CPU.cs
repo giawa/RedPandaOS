@@ -1,4 +1,5 @@
-﻿using System;
+﻿using IL2Asm.BaseTypes;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -57,9 +58,24 @@ namespace CPUHelper
 
         }
 
+        [AsmPlug("CPUHelper.CPU.LoadIDT_Void_ValueType", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void LoadIDTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("lidt [eax]");
+        }
+
         public static void WriteMemory(int addr, ushort c)
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteMemory_Void_I4_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteMemoryAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // character
+            assembly.AddAsm("pop ebx"); // address
+            assembly.AddAsm("mov [ebx], ax");
         }
 
         public static void OutDxAl(ushort dx, byte al)
@@ -67,9 +83,31 @@ namespace CPUHelper
 
         }
 
+        [AsmPlug("CPUHelper.CPU.OutDxAl_Void_U2_U1", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void OutDxAlAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // al
+            assembly.AddAsm("pop ebx"); // dx
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, ebx");
+            assembly.AddAsm("out dx, al");
+            assembly.AddAsm("pop edx");
+        }
+
         public static void OutDxEax(ushort edx, uint eax)
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.OutDxEax_Void_U2_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void OutDxEaxAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // al
+            assembly.AddAsm("pop ebx"); // dx
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, ebx");
+            assembly.AddAsm("out dx, eax");
+            assembly.AddAsm("pop edx");
         }
 
         public static byte InDxByte(ushort dx)
@@ -77,9 +115,31 @@ namespace CPUHelper
             return 0;
         }
 
+        [AsmPlug("CPUHelper.CPU.InDxByte_U1_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void InDxByteAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // address
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, eax");
+            assembly.AddAsm("in al, dx");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("push eax");
+        }
+
         public static uint InDxDword(ushort dx)
         {
             return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.InDxDword_U4_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void InDxDwordAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // address
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, eax");
+            assembly.AddAsm("in eax, dx");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("push eax");
         }
 
         public static ushort ReadDX()
@@ -95,6 +155,13 @@ namespace CPUHelper
         public static uint ReadCR0()
         {
             return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadCR0_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadCR0Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov eax, cr0");
+            assembly.AddAsm("push eax");
         }
 
         public enum CPUIDLeaf : uint
@@ -122,9 +189,37 @@ namespace CPUHelper
         {
         }
 
+        [AsmPlug("CPUHelper.CPU.ReadCPUID_Void_ValueType_ByRefValueType", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadCPUID(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push ecx");
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("push ebp");
+            assembly.AddAsm("mov eax, [esp+16]");
+            assembly.AddAsm("cpuid");
+            assembly.AddAsm("mov ebp, [esp+12]");
+            assembly.AddAsm("mov [ebp+12], edx");
+            assembly.AddAsm("mov [ebp+8], ecx");
+            assembly.AddAsm("mov [ebp+4], ebx");
+            assembly.AddAsm("mov [ebp], eax");
+            assembly.AddAsm("pop ebp");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop eax; pop arg 2");
+            assembly.AddAsm("pop eax; pop arg 1");
+        }
+
         public static void WriteMemInt(uint addr, uint data)
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteMemInt_Void_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteMemIntAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov [ebx], eax");
         }
 
         public static uint ReadMemInt(uint addr)
@@ -132,9 +227,26 @@ namespace CPUHelper
             return 0;
         }
 
+        [AsmPlug("CPUHelper.CPU.ReadMemInt_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadMemIntAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov eax, [ebx]");
+            assembly.AddAsm("push eax");
+        }
+
         public static ushort ReadMemShort(ushort addr)
         {
             return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadMemShort_U2_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadMemShortAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov ax, [bx]");
+            assembly.AddAsm("and eax, 65535");
+            assembly.AddAsm("push eax");
         }
 
         public static byte ReadMemByte(ushort addr)
@@ -142,9 +254,41 @@ namespace CPUHelper
             return 0;
         }
 
+        [AsmPlug("CPUHelper.CPU.ReadMemByte_U1_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadMemByteAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov ax, [bx]");
+            assembly.AddAsm("and eax, 255");
+            assembly.AddAsm("push eax");
+        }
+
         public static void CopyByte<T>(uint source, uint sourceOffset, ref T destination, uint destinationOffset)
         {
             
+        }
+
+        [AsmPlug("CPUHelper.CPU.CopyByte<SMAP_entry>_Void_U4_U4_ByRef", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void CopyByteTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push ecx");
+
+            assembly.AddAsm("mov eax, [esp + 16]");
+            assembly.AddAsm("add eax, [esp + 12]"); // source + sourceOffset
+            assembly.AddAsm("mov ebx, eax");
+            assembly.AddAsm("mov al, [ebx]");       // read source
+            assembly.AddAsm("mov cl, al");
+
+            assembly.AddAsm("mov eax, [esp + 8]");
+            assembly.AddAsm("add eax, [esp + 4]"); // dest + destOffset
+            assembly.AddAsm("mov ebx, eax");
+            assembly.AddAsm("mov [ebx], cl");       // copy source to destination
+
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop eax");
         }
 
         public static void Jump(uint addr)
@@ -157,9 +301,28 @@ namespace CPUHelper
 
         }
 
+        [AsmPlug("CPUHelper.CPU.FastA20_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void FastA20Asm(IAssembledMethod assembly)
+        {
+            // from https://wiki.osdev.org/A20_Line
+            assembly.AddAsm("in al, 0x92");
+            assembly.AddAsm("test al, 2");
+            assembly.AddAsm("jnz fasta20_enabled");
+            assembly.AddAsm("or al, 2");
+            assembly.AddAsm("and al, 0xFE");
+            assembly.AddAsm("out 0x92, al");
+            assembly.AddAsm("fasta20_enabled:");
+        }
+
         public static void Interrupt3()
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.Interrupt3_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void Interrupt3Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("int 3");
         }
 
         public static void Interrupt4()
@@ -167,9 +330,21 @@ namespace CPUHelper
 
         }
 
+        [AsmPlug("CPUHelper.CPU.Interrupt4_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void Interrupt4Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("int 4");
+        }
+
         public static void Sti()
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.Sti_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void StiAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("sti");
         }
     }
 }
