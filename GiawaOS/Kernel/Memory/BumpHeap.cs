@@ -1,4 +1,5 @@
 ﻿using CPUHelper;
+using IL2Asm.BaseTypes;
 using System.Runtime.InteropServices;
 
 namespace Kernel.Memory
@@ -54,10 +55,22 @@ namespace Kernel.Memory
             return default(T);
         }
 
+        [AsmPlug("Kernel_Memory_BumpHeap_PtrToObject_MVar_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void PtrToObjectTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; PtrToObject nop");
+        }
+
         [AsmMethod]
         public static uint ObjectToPtr<T>(T obj)
         {
             return 0;
+        }
+
+        [AsmPlug("Kernel_Memory_BumpHeap_ObjectToPtr_U4_MVar", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ObjectToPtrTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; ObjectToPtr nop");
         }
     }
 }

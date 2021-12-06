@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30717.126
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GiawaOS", "GiawaOS\GiawaOS.csproj", "{1720CFC3-0BF9-4954-AB19-524DBED341FF}"
 EndProject
@@ -53,6 +53,10 @@ Global
 		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8F7BE29B-B914-436D-8CE2-FDE30870842B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27DD6E68-2808-4C28-AB6A-FDDE9856F780}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27DD6E68-2808-4C28-AB6A-FDDE9856F780}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27DD6E68-2808-4C28-AB6A-FDDE9856F780}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27DD6E68-2808-4C28-AB6A-FDDE9856F780}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
