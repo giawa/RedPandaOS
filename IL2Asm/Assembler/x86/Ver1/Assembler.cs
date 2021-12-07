@@ -12,7 +12,7 @@ namespace IL2Asm.Assembler.x86.Ver1
         private Dictionary<string, AssembledMethod> _staticConstructors = new Dictionary<string, AssembledMethod>();
         private List<AssembledMethod> _methods = new List<AssembledMethod>();
         private Dictionary<string, DataType> _initializedData = new Dictionary<string, DataType>();
-        private Runtime _runtime = new Runtime();
+        private Runtime _runtime = new Runtime(BytesPerRegister);
 
         public List<AssembledMethod> Methods { get { return _methods; } }
 

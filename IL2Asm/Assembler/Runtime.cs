@@ -8,6 +8,12 @@ namespace IL2Asm
     public class Runtime
     {
         public static int GlobalMethodCounter = 0;
+        private int _bytesPerRegister = 0;
+
+        public Runtime(int BytesPerRegister)
+        {
+            _bytesPerRegister = BytesPerRegister;
+        }
 
         private List<PortableExecutableFile> _assemblies = new List<PortableExecutableFile>();
 
@@ -146,7 +152,14 @@ namespace IL2Asm
 
         public int GetTypeSize(CLIMetadata metadata, ElementType type)
         {
-            if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
+            if (type.Type == ElementType.EType.String ||
+                type.Type == ElementType.EType.ByRef ||
+                type.Type == ElementType.EType.ByRefPtr ||
+                type.Type == ElementType.EType.ByRefValueType ||
+                type.Type == ElementType.EType.Ptr ||
+                type.Type == ElementType.EType.IntPtr ||
+                type.Type == ElementType.EType.UIntPtr) return _bytesPerRegister;
+            else if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
             {
                 var token = type.Token;
                 int size = 0;
