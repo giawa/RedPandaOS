@@ -15,6 +15,8 @@ namespace IL2Asm.Assembler.x86.Ver2
         private Dictionary<string, DataType> _initializedData = new Dictionary<string, DataType>();
         private Runtime _runtime = new Runtime();
 
+        public List<AssembledMethod> Methods { get { return _methods; } }
+
         public const int BytesPerRegister = 4;
 
         private sbyte _sbyte;
@@ -1478,102 +1480,37 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
         }
 
-        private bool _addedISRMethods = false;
-        private bool _addedIRQMethods = false;
-
-        private void AddISRMethods(bool irqStub = false)
-        {
-            string stubName = (irqStub ? "irq_stub" : "isr_stub");
-
-            if ((!_addedISRMethods && !irqStub) || (!_addedIRQMethods && irqStub))
-            {
-                AssembledMethod isrMethods = new AssembledMethod(null, null, null);
-
-                isrMethods.AddAsm($"{stubName}:");
-                isrMethods.AddAsm("pusha");
-                isrMethods.AddAsm("mov ax, ds");
-                isrMethods.AddAsm("push eax");
-                isrMethods.AddAsm("mov ax, 0x10");
-                isrMethods.AddAsm("mov ds, ax");
-                isrMethods.AddAsm("mov es, ax");
-                isrMethods.AddAsm("mov fs, ax");
-                isrMethods.AddAsm("mov gs, ax");
-
-                if (irqStub) isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IrqHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
-                else isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
-
-                isrMethods.AddAsm("pop eax");
-                isrMethods.AddAsm("mov ds, ax");
-                isrMethods.AddAsm("mov es, ax");
-                isrMethods.AddAsm("mov fs, ax");
-                isrMethods.AddAsm("mov gs, ax");
-                isrMethods.AddAsm("popa");
-                isrMethods.AddAsm("add esp, 8");    // pop error code and interrupt number
-                isrMethods.AddAsm("sti");
-                isrMethods.AddAsm("iret");
-                isrMethods.AddAsm("");
-
-                if (irqStub)
-                {
-                    for (int i = 0; i < 16; i++)
-                    {
-                        isrMethods.AddAsm($"IRQ{i}:");
-                        isrMethods.AddAsm("cli");
-                        isrMethods.AddAsm("push byte 0; error code");
-                        isrMethods.AddAsm($"push byte {i + 32}; interrupt number");
-                        isrMethods.AddAsm($"jmp {stubName}");
-                        isrMethods.AddAsm("");
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < 32; i++)
-                    {
-                        isrMethods.AddAsm($"ISR{i}:");
-                        isrMethods.AddAsm("cli");
-                        if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push byte 0; error code");
-                        isrMethods.AddAsm($"push byte {i}; interrupt number");
-                        isrMethods.AddAsm($"jmp {stubName}");
-                        isrMethods.AddAsm("");
-                    }
-                }
-
-                _methods.Add(isrMethods);
-
-                if (irqStub) _addedIRQMethods = true;
-                else _addedISRMethods = true;
-            }
-        }
-
         private void AddStaticField(CLIMetadata metadata, string label, int fieldToken)
         {
             if ((fieldToken & 0xff000000) == 0x04000000)
             {
                 var field = metadata.Fields[(fieldToken & 0x00ffffff) - 1];
 
-                if (field.Name == "ISR_ADDRESSES" && !_addedISRMethods)
+                if (field.Name == "ISR_ADDRESSES")
                 {
-                    // special case for inserting the 32 ISR addresses for the kernel
-                    StringBuilder isrNames = new StringBuilder();
-                    for (int i = 0; i < 31; i++) isrNames.Append($"ISR{i}, ");
-                    isrNames.Append("ISR31");
-                    var isrType = new ElementType(ElementType.EType.SzArray);
-                    isrType.NestedType = new ElementType(ElementType.EType.I4);
-                    _initializedData.Add(label, new DataType(isrType, isrNames.ToString()));
-
-                    AddISRMethods();
+                    if (ISR.AddISRMethods(this))
+                    {
+                        // special case for inserting the 32 ISR addresses for the kernel
+                        StringBuilder isrNames = new StringBuilder();
+                        for (int i = 0; i < 31; i++) isrNames.Append($"ISR{i}, ");
+                        isrNames.Append("ISR31");
+                        var isrType = new ElementType(ElementType.EType.SzArray);
+                        isrType.NestedType = new ElementType(ElementType.EType.I4);
+                        _initializedData.Add(label, new DataType(isrType, isrNames.ToString()));
+                    }
                 }
-                else if (field.Name == "IRQ_ADDRESSES" && !_addedIRQMethods)
+                else if (field.Name == "IRQ_ADDRESSES")
                 {
-                    // special case for inserting the 32 ISR addresses for the kernel
-                    StringBuilder irqNames = new StringBuilder();
-                    for (int i = 0; i < 15; i++) irqNames.Append($"IRQ{i}, ");
-                    irqNames.Append("IRQ15");
-                    var irqType = new ElementType(ElementType.EType.SzArray);
-                    irqType.NestedType = new ElementType(ElementType.EType.I4);
-                    _initializedData.Add(label, new DataType(irqType, irqNames.ToString()));
-
-                    AddISRMethods(true);
+                    if (ISR.AddISRMethods(this, true))
+                    {
+                        // special case for inserting the 32 ISR addresses for the kernel
+                        StringBuilder irqNames = new StringBuilder();
+                        for (int i = 0; i < 15; i++) irqNames.Append($"IRQ{i}, ");
+                        irqNames.Append("IRQ15");
+                        var irqType = new ElementType(ElementType.EType.SzArray);
+                        irqType.NestedType = new ElementType(ElementType.EType.I4);
+                        _initializedData.Add(label, new DataType(irqType, irqNames.ToString()));
+                    }
                 }
                 else if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
                 {
