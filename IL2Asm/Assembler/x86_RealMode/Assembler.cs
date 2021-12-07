@@ -14,6 +14,8 @@ namespace IL2Asm.Assembler.x86_RealMode
         private Dictionary<string, DataType> _initializedData = new Dictionary<string, DataType>();
         private Runtime _runtime = new Runtime();
 
+        public List<AssembledMethod> Methods { get { return _methods; } }
+
         public const int BytesPerRegister = 2;
 
         private sbyte _sbyte;
