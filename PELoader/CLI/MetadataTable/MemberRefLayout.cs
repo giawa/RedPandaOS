@@ -178,7 +178,7 @@ namespace PELoader
                     }
                 }
             }
-            return (Type >= EType.Char && Type <= EType.U4);
+            return (Type >= EType.Char && Type <= EType.U4) || Type == EType.ByRef || Type == EType.ByRefValueType;
         }
 
         public bool IsPointer()

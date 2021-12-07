@@ -39,6 +39,28 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private ElementType eaxType, ebxType;
 
+        public class StackElementType
+        {
+            public ElementType Type;
+            public int StackLocation;
+            public int SizeInBytes;     // minimum size is 4 bytes
+
+            public StackElementType(ElementType type, List<StackElementType> stackTypes, Runtime runtime, CLIMetadata metadata)
+            {
+                Type = type;
+
+                StackLocation = 0;
+                foreach (var t in stackTypes) StackLocation += t.SizeInBytes;
+
+                if (Type.Is32BitCapable(metadata)) SizeInBytes = 4;
+                else SizeInBytes = runtime.GetTypeSize(metadata, Type);
+
+                if ((SizeInBytes % 4) != 0) throw new Exception("Invalid type size");
+            }
+        }
+
+        private List<StackElementType> _callingStackTypes = new List<StackElementType>();
+
         public void Assemble(PortableExecutableFile pe, AssembledMethod assembly)//MethodDefLayout methodDef, MethodSpecLayout methodSpec)
         {
             if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0) throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
@@ -81,6 +103,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (method.LocalVars != null)
             {
+                foreach (var v in method.LocalVars.LocalVariables)
+                    if (!v.Is32BitCapable(pe.Metadata)) throw new Exception("Not supported yet");
+
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 for (int i = 2; i < localVarCount; i++)
                 {
@@ -88,6 +113,20 @@ namespace IL2Asm.Assembler.x86.Ver2
                     _stack.Push(method.LocalVars.LocalVariables[i]);
                 }
             }
+
+            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+            {
+                _callingStackTypes.Add(new StackElementType(new ElementType(ElementType.EType.Object), _callingStackTypes, _runtime, pe.Metadata));
+                throw new Exception("Verify this is correct.  May need to adjust LDARG and others as well.");
+            }
+            if (methodDef.MethodSignature.ParamCount > 0)
+            {
+                foreach (var param in methodDef.MethodSignature.Params) _callingStackTypes.Add(new StackElementType(param, _callingStackTypes, _runtime, pe.Metadata));
+            }
+
+            int callingStackSize = 0;
+            foreach (var a in _callingStackTypes) callingStackSize += a.SizeInBytes;
+            StackElementType arg = null;
 
             for (ushort i = 0; i < code.Length;)
             {
@@ -106,43 +145,19 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // LDARG.0
                     case 0x02:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 0;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
-                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
-                        assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = new ElementType(ElementType.EType.Object);
-                        else eaxType = methodDef.MethodSignature.Params[0];
-                        _stack.Push(eaxType);
+                        LDARG(0, assembly, callingStackSize, methodDef);
                         break;
                     // LDARG.1
                     case 0x03:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 1;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
-                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
-                        assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[0];
-                        else eaxType = methodDef.MethodSignature.Params[1];
-                        _stack.Push(eaxType);
+                        LDARG(1, assembly, callingStackSize, methodDef);
                         break;
                     // LDARG.2
                     case 0x04:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 2;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
-                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
-                        assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[1];
-                        else eaxType = methodDef.MethodSignature.Params[2];
-                        _stack.Push(eaxType);
+                        LDARG(2, assembly, callingStackSize, methodDef);
                         break;
                     // LDARG.3
                     case 0x05:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 3;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
-                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
-                        assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[2];
-                        else eaxType = methodDef.MethodSignature.Params[3];
-                        _stack.Push(eaxType);
+                        LDARG(3, assembly, callingStackSize, methodDef);
                         break;
 
                     // LDLOC.0
@@ -196,38 +211,46 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // LDARG.S
                     case 0x0E:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
-                        assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
-                        assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
-                        else eaxType = methodDef.MethodSignature.Params[_byte];
-                        _stack.Push(eaxType);
+                        LDARG(_byte, assembly, callingStackSize, methodDef);
                         break;
 
                     // LDARGA.S
                     case 0x0F:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _byte++; // skip THIS
+                        arg = _callingStackTypes[_byte];
+                        /*assembly.AddAsm("mov eax, ebp");// + {arg.StackLocation + 4}");
+                        assembly.AddAsm($"add eax, {arg.StackLocation + 4}");
+                        assembly.AddAsm("push eax");*/
+
+                        _int = 1 + callingStackSize / 4 - arg.StackLocation / 4 - (arg.SizeInBytes / 4 - 1);
+                        assembly.AddAsm("mov eax, ebp");
+                        assembly.AddAsm($"add eax, {4 * _int}");
+                        assembly.AddAsm("push eax");
+
+                        if (arg.Type.Type == ElementType.EType.ValueType) eaxType = new ElementType(ElementType.EType.ByRefValueType);
+                        //else if (arg.Type.Type == ElementType.EType.Object) eaxType = new ElementType(ElementType.EType.ByRef);
+                        else throw new Exception("Unsupported type");
+                        /*_uint = method.MethodDef.MethodSignature.ParamCount - _byte;
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
-                        else eaxType = methodDef.MethodSignature.Params[_byte];
+                        else eaxType = methodDef.MethodSignature.Params[_byte];*/
                         _stack.Push(eaxType);
                         break;
 
                     // STARG.S
-                    case 0x10:
+                    /*case 0x10:
                         _byte = code[i++];
                         _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm($"mov [ebp + {BytesPerRegister * (1 + _uint)}], eax");
                         eaxType = _stack.Pop();
-                        break;
+                        break;*/
 
                     // LDLOC.S
-                    case 0x11:
+                    /*case 0x11:
                         _byte = code[i++];
                         if (_byte == 0) assembly.AddAsm("push ecx");
                         else if (_byte == 1) assembly.AddAsm("push edx");
@@ -238,10 +261,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                             eaxType = method.LocalVars.LocalVariables[_byte];
                         }
                         _stack.Push(method.LocalVars.LocalVariables[_byte]);
-                        break;
+                        break;*/
 
                     // LDLOCA.S
-                    case 0x12:
+                    /*case 0x12:
                         _byte = code[i++];
 
                         var locType = assembly.Method.LocalVars.LocalVariables[_byte];
@@ -264,10 +287,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                             throw new Exception("Unsupported");
                         }
                         _stack.Push(new ElementType(ElementType.EType.ByRef));
-                        break;
+                        break;*/
 
                     // STLOC.S
-                    case 0x13:
+                    /*case 0x13:
                         _byte = code[i++];
                         if (_byte == 0) assembly.AddAsm("pop ecx");
                         else if (_byte == 1) assembly.AddAsm("pop edx");
@@ -278,7 +301,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         if (_byte > 1) eaxType = _stack.Pop();
                         else _stack.Pop();
-                        break;
+                        break;*/
 
                     // LDNULL
                     case 0x14: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.Object)); break;
@@ -318,6 +341,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // DUP
                     case 0x25:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("push eax");
                         assembly.AddAsm("push eax");
@@ -327,7 +352,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // POP
                     case 0x26:
-                        assembly.AddAsm("pop eax");
+                        var sizeOf = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
+                        if (sizeOf % 4 != 0) throw new Exception("Unsupported type");
+                        for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
                         eaxType = _stack.Pop();
                         break;
 
@@ -339,7 +366,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         // place the returned value on ax, which should clear our CLI stack
                         if (method.MethodDef.MethodSignature.RetType != null && method.MethodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
                         {
-                            assembly.AddAsm("pop eax; return value");
+                            int retSize = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
+                            for (int b = 0; b < Math.Ceiling(retSize / 4f); b++)
+                                assembly.AddAsm($"pop eax; return value {b + 1}/{Math.Ceiling(retSize / 4f)}");
                             eaxType = _stack.Pop();
                         }
 
@@ -356,7 +385,15 @@ namespace IL2Asm.Assembler.x86.Ver2
                             if (localVarCount > 2) PopStack(localVarCount - 2);
                         }
 
-                        int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
+                        int bytes = 0;
+                        if (methodDef.MethodSignature.ParamCount > 0)
+                        {
+                            foreach (var param in methodDef.MethodSignature.Params)
+                            {
+                                int paramSize = _runtime.GetTypeSize(pe.Metadata, param);
+                                bytes += 4 * (int)Math.Ceiling(paramSize / 4f);
+                            }
+                        }
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         assembly.AddAsm("pop ebp");
                         if (method.MethodDef.Name.StartsWith("IsrHandler") || method.MethodDef.Name.StartsWith("IrqHandler")) assembly.AddAsm("ret");
@@ -372,6 +409,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BRFALSE.S
                     case 0x2C:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop eax");
@@ -382,6 +421,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BRTRUE.S
                     case 0x2D:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop eax");
@@ -392,7 +433,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BEQ.S
                     case 0x2E:
-                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata) && _stack.Peek().Type != ElementType.EType.R4) throw new Exception("Unsupported type");
 
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
@@ -614,6 +655,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BR
                     case 0x38:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
@@ -623,6 +666,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BRFALSE
                     case 0x39:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
@@ -635,6 +680,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BRTRUE
                     case 0x3A:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
@@ -750,6 +797,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // LDIND.U4
                     case 0x4B:
+                        if (_stack.Peek().Type != ElementType.EType.ByRef && _stack.Peek().Type != ElementType.EType.ByRefValueType)
+                            throw new Exception("Unsupported type");
+
                         eaxType = _stack.Pop();
                         ebxType = new ElementType(ElementType.EType.I4);
                         _stack.Push(ebxType);
@@ -764,6 +814,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                         ebxType = _stack.Pop();
                         eaxType = _stack.Pop();
                         if (ebxType.Type != ElementType.EType.I4) throw new Exception("Unexpected type");
+                        if (eaxType.Type != ElementType.EType.ByRef && eaxType.Type != ElementType.EType.ByRefValueType)
+                            throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop ebx"); // value
                         assembly.AddAsm("pop eax"); // address
@@ -811,7 +863,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                             assembly.AddAsm("sub eax, ebx");
                             assembly.AddAsm("push eax");
                         }
-                        else if (eaxType.Type == ElementType.EType.R4 || ebxType.Type == ElementType.EType.R4)
+                        else if (eaxType.Type == ElementType.EType.R4)
                         {
                             assembly.AddAsm("fld dword [esp + 4]");
                             assembly.AddAsm("fld dword [esp]");
@@ -876,6 +928,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // AND
                     case 0x5F:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop ebx");
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("and eax, ebx");
@@ -887,6 +941,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // OR
                     case 0x60:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop ebx");
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("or eax, ebx");
@@ -898,48 +954,65 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // SHL
                     case 0x62:
-                        assembly.AddAsm("mov ebx, ecx");  // cx is needed to access cl for variable shift, so store it in bx temporarily
+                        ebxType = _stack.Pop();
+                        eaxType = _stack.Peek();
+
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        assembly.AddAsm("mov ebx, ecx");  // cx is needed to access cl for variable shift, so store is in bx temporarily
                         assembly.AddAsm("pop ecx");      // get amount to shift
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("sal eax, cl");
                         assembly.AddAsm("mov ecx, ebx");  // restore cx
                         assembly.AddAsm("push eax");
-                        eaxType = _stack.Pop();
-                        _stack.Pop();   // ECX but gets overwritten
-                        ebxType = eaxType;
-                        _stack.Push(eaxType);
+                        //eaxType = _stack.Pop();
+                        //_stack.Pop();   // ECX but gets overwritten
+                        //ebxType = eaxType;
+                        //_stack.Push(eaxType); // TODO:  Check this
                         break;
 
                     // SHR
                     case 0x63:
-                        assembly.AddAsm("mov ebx, ecx");  // cx is needed to access cl for variable shift, so store it in bx temporarily
+                        ebxType = _stack.Pop();
+                        eaxType = _stack.Peek();
+
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        assembly.AddAsm("mov ebx, ecx");  // cx is needed to access cl for variable shift, so store is in bx temporarily
                         assembly.AddAsm("pop ecx");      // get amount to shift
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("sar eax, cl");
                         assembly.AddAsm("mov ecx, ebx");  // restore cx
                         assembly.AddAsm("push eax");
-                        eaxType = _stack.Pop();
+                        /*eaxType = _stack.Pop();
                         _stack.Pop();   // ECX but gets overwritten
                         ebxType = eaxType;
-                        _stack.Push(eaxType);
+                        _stack.Push(eaxType);*/
                         break;
 
                     // SHR.UN
                     case 0x64:
+                        ebxType = _stack.Pop();
+                        eaxType = _stack.Peek();
+
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("mov ebx, ecx");  // cx is needed to access cl for variable shift, so store is in bx temporarily
                         assembly.AddAsm("pop ecx");      // get amount to shift
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("shr eax, cl");
                         assembly.AddAsm("mov ecx, ebx");  // restore cx
                         assembly.AddAsm("push eax");
-                        eaxType = _stack.Pop();
+                        /*eaxType = _stack.Pop();
                         _stack.Pop();   // ECX but gets overwritten
                         ebxType = eaxType;
-                        _stack.Push(eaxType);
+                        _stack.Push(eaxType);*/
                         break;
 
                     // CONV.I2
                     case 0x68:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("and eax, 65535");
                         assembly.AddAsm("push eax");
@@ -992,7 +1065,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x72: LDSTR(assembly, pe.Metadata, code, ref i); break;
 
                     // NEWOBJ
-                    case 0x73: NEWOBJ(pe, assembly, code, ref i); break;
+                    /*case 0x73: NEWOBJ(pe, assembly, code, ref i); break;*/
 
                     // LDFLD
                     case 0x7B: LDFLD(assembly, pe.Metadata, code, ref i); break;
@@ -1013,7 +1086,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEMA
-                    case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
+                    /*case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEM_U4
                     case 0x95: LDELEM(assembly, pe.Metadata, code, ref i); break;
@@ -1022,10 +1095,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
 
                     // STELEM_I4
-                    case 0x9E: STELEM(assembly, pe.Metadata, code, ref i); break;
+                    case 0x9E: STELEM(assembly, pe.Metadata, code, ref i); break;*/
 
                     // CONV.U2
                     case 0xD1:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("and eax, 65535");
                         assembly.AddAsm("push eax");
@@ -1036,6 +1111,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // CONV.U1
                     case 0xD2:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("and eax, 255");
                         assembly.AddAsm("push eax");
@@ -1120,9 +1197,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // LDFTN
-                    case 0xFE06:
+                    /*case 0xFE06:
                         CALL(pe, assembly, code, ref i, ldftn: true);
-                        break;
+                        break;*/
 
                     // SIZEOF
                     case 0xFE1C:
@@ -1176,6 +1253,19 @@ namespace IL2Asm.Assembler.x86.Ver2
                     }
                 }
             }
+        }
+
+        private void LDARG(int s, AssembledMethod assembly, int callingStackSize, MethodDefLayout methodDef)
+        {
+            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
+            var arg = _callingStackTypes[s];
+            _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
+            for (int b = 0; b < Math.Ceiling(arg.SizeInBytes / 4f); b++)
+            {
+                assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (_int - b)}]");
+                assembly.AddAsm("push eax");
+            }
+            _stack.Push(arg.Type);
         }
 
         private void STELEM(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1274,6 +1364,14 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("pop eax");
             assembly.AddAsm("pop ebx");
 
+            eaxType = _stack.Pop();
+            ebxType = _stack.Pop();
+
+            if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType)
+                throw new Exception("Unsupported type");
+            if (!IsEquivalentType(eaxType, type))
+                throw new Exception("Mismatched types");
+
             if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
             {
                 if (offset == 0) assembly.AddAsm("mov word [ebx], ax");
@@ -1288,10 +1386,14 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 throw new Exception("Unsupported type");
             }
-            else
+            else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
             {
                 if (offset == 0) assembly.AddAsm("mov [ebx], eax");
                 else assembly.AddAsm($"mov [ebx + {offset}], eax");
+            }
+            else
+            {
+                throw new Exception("Unsupported type");
             }
         }
 
@@ -1318,33 +1420,73 @@ namespace IL2Asm.Assembler.x86.Ver2
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
             var type = _runtime.GetFieldType(metadata, fieldToken);
 
-            assembly.AddAsm("pop ebx");
+            ebxType = _stack.Pop();
 
-            if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
+            if (ebxType.Type == ElementType.EType.ValueType)
             {
-                assembly.AddAsm("xor eax, eax");
-                if (offset == 0) assembly.AddAsm("mov word ax, [ebx]");
-                else assembly.AddAsm($"mov word ax, [ebx + {offset}]");
-            }
-            else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
-            {
-                assembly.AddAsm("xor eax, eax");
-                if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
-                else assembly.AddAsm($"mov byte al, [ebx + {offset}], ");
-            }
-            else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
-            {
-                throw new Exception("Unsupported type");
+                int ebxSize = _runtime.GetTypeSize(metadata, ebxType);
+
+                if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    assembly.AddAsm($"mov word ax, [esp + {offset}]");
+                    /*if (offset == 0) assembly.AddAsm($"mov word ax, [ebp + {offset}]");
+                    else assembly.AddAsm($"mov word ax, [ebx + {offset & 0x03}]");*/
+                }
+                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    assembly.AddAsm($"mov byte al, [esp + {offset}]");
+                    /*if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
+                    else assembly.AddAsm($"mov byte al, [ebx + {offset}]");*/
+                }
+                else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
+                {
+                    throw new Exception("Unsupported type");
+                }
+                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
+                {
+                    assembly.AddAsm($"mov eax, [esp + {offset}]");
+                    /*if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
+                    else assembly.AddAsm($"mov eax, [ebx + {offset}]");*/
+                }
+
+                for (int b = 0; b < Math.Ceiling(ebxSize / 4f); b++)
+                    assembly.AddAsm("pop ebx");
             }
             else
             {
-                if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
-                else assembly.AddAsm($"mov eax, [ebx + {offset}]");
+                if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType)
+                    throw new Exception("Unsupported type");
+
+                assembly.AddAsm("pop ebx");
+
+                if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    if (offset == 0) assembly.AddAsm("mov word ax, [ebx]");
+                    else assembly.AddAsm($"mov word ax, [ebx + {offset}]");
+                }
+                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
+                    else assembly.AddAsm($"mov byte al, [ebx + {offset}]");
+                }
+                else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
+                {
+                    throw new Exception("Unsupported type");
+                }
+                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
+                {
+                    if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
+                    else assembly.AddAsm($"mov eax, [ebx + {offset}]");
+                }
             }
 
             assembly.AddAsm("push eax");
 
-            ebxType = _stack.Pop();
+            //ebxType = _stack.Pop();
             eaxType = _runtime.GetFieldType(metadata, fieldToken);
             _stack.Push(eaxType);
         }
@@ -1355,6 +1497,9 @@ namespace IL2Asm.Assembler.x86.Ver2
             i += 4;
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
+            var type = _runtime.GetFieldType(metadata, fieldToken);
+
+            if (!type.Is32BitCapable(metadata)) throw new Exception("Unsupported type");
 
             _stack.Pop();
             eaxType = new ElementType(ElementType.EType.ByRef);
@@ -1394,6 +1539,8 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
             var labelType = _initializedData[label].Type;
 
+            if (!labelType.Is32BitCapable(metadata)) throw new Exception("Unsupported type");
+
             eaxType = _stack.Pop();
             if (!IsEquivalentType(labelType, eaxType)) throw new Exception("Mismatched types");
 
@@ -1423,15 +1570,32 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _initializedData[label].Type;
             _stack.Push(eaxType);
 
-            if (eaxType.Type == ElementType.EType.SzArray || eaxType.Type == ElementType.EType.ValueType)
+            if (eaxType.Type == ElementType.EType.SzArray)// || eaxType.Type == ElementType.EType.ValueType)
             {
                 // if the data is stored as part of the program data then pass the label directly
                 // but if we are storing an address only then we need to redirect
-                if (_initializedData[label].Data is string || _initializedData[label].Data is byte[]) assembly.AddAsm($"mov eax, {label}");
-                else assembly.AddAsm($"mov eax, [{label}]");
+                if (_initializedData[label].Data is string || _initializedData[label].Data is byte[])
+                {
+                    assembly.AddAsm($"mov eax, {label}");
+                    assembly.AddAsm($"push eax");
+                }
+                else throw new Exception("Unsupported type");//assembly.AddAsm($"mov eax, [{label}]");
             }
-            else assembly.AddAsm($"mov eax, [{label}]");
-            assembly.AddAsm($"push eax");
+            else if (eaxType.Type == ElementType.EType.ValueType)
+            {
+                var sizeOf = _runtime.GetTypeSize(metadata, eaxType);
+                for (int b = (int)Math.Ceiling(sizeOf / 4f) - 1; b >= 0; b--)
+                //for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++)
+                {
+                    assembly.AddAsm($"mov eax, [{label}+{4 * b}]");
+                    assembly.AddAsm($"push eax");
+                }
+            }
+            else
+            {
+                assembly.AddAsm($"mov eax, [{label}]");
+                assembly.AddAsm($"push eax");
+            }
         }
 
         private void LDSFLDA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1445,6 +1609,9 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 var field = metadata.Fields[(addr & 0x00ffffff) - 1];
 
+                if (field.Type.Type == ElementType.EType.ValueType) _stack.Push(new ElementType(ElementType.EType.ByRefValueType));
+                else throw new Exception("Unsupported type (likely ByRef)");
+
                 if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
                 {
                     if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, field.Type);
@@ -1456,7 +1623,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             else throw new Exception("Unexpected table found when trying to find a field.");
 
-            _stack.Push(new ElementType(ElementType.EType.ByRef));
+            //_stack.Push(new ElementType(ElementType.EType.ByRef));
             assembly.AddAsm($"push {label}");
         }
 
@@ -1725,7 +1892,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                     if (ldftn) assembly.AddAsm($"push {callsite}");
                     else assembly.AddAsm($"call {callsite}");
 
-                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
+                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                    {
+                        // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
+                        var sizeOfRetType = _runtime.GetTypeSize(metadata, methodDef.MethodSignature.RetType);
+                        for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
+                            assembly.AddAsm("push eax");
+                    }
                 }
 
                 for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
