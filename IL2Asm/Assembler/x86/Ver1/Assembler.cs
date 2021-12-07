@@ -1272,6 +1272,9 @@ namespace IL2Asm.Assembler.x86.Ver1
             assembly.AddAsm("pop eax");
             assembly.AddAsm("pop ebx");
 
+            eaxType = _stack.Pop();
+            ebxType = _stack.Pop();
+
             if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
             {
                 if (offset == 0) assembly.AddAsm("mov word [ebx], ax");
