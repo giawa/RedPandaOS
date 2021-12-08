@@ -59,8 +59,6 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
         }
 
-        private List<StackElementType> _callingStackTypes = new List<StackElementType>();
-
         public void Assemble(PortableExecutableFile pe, AssembledMethod assembly)//MethodDefLayout methodDef, MethodSpecLayout methodSpec)
         {
             if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0) throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
@@ -114,18 +112,19 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
             }
 
+            List<StackElementType> callingStackTypes = new List<StackElementType>();
             if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
             {
-                _callingStackTypes.Add(new StackElementType(new ElementType(ElementType.EType.Object), _callingStackTypes, _runtime, pe.Metadata));
+                callingStackTypes.Add(new StackElementType(new ElementType(ElementType.EType.Object), callingStackTypes, _runtime, pe.Metadata));
                 throw new Exception("Verify this is correct.  May need to adjust LDARG and others as well.");
             }
             if (methodDef.MethodSignature.ParamCount > 0)
             {
-                foreach (var param in methodDef.MethodSignature.Params) _callingStackTypes.Add(new StackElementType(param, _callingStackTypes, _runtime, pe.Metadata));
+                foreach (var param in methodDef.MethodSignature.Params) callingStackTypes.Add(new StackElementType(param, callingStackTypes, _runtime, pe.Metadata));
             }
 
             int callingStackSize = 0;
-            foreach (var a in _callingStackTypes) callingStackSize += a.SizeInBytes;
+            foreach (var a in callingStackTypes) callingStackSize += a.SizeInBytes;
             StackElementType arg = null;
 
             for (ushort i = 0; i < code.Length;)
@@ -145,19 +144,19 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // LDARG.0
                     case 0x02:
-                        LDARG(0, assembly, callingStackSize, methodDef);
+                        LDARG(0, assembly, callingStackTypes, callingStackSize, methodDef);
                         break;
                     // LDARG.1
                     case 0x03:
-                        LDARG(1, assembly, callingStackSize, methodDef);
+                        LDARG(1, assembly, callingStackTypes, callingStackSize, methodDef);
                         break;
                     // LDARG.2
                     case 0x04:
-                        LDARG(2, assembly, callingStackSize, methodDef);
+                        LDARG(2, assembly, callingStackTypes, callingStackSize, methodDef);
                         break;
                     // LDARG.3
                     case 0x05:
-                        LDARG(3, assembly, callingStackSize, methodDef);
+                        LDARG(3, assembly, callingStackTypes, callingStackSize, methodDef);
                         break;
 
                     // LDLOC.0
@@ -211,14 +210,14 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // LDARG.S
                     case 0x0E:
                         _byte = code[i++];
-                        LDARG(_byte, assembly, callingStackSize, methodDef);
+                        LDARG(_byte, assembly, callingStackTypes, callingStackSize, methodDef);
                         break;
 
                     // LDARGA.S
                     case 0x0F:
                         _byte = code[i++];
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _byte++; // skip THIS
-                        arg = _callingStackTypes[_byte];
+                        arg = callingStackTypes[_byte];
                         /*assembly.AddAsm("mov eax, ebp");// + {arg.StackLocation + 4}");
                         assembly.AddAsm($"add eax, {arg.StackLocation + 4}");
                         assembly.AddAsm("push eax");*/
@@ -1255,10 +1254,10 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
         }
 
-        private void LDARG(int s, AssembledMethod assembly, int callingStackSize, MethodDefLayout methodDef)
+        private void LDARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
             if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
-            var arg = _callingStackTypes[s];
+            var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
             for (int b = 0; b < Math.Ceiling(arg.SizeInBytes / 4f); b++)
             {
