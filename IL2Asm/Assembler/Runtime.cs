@@ -65,6 +65,25 @@ namespace IL2Asm
             else throw new Exception("Unable to find assembly used by typeRef");
         }
 
+        public ElementType GetType(CLIMetadata metadata, uint typeToken)
+        {
+            if ((typeToken & 0xff000000) == 0x02000000)
+            {
+                var type = metadata.TypeDefs[(int)(typeToken & 0x00ffffff) - 1];
+
+                if (type.BaseType.Name == "ValueType")
+                {
+                    var eType = new ElementType(ElementType.EType.ValueType);
+                    eType.Token = typeToken;
+                    return eType;
+                }
+
+                throw new Exception("Unsupported type");
+            }
+
+            throw new Exception("Unsupported type");
+        }
+
         public ElementType GetFieldType(CLIMetadata metadata, uint fieldToken)
         {
             if ((fieldToken & 0xff000000) == 0x04000000)

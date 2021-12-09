@@ -362,8 +362,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (method.MethodDef.MethodSignature.RetType != null && method.MethodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
                         {
                             int retSize = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
-                            for (int b = 0; b < Math.Ceiling(retSize / 4f); b++)
-                                assembly.AddAsm($"pop eax; return value {b + 1}/{Math.Ceiling(retSize / 4f)}");
+                            if (retSize == 4) assembly.AddAsm("pop eax; return value");
+                            else
+                            {
+                                for (int b = 0; b < Math.Ceiling(retSize / 4f); b++)
+                                    assembly.AddAsm($"pop eax; return value {b + 1}/{Math.Ceiling(retSize / 4f)}");
+                            }
                             eaxType = _stack.Pop();
                         }
 
@@ -1081,7 +1085,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEMA
-                    //case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
+                    case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEM_I1
                     case 0x90: LDELEM(1, assembly, pe.Metadata, code, ref i); break;
@@ -1228,9 +1232,14 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // LDFTN
-                    /*case 0xFE06:
+                    case 0xFE06:
                         CALL(pe, assembly, code, ref i, ldftn: true);
-                        break;*/
+                        break;
+
+                    // INITOBJ
+                    case 0xFE15:
+                        INITOBJ(pe, assembly, code, ref i);
+                        break;
 
                     // SIZEOF
                     case 0xFE1C:
@@ -1408,6 +1417,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             assembly.AddAsm("push eax");
             eaxType = eaxType.NestedType;
+            if (eaxType.Type == ElementType.EType.ValueType) eaxType = new ElementType(ElementType.EType.ByRefValueType);
             _stack.Push(eaxType);
         }
 
@@ -1427,7 +1437,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType)
                 throw new Exception("Unsupported type");
-            if (!IsEquivalentType(eaxType, type))
+            if (!IsEquivalentType(eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
                 throw new Exception("Mismatched types");
 
             if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
@@ -1753,6 +1763,25 @@ namespace IL2Asm.Assembler.x86.Ver2
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
 
+        private void INITOBJ(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
+        {
+            var metadata = pe.Metadata;
+
+            var type = _runtime.GetType(metadata, BitConverter.ToUInt32(code, i));
+            i += 4;
+
+            eaxType = _stack.Pop();
+            assembly.AddAsm("pop eax");
+
+            if (eaxType.Type != ElementType.EType.ByRefValueType) throw new Exception("Unsupported type");
+
+            var sizeOfType = _runtime.GetTypeSize(metadata, type);
+
+            if ((sizeOfType % 4) != 0) throw new Exception("Unsupported type");
+
+            for (int b = 0; b < Math.Ceiling(sizeOfType / 4f); b++) assembly.AddAsm($"mov dword [eax+{b * 4}], 0");
+        }
+
         private void NEWOBJ(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
         {
             var metadata = pe.Metadata;
@@ -1803,7 +1832,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     assembly.AddAsm("pop eax"); // function pointer
                     assembly.AddAsm("pop ebx"); // this (which is always null)
-                    
+
                 }
                 else
                 {
