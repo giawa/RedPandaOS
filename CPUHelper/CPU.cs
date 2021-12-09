@@ -64,8 +64,11 @@ namespace CPUHelper
         [AsmPlug("CPUHelper.CPU.LoadIDT_Void_ValueType", IL2Asm.BaseTypes.Architecture.X86)]
         private static void LoadIDTAsm(IAssembledMethod assembly)
         {
+            /*assembly.AddAsm("pop eax");
+            assembly.AddAsm("lidt [eax]");*/
+            assembly.AddAsm("lidt [esp+0]");
             assembly.AddAsm("pop eax");
-            assembly.AddAsm("lidt [eax]");
+            assembly.AddAsm("pop eax");
         }
 
         [AsmMethod]
