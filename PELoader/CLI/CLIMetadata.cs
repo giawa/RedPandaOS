@@ -344,7 +344,7 @@ namespace PELoader
                 _typeDefs[i].endOfMethodList = _typeDefs[i + 1].methodList;
             }
 
-            for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(_fields, _methodDefs, _properties);
+            for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(this);
 
             // similarly, for MethodDefs find the param list end
             for (int i = 0; i < _methodDefs.Count - 1; i++)
@@ -455,6 +455,7 @@ namespace PELoader
         public List<ExportedTypeLayout> ExportedTypes { get { return _exportedTypes; } }
         public List<ModuleRefLayout> ModuleRefs { get { return _moduleRefs; } }
         public List<GenericParamLayout> GenericParams { get { return _genericParams; } }
+        public List<PropertyLayout> Properties { get { return _properties; } }
 
         public uint[] TableSizes = new uint[64];
     }

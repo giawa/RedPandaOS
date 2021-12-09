@@ -25,6 +25,8 @@ namespace PELoader
 
         public string Namespace { get; private set; }
 
+        public TypeRefLayout BaseType { get; private set; }
+
         public TypeDefLayout(CLIMetadata metadata, ref int offset)
         {
             typeAttributes = BitConverter.ToUInt32(metadata.Table.Heap, offset);
@@ -94,8 +96,12 @@ namespace PELoader
             Namespace = metadata.GetString(typeNamespace);
         }
 
-        public void FindFieldsAndMethods(List<FieldLayout> fields, List<MethodDefLayout> methodDefs, List<PropertyLayout> properties)
+        public void FindFieldsAndMethods(CLIMetadata metadata)
         {
+            var fields = metadata.Fields;
+            var methodDefs = metadata.MethodDefs;
+            var properties = metadata.Properties;
+
             if (endOfFieldList == 0) endOfFieldList = (uint)(fields.Count + 1);
             if (endOfMethodList == 0) endOfMethodList = (uint)(methodDefs.Count + 1);
             if (endOfPropertyList == 0) endOfPropertyList = (uint)(properties.Count + 1);
@@ -118,6 +124,8 @@ namespace PELoader
                     properties[(int)i - 1].Parent = this;
                 }
             }
+
+            if ((typeDefOrRef & 0xff000000) == 0x01000000) BaseType = metadata.TypeRefs[(int)(typeDefOrRef & 0x00ffffff) - 1];
         }
 
         public string FullName
