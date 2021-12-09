@@ -250,6 +250,20 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static ushort ReadMemShort(uint addr)
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadMemShort_U2_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadMemShortAsm32(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov ax, [ebx]");
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmMethod]
         public static ushort ReadMemShort(ushort addr)
         {
             return 0;
@@ -275,6 +289,21 @@ namespace CPUHelper
         {
             assembly.AddAsm("pop ebx");
             assembly.AddAsm("mov ax, [bx]");
+            assembly.AddAsm("and eax, 255");
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmMethod]
+        public static byte ReadMemByte(uint addr)
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadMemByte_U1_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadMemByteAsm32(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov ax, [ebx]");
             assembly.AddAsm("and eax, 255");
             assembly.AddAsm("push eax");
         }
