@@ -102,7 +102,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (method.LocalVars != null)
             {
                 foreach (var v in method.LocalVars.LocalVariables)
-                    if (!v.Is32BitCapable(pe.Metadata)) throw new Exception("Not supported yet");
+                    if (!v.Is32BitCapable(pe.Metadata) && v.Type != ElementType.EType.R4) throw new Exception("Not supported yet");
 
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 for (int i = 2; i < localVarCount; i++)
@@ -240,13 +240,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // STARG.S
-                    /*case 0x10:
-                        _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
-                        assembly.AddAsm("pop eax");
-                        assembly.AddAsm($"mov [ebp + {BytesPerRegister * (1 + _uint)}], eax");
-                        eaxType = _stack.Pop();
-                        break;*/
+                    case 0x10:
+                        STARG(code[i++], assembly, callingStackTypes, callingStackSize, methodDef);
+                        break;
 
                     // LDLOC.S
                     /*case 0x11:
@@ -1085,16 +1081,52 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEMA
-                    /*case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
+                    //case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_I1
+                    case 0x90: LDELEM(1, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_U1
+                    case 0x91: LDELEM(1, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_I2
+                    case 0x92: LDELEM(2, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_U2
+                    case 0x93: LDELEM(2, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_I4
+                    case 0x94: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEM_U4
-                    case 0x95: LDELEM(assembly, pe.Metadata, code, ref i); break;
+                    case 0x95: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_I
+                    case 0x97: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // LDELEM_R4
+                    case 0x98: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEM_REF
-                    case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
+                    //case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
+
+                    // STELEM_I (native int)
+                    case 0x9B: STELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // STELEM_I1
+                    case 0x9C: STELEM(1, assembly, pe.Metadata, code, ref i); break;
+
+                    // STELEM_I2
+                    case 0x9D: STELEM(2, assembly, pe.Metadata, code, ref i); break;
 
                     // STELEM_I4
-                    case 0x9E: STELEM(assembly, pe.Metadata, code, ref i); break;*/
+                    case 0x9E: STELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // STELEM_R4
+                    case 0xA0: STELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // STELEM
+                    case 0xA4: STELEM(0, assembly, pe.Metadata, code, ref i); break;
 
                     // CONV.U2
                     case 0xD1:
@@ -1267,52 +1299,80 @@ namespace IL2Asm.Assembler.x86.Ver2
             _stack.Push(arg.Type);
         }
 
-        private void STELEM(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void STARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
-            // value = esp
-            // index = esp+4
-            // array = esp+8
+            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
+            var arg = callingStackTypes[s];
+            _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
+            if (_stack.Peek() != arg.Type) throw new Exception("Type mismatch");
+            for (int b = 0; b < Math.Ceiling(arg.SizeInBytes / 4f); b++)
+            {
+                assembly.AddAsm("pop eax");
+                assembly.AddAsm($"mov [ebp + {BytesPerRegister * (_int - b)}], eax");
+            }
+            eaxType = _stack.Pop();
+        }
+
+        private void STELEM(int sizeInBytes, AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            ebxType = _stack.Pop(); // the value (esp+0)
+            _stack.Pop();           // the index (esp+4)
+            eaxType = _stack.Pop(); // the array (esp+8)
+
+            if (eaxType.Type != ElementType.EType.SzArray /*|| !eaxType.NestedType.Is32BitCapable(metadata)*/) throw new Exception("Unsupported type");
+
+            var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
+            if (sizeInBytes != 0 && sizePerElement != sizeInBytes) throw new Exception("Unsupported type");
+
+            int shl = 0, size = 1;
+            while (size < sizePerElement)
+            {
+                shl++;
+                size <<= 1;
+            }
+            if (size != sizePerElement) throw new Exception("Unsupported type");
 
             assembly.AddAsm("mov eax, [esp+4]");    // get index
-            assembly.AddAsm("shl eax, 2");          // multiply by 4 to get offset
+            if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
             assembly.AddAsm("mov ebx, [esp+8]");    // get address of array
             assembly.AddAsm("add eax, ebx");        // now we have the final address
             assembly.AddAsm("pop ebx");             // pop value off the stack
             assembly.AddAsm("mov [eax], ebx");      // move value into the location
             assembly.AddAsm("add esp, 8");          // clean up the stack
-
-            ebxType = _stack.Pop();
-            _stack.Pop();
-            eaxType = _stack.Pop();
         }
 
-        private void LDELEM(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void LDELEM(int sizeInBytes, AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
-            assembly.AddAsm("pop ebx"); // index
-            ebxType = _stack.Pop();
-            assembly.AddAsm("pop eax"); // array
-            eaxType = _stack.Pop();
+            ebxType = _stack.Pop(); // the index (esp+0)
+            eaxType = _stack.Pop(); // the array (esp+4)
 
-            if (eaxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
-
-            // going to use ecx to store the array position
-            assembly.AddAsm("push ecx");
-            assembly.AddAsm("mov ecx, eax");
-
-            // edx will get clobbered by the multiply
-            assembly.AddAsm("push edx");
+            if (eaxType.Type != ElementType.EType.SzArray /*|| !eaxType.NestedType.Is32BitCapable(metadata)*/) throw new Exception("Unsupported type");
 
             var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
-            assembly.AddAsm($"mov eax, {sizePerElement}");
-            assembly.AddAsm("mul ebx");
-            assembly.AddAsm("add eax, ecx");
+            if (sizeInBytes != 0 && sizePerElement != sizeInBytes) throw new Exception("Unsupported type");
 
-            assembly.AddAsm("pop edx");
-            assembly.AddAsm("pop ecx");
+            int shl = 0, size = 1;
+            while (size < sizePerElement)
+            {
+                shl++;
+                size <<= 1;
+            }
+            if (size != sizePerElement) throw new Exception("Unsupported type");
 
-            assembly.AddAsm("push dword [eax]");
-            eaxType = eaxType.NestedType;
-            _stack.Push(eaxType);
+            assembly.AddAsm("pop eax");             // get index
+            if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
+            assembly.AddAsm("pop ebx");             // get address of array
+            assembly.AddAsm("add eax, ebx");        // now we have the final address
+            assembly.AddAsm("pop ebx");             // pop value off the stack
+            assembly.AddAsm("mov ebx, [eax]");      // bring value from memory to register
+
+            if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
+            else if (sizePerElement == 1) assembly.AddAsm("and ebx, 255");
+            else if (sizePerElement != 4) throw new Exception("Unsupported type");
+            assembly.AddAsm("push ebx");
+
+            ebxType = eaxType.NestedType;
+            _stack.Push(ebxType);
         }
 
         private void LDELEMA(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i, bool ldelem_ref = false)
@@ -1578,7 +1638,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                     assembly.AddAsm($"mov eax, {label}");
                     assembly.AddAsm($"push eax");
                 }
-                else throw new Exception("Unsupported type");//assembly.AddAsm($"mov eax, [{label}]");
+                else
+                {
+                    assembly.AddAsm($"mov eax, [{label}]");
+                    assembly.AddAsm($"push eax");
+                }
             }
             else if (eaxType.Type == ElementType.EType.ValueType)
             {

@@ -158,7 +158,10 @@ namespace IL2Asm
                 type.Type == ElementType.EType.ByRefValueType ||
                 type.Type == ElementType.EType.Ptr ||
                 type.Type == ElementType.EType.IntPtr ||
-                type.Type == ElementType.EType.UIntPtr) return _bytesPerRegister;
+                type.Type == ElementType.EType.UIntPtr ||
+                type.Type == ElementType.EType.SzArray ||
+                type.Type == ElementType.EType.MVar) // note: mvar might not actually be _bytesPerRegister, this is a hack for now
+                return _bytesPerRegister;
             else if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
             {
                 var token = type.Token;
