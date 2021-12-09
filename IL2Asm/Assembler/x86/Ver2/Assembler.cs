@@ -1363,7 +1363,6 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
             assembly.AddAsm("pop ebx");             // get address of array
             assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm("pop ebx");             // pop value off the stack
             assembly.AddAsm("mov ebx, [eax]");      // bring value from memory to register
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
