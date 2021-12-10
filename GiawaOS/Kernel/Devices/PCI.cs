@@ -15,7 +15,7 @@
 
                 PrintPCIDevice(reg0, reg2, (byte)i);
 
-                for (int j = 0; j < 256; j++)
+                for (int j = 1; j < 32; j++)
                 {
                     reg0 = ReadDword((byte)i, (byte)j, 0, 0);
                     if ((reg0 & 0x0000ffff) == 0x0000ffff) continue;
@@ -23,14 +23,31 @@
                     reg2 = ReadDword((byte)i, (byte)j, 0, 8);
 
                     PrintPCIDevice(reg0, reg2, (byte)j, true);
+
+                    var reg3 = ReadDword((byte)i, (byte)j, 0, 0x0C);
+                    var headerType = (reg3 >> 16) & 255;
+
+                    if ((headerType & 0x80) != 0)
+                    {
+                        for (int f = 1; f < 8; f++)
+                        {
+                            reg0 = ReadDword((byte)i, (byte)j, (byte)f, 0);
+                            if ((reg0 & 0x0000ffff) == 0x0000ffff) continue;
+
+                            reg2 = ReadDword((byte)i, (byte)j, (byte)f, 8);
+
+                            PrintPCIDevice(reg0, reg2, (byte)f, true, true);
+                        }
+                    }
                 }
             }
         }
 
-        private static void PrintPCIDevice(uint reg0, uint reg2, byte address, bool isSlot = false)
+        private static void PrintPCIDevice(uint reg0, uint reg2, byte address, bool isSlot = false, bool isFunc = false)
         {
-            if (isSlot) VGA.WriteVideoMemoryString("|-> slot 0x");
-            else VGA.WriteVideoMemoryString("PCI addr 0x");
+            if (isFunc) VGA.WriteVideoMemoryString(" |-> function 0x");
+            else if (isSlot) VGA.WriteVideoMemoryString("|-> slot 0x");
+            else VGA.WriteVideoMemoryString("PCI bus 0x");
 
             VGA.WriteHex(address);
             VGA.WriteVideoMemoryChar(' ');
@@ -48,6 +65,7 @@
 
             switch (code)
             {
+                case ClassCode.MassStorageController: VGA.WriteVideoMemoryString("Mass Storage Controller"); break;
                 case ClassCode.NetworkController: VGA.WriteVideoMemoryString("Network Controller"); break;
                 case ClassCode.DisplayController: VGA.WriteVideoMemoryString("Display Controller"); break;
                 case ClassCode.BridgeDevice: VGA.WriteVideoMemoryString("Bridge Device"); break;
