@@ -72,7 +72,6 @@ namespace IL2Asm.Assembler.x86.Ver2
             Runtime.GlobalMethodCounter++;
 
             var code = method.Code;
-            int localVarOffset = 0;
 
             if (_methods.Count > 1)
             {
@@ -88,13 +87,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         assembly.AddAsm("push ecx; localvar.0");
                         assembly.AddAsm("mov ecx, 0");
-                        localVarOffset = BytesPerRegister;
                     }
                     if (localVarCount > 1)
                     {
                         assembly.AddAsm("push edx; localvar.1");
                         assembly.AddAsm("mov edx, 0");
-                        localVarOffset = BytesPerRegister * 2;
                     }
                 }
             }
@@ -171,14 +168,14 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
                     // LDLOC.2
                     case 0x08:
-                        assembly.AddAsm($"mov eax, [ebp - {localVarOffset + BytesPerRegister}]");
+                        assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister}]");
                         assembly.AddAsm("push eax");
                         eaxType = method.LocalVars.LocalVariables[2];
                         _stack.Push(eaxType);
                         break;
                     // LDLOC.3
                     case 0x09:
-                        assembly.AddAsm($"mov eax, [ebp - {localVarOffset + 2 * BytesPerRegister}]");
+                        assembly.AddAsm($"mov eax, [ebp - {2 * BytesPerRegister}]");
                         assembly.AddAsm("push eax");
                         eaxType = method.LocalVars.LocalVariables[3];
                         _stack.Push(eaxType);
@@ -197,13 +194,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // STLOC.2
                     case 0x0C:
                         assembly.AddAsm("pop eax");
-                        assembly.AddAsm($"mov [ebp - {localVarOffset + BytesPerRegister}], eax");
+                        assembly.AddAsm($"mov [ebp - {BytesPerRegister}], eax");
                         eaxType = _stack.Pop();
                         break;
                     // STLOC.3
                     case 0x0D:
                         assembly.AddAsm("pop eax");
-                        assembly.AddAsm($"mov [ebp - {localVarOffset + 2 * BytesPerRegister}], eax");
+                        assembly.AddAsm($"mov [ebp - {2 * BytesPerRegister}], eax");
                         eaxType = _stack.Pop();
                         break;
 
@@ -245,18 +242,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // LDLOC.S
-                    /*case 0x11:
+                    case 0x11:
                         _byte = code[i++];
                         if (_byte == 0) assembly.AddAsm("push ecx");
                         else if (_byte == 1) assembly.AddAsm("push edx");
                         else
                         {
-                            assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
+                            assembly.AddAsm($"mov eax, [ebp - {(_byte - 1) * BytesPerRegister}]");//{BytesPerRegister * (_byte - 1 + localVarOffset)}]");
                             assembly.AddAsm("push eax");
                             eaxType = method.LocalVars.LocalVariables[_byte];
                         }
                         _stack.Push(method.LocalVars.LocalVariables[_byte]);
-                        break;*/
+                        break;
 
                     // LDLOCA.S
                     /*case 0x12:
@@ -285,18 +282,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;*/
 
                     // STLOC.S
-                    /*case 0x13:
+                    case 0x13:
                         _byte = code[i++];
                         if (_byte == 0) assembly.AddAsm("pop ecx");
                         else if (_byte == 1) assembly.AddAsm("pop edx");
                         else
                         {
                             assembly.AddAsm("pop eax");
-                            assembly.AddAsm($"mov [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}], eax");
+                            assembly.AddAsm($"mov [ebp - {(_byte - 1) * BytesPerRegister}], eax");//{BytesPerRegister * (_byte - 1 + localVarOffset)}], eax");
                         }
                         if (_byte > 1) eaxType = _stack.Pop();
                         else _stack.Pop();
-                        break;*/
+                        break;
 
                     // LDNULL
                     case 0x14: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.Object)); break;
