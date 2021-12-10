@@ -1934,6 +1934,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm("mov eax, [ebx]");
                         assembly.AddAsm("and eax, 255");
                         assembly.AddAsm("push eax");
+
+                        _stack.Pop();
+                        _stack.Pop();
+                        _stack.Push(new ElementType(ElementType.EType.Char));
                     }
                     else
                     {
