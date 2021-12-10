@@ -178,7 +178,7 @@ namespace PELoader
                     }
                 }
             }
-            return (Type >= EType.Char && Type <= EType.U4) || IsPointer() || Type == EType.SzArray;
+            return (Type >= EType.Boolean && Type <= EType.U4) || IsPointer() || Type == EType.SzArray;
         }
 
         public bool IsPointer()
