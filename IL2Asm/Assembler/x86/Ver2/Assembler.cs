@@ -298,7 +298,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // LDNULL
                     case 0x14: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.Object)); break;
 
-                    // LDC.I4.0-8
+                    // LDC.I4.-1-8
+                    case 0x15: assembly.AddAsm("push -1"); _stack.Push(new ElementType(ElementType.EType.I4)); break;
                     case 0x16: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.I4)); break;
                     case 0x17: assembly.AddAsm("push 1"); _stack.Push(new ElementType(ElementType.EType.I4)); break;
                     case 0x18: assembly.AddAsm("push 2"); _stack.Push(new ElementType(ElementType.EType.I4)); break;
@@ -611,6 +612,35 @@ namespace IL2Asm.Assembler.x86.Ver2
                             assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
                             assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
                             assembly.AddAsm($"jae {_jmpLabel}");
+                        }
+                        else
+                        {
+                            throw new Exception("Unsupported type");
+                        }
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        break;
+
+                    // BGT.UN.S
+                    case 0x35:
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
+                        {
+                            assembly.AddAsm("pop eax");        // value2
+                            assembly.AddAsm("pop ebx");        // value1
+                            assembly.AddAsm("cmp ebx, eax");    // compare values
+                            assembly.AddAsm($"jg {_jmpLabel}");
+                        }
+                        else if (_stack.Peek().Type == ElementType.EType.R4)
+                        {
+                            assembly.AddAsm("fld dword [esp]");
+                            assembly.AddAsm("fld dword [esp + 4]");
+                            assembly.AddAsm("fcomip");
+                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
+                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
+                            assembly.AddAsm($"ja {_jmpLabel}");
                         }
                         else
                         {
@@ -1001,6 +1031,17 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Pop();   // ECX but gets overwritten
                         ebxType = eaxType;
                         _stack.Push(eaxType);*/
+                        break;
+
+                    // NOT
+                    case 0x66:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        // we push same type back on to stack, so no modification to _stack is required
+                        assembly.AddAsm("pop eax");
+                        assembly.AddAsm("not eax");
+                        assembly.AddAsm("push eax");
+
                         break;
 
                     // CONV.I2
