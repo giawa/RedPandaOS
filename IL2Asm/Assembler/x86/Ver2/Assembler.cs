@@ -379,7 +379,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                             }
                             if (localVarCount > 1) assembly.AddAsm("pop edx; localvar.1");
                             if (localVarCount > 0) assembly.AddAsm("pop ecx; localvar.0");
-                            if (localVarCount > 2) PopStack(localVarCount - 2);
+                            //if (localVarCount > 2) PopStack(localVarCount - 2);   // don't pop the stack because there can be multiple RET per method
                         }
 
                         int bytes = 0;
@@ -1298,6 +1298,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                     //assembly.AddAsm("nop");
                 }
             }
+
+            if (_stack.Count > 0 && _stack.Count != method.LocalVars.LocalVariables.Length - 2)
+                throw new Exception("Unbalanced stack");
+            _stack.Clear();
 
             ProcessStaticConstructor(pe, methodDef);
 
