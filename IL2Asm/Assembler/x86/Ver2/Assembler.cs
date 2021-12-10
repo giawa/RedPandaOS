@@ -654,8 +654,6 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // BR
                     case 0x38:
-                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
-
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
