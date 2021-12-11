@@ -113,7 +113,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
             {
                 callingStackTypes.Add(new StackElementType(new ElementType(ElementType.EType.Object), callingStackTypes, _runtime, pe.Metadata));
-                throw new Exception("Verify this is correct.  May need to adjust LDARG and others as well.");
+                //throw new Exception("Verify this is correct.  May need to adjust LDARG and others as well.");
             }
             if (methodDef.MethodSignature.ParamCount > 0)
             {
@@ -351,7 +351,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                         eaxType = _stack.Pop();
                         break;
 
+                    // CALL
                     case 0x28: CALL(pe, assembly, code, ref i); break;
+
+                    // CALVIRT
                     case 0x6F: CALL(pe, assembly, code, ref i, true); break;
 
                     // RET
@@ -1299,7 +1302,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
             }
 
-            if (_stack.Count > 0 && _stack.Count != method.LocalVars.LocalVariables.Length - 2)
+            if (_stack.Count > 0 && _stack.Count != (method.LocalVars?.LocalVariables.Length - 2 ?? 0))
                 throw new Exception("Unbalanced stack");
             _stack.Clear();
 
@@ -1337,7 +1340,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
-            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
+            //if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
             var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
             for (int b = 0; b < Math.Ceiling(arg.SizeInBytes / 4f); b++)
@@ -1350,7 +1353,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void STARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
-            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
+            //if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
             var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
             if (_stack.Peek() != arg.Type) throw new Exception("Type mismatch");
@@ -1475,7 +1478,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _stack.Pop();
             ebxType = _stack.Pop();
 
-            if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType)
+            if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType && ebxType.Type != ElementType.EType.Object)
                 throw new Exception("Unsupported type");
             if (!IsEquivalentType(eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
                 throw new Exception("Mismatched types");
@@ -1494,7 +1497,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 throw new Exception("Unsupported type");
             }
-            else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
+            else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
             {
                 if (offset == 0) assembly.AddAsm("mov [ebx], eax");
                 else assembly.AddAsm($"mov [ebx + {offset}], eax");
@@ -1564,7 +1567,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             else
             {
-                if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType)
+                if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType && ebxType.Type != ElementType.EType.Object)
                     throw new Exception("Unsupported type");
 
                 assembly.AddAsm("pop ebx");
@@ -1585,11 +1588,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     throw new Exception("Unsupported type");
                 }
-                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
+                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
                 {
                     if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
                     else assembly.AddAsm($"mov eax, [ebx + {offset}]");
                 }
+                else throw new Exception("Unsupported type");
             }
 
             assembly.AddAsm("push eax");
@@ -1658,6 +1662,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private bool IsEquivalentType(ElementType type1, ElementType type2)
         {
+            if (type1.Type == ElementType.EType.MVar || type2.Type == ElementType.EType.MVar) return true;
             if (type1 == type2) return true;
 
             if (type1.Type == ElementType.EType.U4 || type1.Type == ElementType.EType.I4)
@@ -1743,6 +1748,11 @@ namespace IL2Asm.Assembler.x86.Ver2
         {
             if (_initializedData.ContainsKey(label)) return;
 
+            if (type.Type == ElementType.EType.GenericInst)
+            {
+                type = type.NestedType;
+            }
+
             switch (type.Type)
             {
                 case ElementType.EType.U1: _initializedData.Add(label, new DataType(type, (byte)0)); break;
@@ -1751,6 +1761,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
                 case ElementType.EType.U4: _initializedData.Add(label, new DataType(type, (uint)0)); break;
                 case ElementType.EType.I4: _initializedData.Add(label, new DataType(type, (int)0)); break;
+                case ElementType.EType.Class:
                 case ElementType.EType.SzArray: _initializedData.Add(label, new DataType(type, (uint)0)); break;  // just a pointer
                 case ElementType.EType.ValueType:
                     _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)]));
@@ -2044,6 +2055,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                 // eax and ebx may have been clobbered
                 eaxType = null;
                 ebxType = null;
+
+                if (callvirt)
+                {
+                    _stack.Pop();   // pop the object reference from the stack
+                }
             }
             else throw new Exception("Unhandled CALL target");
         }
@@ -2145,7 +2161,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         output.Add($"{data.Key}:");
                         output.Add($"    dd {data.Value.Data}");
                     }
-                    else if (data.Value.Type.Type == ElementType.EType.SzArray)
+                    else if (data.Value.Type.Type == ElementType.EType.SzArray || data.Value.Type.Type == ElementType.EType.Class)
                     {
                         if (data.Value.Data is string)
                         {
