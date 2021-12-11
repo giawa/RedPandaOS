@@ -80,6 +80,26 @@ namespace IL2Asm
 
                 throw new Exception("Unsupported type");
             }
+            else if ((typeToken & 0xff000000) == 0x04000000 || (typeToken & 0xff000000) == 0x0A000000)
+            {
+                return GetFieldType(metadata, typeToken);
+            }
+            else if ((typeToken & 0xff000000) == 0x01000000)
+            {
+                var type = metadata.TypeRefs[(int)(typeToken & 0x00ffffff) - 1];
+
+                if (type.Namespace == "System")
+                {
+                    switch (type.Name)
+                    {
+                        case "Int32": return new ElementType(ElementType.EType.I4);
+                        case "Byte": return new ElementType(ElementType.EType.U1);
+                        case "Double": return new ElementType(ElementType.EType.R8);
+                    }
+                }
+
+                throw new Exception("Unsupported type");
+            }
 
             throw new Exception("Unsupported type");
         }

@@ -1071,6 +1071,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // STSFLD
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
 
+                    // NEWARR
+                    case 0x8D: NEWARR(pe, assembly, code, ref i); break;
+
                     // LDELEMA
                     case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
@@ -1939,6 +1942,41 @@ namespace IL2Asm.Assembler.x86.Ver2
             else throw new Exception("Unsupported");
         }
 
+        private void NEWARR(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
+        {
+            var metadata = pe.Metadata;
+
+            uint typeDesc = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            if ((typeDesc & 0xff000000) != 0x01000000) throw new Exception("Unsupported type");
+
+            var arrayType = _runtime.GetType(metadata, typeDesc);
+            var typeSize = _runtime.GetTypeSize(metadata, arrayType);
+
+            if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+            // compute the total size in bytes to allocate at runtime
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm($"mov ebx, {typeSize}");
+            assembly.AddAsm("push edx"); // multiply clobbers edx
+            assembly.AddAsm("mul ebx");
+            assembly.AddAsm("pop edx");  // multiply clobbers edx
+            assembly.AddAsm("push eax"); // size in bytes to allocate
+
+            ebxType = _stack.Pop();
+
+            // first allocate the object using whatever heap allocator we have been provided
+            assembly.AddAsm("push 1");
+            assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+            assembly.AddAsm("push eax");
+
+            eaxType = new ElementType(ElementType.EType.SzArray);
+            eaxType.NestedType = arrayType;
+            _stack.Push(eaxType);
+        }
+
         private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
 
         private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
@@ -2101,7 +2139,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 eaxType = null;
                 ebxType = null;
 
-                if (callvirt)
+                if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
                 {
                     _stack.Pop();   // pop the object reference from the stack
                 }
