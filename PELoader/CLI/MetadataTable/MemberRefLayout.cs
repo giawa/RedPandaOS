@@ -324,13 +324,15 @@ namespace PELoader
 
         public void FindParentType(CLIMetadata metadata)
         {
-            switch (classIndex & 0x07)
+            uint addr = GetParentToken();
+
+            switch (addr & 0xff000000)
             {
-                case 0x00: _parent = metadata.TypeDefs[(int)(classIndex >> 3) - 1].ToString(); break;
-                case 0x01: _parent = metadata.TypeRefs[(int)(classIndex >> 3) - 1].ToString(); break;
-                case 0x02: _parent = metadata.Modules[(int)(classIndex >> 3) - 1].ToString(); break;
-                case 0x03: _parent = metadata.MethodDefs[(int)(classIndex >> 3) - 1].ToString(); break;
-                case 0x04: _parent = metadata.TypeSpecs[(int)(classIndex >> 3) - 1].ToString(); break;
+                case 0x02000000: _parent = metadata.TypeDefs[(int)(addr & 0x00ffffff) - 1].ToString(); break;
+                case 0x01000000: _parent = metadata.TypeRefs[(int)(addr & 0x00ffffff) - 1].ToString(); break;
+                case 0x00000000: _parent = metadata.Modules[(int)(addr & 0x00ffffff) - 1].ToString(); break;
+                case 0x06000000: _parent = metadata.MethodDefs[(int)(addr & 0x00ffffff) - 1].ToString(); break;
+                case 0x1B000000: _parent = metadata.TypeSpecs[(int)(addr & 0x00ffffff) - 1].ToString(); break;
             }
         }
 

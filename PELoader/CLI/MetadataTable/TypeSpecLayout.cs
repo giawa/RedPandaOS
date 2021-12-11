@@ -19,5 +19,10 @@ namespace PELoader
                 offset += 2;
             }
         }
+
+        public override string ToString()
+        {
+            return "????";
+        }
     }
 }
