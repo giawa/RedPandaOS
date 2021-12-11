@@ -8,6 +8,7 @@ namespace Kernel.Memory
     {
         private static uint _addr = 0x20000;    // the start of the kernel heap
 
+        [Allocator]
         public static uint Malloc(uint size, uint init = 0)
         {
             uint modulo = Runtime.Math32.Modulo(size, 4);

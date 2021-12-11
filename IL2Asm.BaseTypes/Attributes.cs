@@ -21,4 +21,9 @@ namespace IL2Asm.BaseTypes
     {
 
     }
+
+    public class AllocatorAttribute : Attribute
+    {
+
+    }
 }
