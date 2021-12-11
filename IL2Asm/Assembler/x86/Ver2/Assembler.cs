@@ -1773,8 +1773,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         // special case for inserting the 32 ISR addresses for the kernel
                         StringBuilder isrNames = new StringBuilder();
-                        for (int i = 0; i < 31; i++) isrNames.Append($"ISR{i}, ");
-                        isrNames.Append("ISR31");
+                        isrNames.Append("32");  // size of array
+                        for (int i = 0; i < 32; i++) isrNames.Append($", ISR{i}");
                         var isrType = new ElementType(ElementType.EType.SzArray);
                         isrType.NestedType = new ElementType(ElementType.EType.I4);
                         _initializedData.Add(label, new DataType(isrType, isrNames.ToString()));
@@ -1786,8 +1786,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         // special case for inserting the 32 ISR addresses for the kernel
                         StringBuilder irqNames = new StringBuilder();
-                        for (int i = 0; i < 15; i++) irqNames.Append($"IRQ{i}, ");
-                        irqNames.Append("IRQ15");
+                        irqNames.Append("16");  // size of array
+                        for (int i = 0; i < 16; i++) irqNames.Append($", IRQ{i}");
                         var irqType = new ElementType(ElementType.EType.SzArray);
                         irqType.NestedType = new ElementType(ElementType.EType.I4);
                         _initializedData.Add(label, new DataType(irqType, irqNames.ToString()));
@@ -1961,7 +1961,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             uint typeDesc = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            if ((typeDesc & 0xff000000) != 0x01000000) throw new Exception("Unsupported type");
+            if ((typeDesc & 0xff000000) != 0x01000000 && (typeDesc & 0xff000000) != 0x02000000) throw new Exception("Unsupported type");
 
             var arrayType = _runtime.GetType(metadata, typeDesc);
             var typeSize = _runtime.GetTypeSize(metadata, arrayType);
