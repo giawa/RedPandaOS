@@ -21,10 +21,10 @@ namespace Kernel.Interrupts
 
         public static void Init()
         {
-            _idt_entries = Memory.BumpHeap.MallocArray<IDT_Entry>(256);
+            _idt_entries = new IDT_Entry[256];//Memory.BumpHeap.MallocArray<IDT_Entry>(256);
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
-            _idt_ptr.address = Memory.BumpHeap.ObjectToPtr(_idt_entries);
+            _idt_ptr.address = Memory.BumpHeap.ObjectToPtr(_idt_entries) + 4;
 
             // remap the IRQ table
             CPU.OutDxAl(0x20, 0x11);
