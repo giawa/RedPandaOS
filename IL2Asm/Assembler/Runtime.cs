@@ -92,9 +92,19 @@ namespace IL2Asm
                 {
                     switch (type.Name)
                     {
-                        case "Int32": return new ElementType(ElementType.EType.I4);
+                        case "Boolean": return new ElementType(ElementType.EType.Boolean);
+                        case "Char": return new ElementType(ElementType.EType.Char);
+                        case "SByte": return new ElementType(ElementType.EType.I1);
                         case "Byte": return new ElementType(ElementType.EType.U1);
+                        case "Int16": return new ElementType(ElementType.EType.I2);
+                        case "UInt16": return new ElementType(ElementType.EType.U2);
+                        case "Int32": return new ElementType(ElementType.EType.I4);
+                        case "UInt32": return new ElementType(ElementType.EType.U4);
+                        case "Int64": return new ElementType(ElementType.EType.I8);
+                        case "UInt64": return new ElementType(ElementType.EType.U8);
+                        case "Single": return new ElementType(ElementType.EType.R4);
                         case "Double": return new ElementType(ElementType.EType.R8);
+                        case "String": return new ElementType(ElementType.EType.String);
                     }
                 }
 
