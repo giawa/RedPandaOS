@@ -1074,6 +1074,17 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // NEWARR
                     case 0x8D: NEWARR(pe, assembly, code, ref i); break;
 
+                    // LDLEN
+                    case 0x8E:
+                        // the length is just the first element of the array
+                        assembly.AddAsm("pop eax");
+                        eaxType = _stack.Pop();
+                        assembly.AddAsm("mov ebx, [eax]");
+                        ebxType = new ElementType(ElementType.EType.U4);
+                        assembly.AddAsm("push ebx");
+                        _stack.Push(ebxType);
+                        break;
+
                     // LDELEMA
                     case 0x8F: LDELEMA(assembly, pe.Metadata, code, ref i); break;
 
@@ -1368,7 +1379,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("mov ebx, [esp+8]");    // get address of array
             assembly.AddAsm("add eax, ebx");        // now we have the final address
             assembly.AddAsm("pop ebx");             // pop value off the stack
-            assembly.AddAsm("mov [eax], ebx");      // move value into the location
+            assembly.AddAsm("mov [eax+4], ebx");    // move value into the location (+4 to skip array length)
             assembly.AddAsm("add esp, 8");          // clean up the stack
         }
 
@@ -1394,7 +1405,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
             assembly.AddAsm("pop ebx");             // get address of array
             assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm("mov ebx, [eax]");      // bring value from memory to register
+            assembly.AddAsm("mov ebx, [eax+4]");    // bring value from memory to register (+4 to skip array length)
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
             else if (sizePerElement == 1) assembly.AddAsm("and ebx, 255");
@@ -1433,6 +1444,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm($"mov eax, {sizePerElement}");
             assembly.AddAsm("mul ebx");
             assembly.AddAsm("add eax, ecx");
+            assembly.AddAsm("add eax, 4");  // the first 4 bytes are the array size, so skip over that
 
             assembly.AddAsm("pop edx");
             assembly.AddAsm("pop ecx");
@@ -1958,17 +1970,23 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             // compute the total size in bytes to allocate at runtime
             assembly.AddAsm("pop eax");
+            assembly.AddAsm("push eax");    // push the size to recover this later
             assembly.AddAsm($"mov ebx, {typeSize}");
-            assembly.AddAsm("push edx"); // multiply clobbers edx
+            assembly.AddAsm("push edx");    // multiply clobbers edx
             assembly.AddAsm("mul ebx");
-            assembly.AddAsm("pop edx");  // multiply clobbers edx
-            assembly.AddAsm("push eax"); // size in bytes to allocate
+            assembly.AddAsm("pop edx");     // multiply clobbers edx
+            assembly.AddAsm("add eax, 4");  // add 4 bytes for the array length
+            assembly.AddAsm("push eax");    // size in bytes to allocate
 
             ebxType = _stack.Pop();
 
             // first allocate the object using whatever heap allocator we have been provided
             assembly.AddAsm("push 0");
             assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+            // put the length into the first element
+            assembly.AddAsm("pop ebx");     // take the size we pushed earlier
+            assembly.AddAsm("mov [eax], ebx");
 
             assembly.AddAsm("push eax");
 
