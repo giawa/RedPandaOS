@@ -157,52 +157,22 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // LDLOC.0
-                    case 0x06:
-                        assembly.AddAsm("push ecx");
-                        _stack.Push(method.LocalVars.LocalVariables[0]);
-                        break;
+                    case 0x06: LDLOC(0, assembly); break;
                     // LDLOC.1
-                    case 0x07:
-                        assembly.AddAsm("push edx");
-                        _stack.Push(method.LocalVars.LocalVariables[1]);
-                        break;
+                    case 0x07: LDLOC(1, assembly); break;
                     // LDLOC.2
-                    case 0x08:
-                        assembly.AddAsm($"mov eax, [ebp - {3 * BytesPerRegister}]");
-                        assembly.AddAsm("push eax");
-                        eaxType = method.LocalVars.LocalVariables[2];
-                        _stack.Push(eaxType);
-                        break;
+                    case 0x08: LDLOC(2, assembly); break;
                     // LDLOC.3
-                    case 0x09:
-                        assembly.AddAsm($"mov eax, [ebp - {4 * BytesPerRegister}]");
-                        assembly.AddAsm("push eax");
-                        eaxType = method.LocalVars.LocalVariables[3];
-                        _stack.Push(eaxType);
-                        break;
+                    case 0x09: LDLOC(3, assembly); break;
 
                     // STLOC.0
-                    case 0x0A:
-                        assembly.AddAsm("pop ecx");
-                        _stack.Pop();
-                        break;
+                    case 0x0A: STLOC(0, assembly); break;
                     // STLOC.1
-                    case 0x0B:
-                        assembly.AddAsm("pop edx");
-                        _stack.Pop();
-                        break;
+                    case 0x0B: STLOC(1, assembly); break;
                     // STLOC.2
-                    case 0x0C:
-                        assembly.AddAsm("pop eax");
-                        assembly.AddAsm($"mov [ebp - {3 * BytesPerRegister}], eax");
-                        eaxType = _stack.Pop();
-                        break;
+                    case 0x0C: STLOC(2, assembly); break;
                     // STLOC.3
-                    case 0x0D:
-                        assembly.AddAsm("pop eax");
-                        assembly.AddAsm($"mov [ebp - {4 * BytesPerRegister}], eax");
-                        eaxType = _stack.Pop();
-                        break;
+                    case 0x0D: STLOC(3, assembly); break;
 
                     // LDARG.S
                     case 0x0E:
@@ -242,18 +212,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;
 
                     // LDLOC.S
-                    case 0x11:
-                        _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("push ecx");
-                        else if (_byte == 1) assembly.AddAsm("push edx");
-                        else
-                        {
-                            assembly.AddAsm($"mov eax, [ebp - {(_byte + 1) * BytesPerRegister}]");//{BytesPerRegister * (_byte - 1 + localVarOffset)}]");
-                            assembly.AddAsm("push eax");
-                            eaxType = method.LocalVars.LocalVariables[_byte];
-                        }
-                        _stack.Push(method.LocalVars.LocalVariables[_byte]);
-                        break;
+                    case 0x11: LDLOC(code[i++], assembly); break;
 
                     // LDLOCA.S
                     /*case 0x12:
@@ -282,18 +241,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         break;*/
 
                     // STLOC.S
-                    case 0x13:
-                        _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("pop ecx");
-                        else if (_byte == 1) assembly.AddAsm("pop edx");
-                        else
-                        {
-                            assembly.AddAsm("pop eax");
-                            assembly.AddAsm($"mov [ebp - {(_byte + 1) * BytesPerRegister}], eax");//{BytesPerRegister * (_byte - 1 + localVarOffset)}], eax");
-                        }
-                        if (_byte > 1) eaxType = _stack.Pop();
-                        else _stack.Pop();
-                        break;
+                    case 0x13: STLOC(code[i++], assembly); break;
 
                     // LDNULL
                     case 0x14: assembly.AddAsm("push 0"); _stack.Push(new ElementType(ElementType.EType.Object)); break;
@@ -1336,6 +1284,34 @@ namespace IL2Asm.Assembler.x86.Ver2
                     }
                 }
             }
+        }
+
+        private void STLOC(byte b, AssembledMethod assembly)
+        {
+            if (b == 0) assembly.AddAsm("pop ecx");
+            else if (b == 1) assembly.AddAsm("pop edx");
+            else
+            {
+                assembly.AddAsm("pop eax");
+                if (_methods.Count <= 1) assembly.AddAsm($"mov [ebp - {(b + 1 - 2) * BytesPerRegister}], eax");
+                else assembly.AddAsm($"mov [ebp - {(b + 1) * BytesPerRegister}], eax");
+            }
+            if (b > 1) eaxType = _stack.Pop();
+            else _stack.Pop();
+        }
+
+        private void LDLOC(byte b, AssembledMethod assembly)
+        {
+            if (b == 0) assembly.AddAsm("push ecx");
+            else if (b == 1) assembly.AddAsm("push edx");
+            else
+            {
+                if (_methods.Count <= 1) assembly.AddAsm($"mov eax, [ebp - {(b + 1 - 2) * BytesPerRegister}]");
+                else assembly.AddAsm($"mov eax, [ebp - {(b + 1) * BytesPerRegister}]");
+                assembly.AddAsm("push eax");
+                eaxType = assembly.Method.LocalVars.LocalVariables[b];
+            }
+            _stack.Push(assembly.Method.LocalVars.LocalVariables[b]);
         }
 
         private void LDARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
