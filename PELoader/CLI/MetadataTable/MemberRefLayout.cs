@@ -184,7 +184,8 @@ namespace PELoader
         public bool IsPointer()
         {
             var lowerByte = (EType)((uint)Type & 0xff);
-            return (lowerByte == EType.ByRefValueType || lowerByte == EType.Class || lowerByte == EType.Ptr || lowerByte == EType.Object || lowerByte == EType.ByRef);
+            return (lowerByte == EType.ByRefValueType || lowerByte == EType.Class || lowerByte == EType.Ptr || 
+                lowerByte == EType.Object || lowerByte == EType.ByRef || lowerByte == EType.GenericInst || lowerByte == EType.String);
         }
 
         public static bool operator==(ElementType e1, ElementType e2)
