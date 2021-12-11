@@ -1967,7 +1967,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             ebxType = _stack.Pop();
 
             // first allocate the object using whatever heap allocator we have been provided
-            assembly.AddAsm("push 1");
+            assembly.AddAsm("push 0");
             assembly.AddAsm($"call {HeapAllocatorMethod}");
 
             assembly.AddAsm("push eax");
