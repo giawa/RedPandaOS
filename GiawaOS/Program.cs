@@ -18,6 +18,7 @@ namespace GiawaOS
             var methodDef32 = FindEntryPoint(file, "Init", "Start");
             var isrHandler = FindEntryPoint(file, "InterruptHandler", "IsrHandler");
             var irqHandler = FindEntryPoint(file, "InterruptHandler", "IrqHandler");
+            var malloc = FindEntryPoint(file, "BumpHeap", "Malloc");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -43,12 +44,18 @@ namespace GiawaOS
 
                 var assembler32 = new IL2Asm.Assembler.x86.Ver2.Assembler();
                 assembler32.AddAssembly(file);
+
+                var mallocHeader = new MethodHeader(file.Memory, file.Metadata, malloc);
+                var mallocMethod = new AssembledMethod(file.Metadata, mallocHeader, null);
+                assembler32.HeapAllocatorMethod = mallocMethod.ToAsmString().Replace(".", "_");
+
                 var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));
                 var isrHeader = new MethodHeader(file.Memory, file.Metadata, isrHandler);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, isrHeader, null));
                 var irqHeader = new MethodHeader(file.Memory, file.Metadata, irqHandler);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, irqHeader, null));
+                assembler32.Assemble(file, mallocMethod);
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);

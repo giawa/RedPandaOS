@@ -1051,7 +1051,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x72: LDSTR(assembly, pe.Metadata, code, ref i); break;
 
                     // NEWOBJ
-                    /*case 0x73: NEWOBJ(pe, assembly, code, ref i); break;*/
+                    case 0x73: NEWOBJ(pe, assembly, code, ref i); break;
 
                     // LDFLD
                     case 0x7B: LDFLD(assembly, pe.Metadata, code, ref i); break;
@@ -1809,6 +1809,8 @@ namespace IL2Asm.Assembler.x86.Ver2
             for (int b = 0; b < Math.Ceiling(sizeOfType / 4f); b++) assembly.AddAsm($"mov dword [eax+{b * 4}], 0");
         }
 
+        public string HeapAllocatorMethod { get; set; }
+
         private void NEWOBJ(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
         {
             var metadata = pe.Metadata;
@@ -1859,7 +1861,6 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     assembly.AddAsm("pop eax"); // function pointer
                     assembly.AddAsm("pop ebx"); // this (which is always null)
-
                 }
                 else
                 {
@@ -1871,6 +1872,69 @@ namespace IL2Asm.Assembler.x86.Ver2
                     _stack.Pop();
                 if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
                     _stack.Push(memberRef.MemberSignature.RetType);
+            }
+            else if ((methodDesc & 0xff000000) == 0x06000000)
+            {
+                var method = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
+                var parent = method.Parent;
+                int objSize = 0;
+                foreach (var f in parent.Fields)
+                {
+                    var fSize = _runtime.GetTypeSize(metadata, f.Type);
+                    if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
+                    objSize += fSize;
+                }
+
+                if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+                // first allocate the object using whatever heap allocator we have been provided
+                assembly.AddAsm($"push {objSize}");
+                assembly.AddAsm("push 0");
+                assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+                // eax should now contain the object pointer.  push it twice
+                // (once to use for the constructor THIS, and a second to recover the address)
+                assembly.AddAsm("push eax");
+                assembly.AddAsm("push eax");
+
+                _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
+                _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
+
+                // now the stack is ordered arg1, ..., argn, this, this
+                // the constructor needs this, arg1, ..., argn
+                // push all the arguments for the constructor again to reorder the stack
+                int argSize = 0;
+                foreach (var a in method.MethodSignature.Params)
+                {
+                    argSize += _runtime.GetTypeSize(metadata, a);
+                }
+                if ((argSize % 4) != 0) throw new Exception("Unsupported type");
+                for (int j = 0; j < argSize / 4; j++)
+                {
+                    assembly.AddAsm($"mov ebx, [esp+{argSize+4}]");
+                    assembly.AddAsm("push ebx");
+                }
+
+                // now the object is allocated, we need to call whatever constructor was given to us
+                i -= 4;
+                CALL(pe, assembly, code, ref i, true, false);
+
+                assembly.AddAsm("pop eax");
+                _stack.Pop();
+
+                // remove the args pushed by the calling method as we don't need them anymore
+                // (these are the args we duplicated above to call the constructor with the correct ordering)
+                for (int j = 0; j < argSize / 4; j++)
+                {
+                    assembly.AddAsm("pop ebx");
+                }
+                ebxType = null;
+
+                // eax was consumed by the call instruction, so push it again
+                assembly.AddAsm("push eax");
+
+                eaxType = new ElementType(ElementType.EType.Class, parent.Token);
+                _stack.Push(eaxType);
             }
             else throw new Exception("Unsupported");
         }
@@ -1970,6 +2034,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Pop();
                         _stack.Pop();
                         _stack.Push(new ElementType(ElementType.EType.Char));
+                    }
+                    else if (memberName == "System.Object..ctor_Void")
+                    {
+                        assembly.AddAsm("pop eax");
+                        eaxType = _stack.Pop();
                     }
                     else
                     {
