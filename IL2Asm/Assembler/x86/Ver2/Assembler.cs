@@ -1488,7 +1488,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 if (offset == 0) assembly.AddAsm("mov word [ebx], ax");
                 else assembly.AddAsm($"mov word [ebx + {offset}], ax");
             }
-            else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+            else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1 || type.Type == ElementType.EType.Boolean)
             {
                 if (offset == 0) assembly.AddAsm("mov byte [ebx], al");
                 else assembly.AddAsm($"mov byte [ebx + {offset}], al");
@@ -1544,7 +1544,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     /*if (offset == 0) assembly.AddAsm($"mov word ax, [ebp + {offset}]");
                     else assembly.AddAsm($"mov word ax, [ebx + {offset & 0x03}]");*/
                 }
-                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1 || type.Type == ElementType.EType.Boolean)
                 {
                     assembly.AddAsm("xor eax, eax");
                     assembly.AddAsm($"mov byte al, [esp + {offset}]");
@@ -1578,7 +1578,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     if (offset == 0) assembly.AddAsm("mov word ax, [ebx]");
                     else assembly.AddAsm($"mov word ax, [ebx + {offset}]");
                 }
-                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1)
+                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1 || type.Type == ElementType.EType.Boolean)
                 {
                     assembly.AddAsm("xor eax, eax");
                     if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
