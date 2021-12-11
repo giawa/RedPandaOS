@@ -27,6 +27,10 @@ namespace PELoader
 
         public TypeRefLayout BaseType { get; private set; }
 
+        public uint TypeDefOrRef { get { return typeDefOrRef; } }
+
+        public uint Token { get; internal set; }
+
         public TypeDefLayout(CLIMetadata metadata, ref int offset)
         {
             typeAttributes = BitConverter.ToUInt32(metadata.Table.Heap, offset);

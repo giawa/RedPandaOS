@@ -206,6 +206,7 @@ namespace PELoader
                     else if (bit == MetadataTable.TypeDef)
                     {
                         _typeDefs.Add(new TypeDefLayout(this, ref offset));
+                        _typeDefs[_typeDefs.Count - 1].Token = (uint)(0x02000000 | _typeDefs.Count);
                     }
                     else if (bit == MetadataTable.MethodDef)
                     {
