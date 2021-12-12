@@ -1113,7 +1113,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x98: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
 
                     // LDELEM_REF
-                    //case 0x9A: LDELEMA(assembly, pe.Metadata, code, ref i, true); break;
+                    case 0x9A: LDELEM(4, assembly, pe.Metadata, code, ref i); break;
 
                     // STELEM_I (native int)
                     case 0x9B: STELEM(4, assembly, pe.Metadata, code, ref i); break;
@@ -1129,6 +1129,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // STELEM_R4
                     case 0xA0: STELEM(4, assembly, pe.Metadata, code, ref i); break;
+
+                    // STELEM_REF
+                    case 0xA2: STELEM(4, assembly, pe.Metadata, code, ref i); break;
 
                     // STELEM
                     case 0xA4: STELEM(0, assembly, pe.Metadata, code, ref i); break;
@@ -1870,21 +1873,35 @@ namespace IL2Asm.Assembler.x86.Ver2
                 eaxType = null;
                 ebxType = null;
 
+                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                    _stack.Pop();
+
                 assembly.AddAsm($"; start {memberName} plug");
 
                 if (memberName == "System.Action..ctor_Void_Object_IntPtr")
                 {
-                    assembly.AddAsm("pop eax"); // function pointer
-                    assembly.AddAsm("pop ebx"); // this (which is always null)
+                    if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+                    assembly.AddAsm("push 4");
+                    assembly.AddAsm("push 0");
+                    assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+                    assembly.AddAsm("pop ebx");         // the function ptr
+                    assembly.AddAsm($"add esp, {BytesPerRegister}");    // the object ptr (normally null, we don't use this yet)
+                    assembly.AddAsm("mov [eax], ebx");  // the object only stores the function pointer
+                    assembly.AddAsm("push eax");
+
+                    _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
+
+                    //assembly.AddAsm("pop eax"); // function pointer
+                    //assembly.AddAsm("pop ebx"); // this (which is always null)
                 }
                 else
                 {
                     throw new Exception("Unable to handle this method");
                 }
                 assembly.AddAsm("; end plug");
-
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
-                    _stack.Pop();
+                
                 if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
                     _stack.Push(memberRef.MemberSignature.RetType);
             }
@@ -2096,6 +2113,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm("pop eax");
                         eaxType = _stack.Pop();
                     }
+                    else if (memberName == "System.Action.Invoke_Void")
+                    {
+                        assembly.AddAsm("pop eax");
+                        assembly.AddAsm("call [eax]");
+                        eaxType = _stack.Pop();
+                    }
                     else
                     {
                         throw new Exception("Unable to handle this method");
@@ -2136,30 +2159,40 @@ namespace IL2Asm.Assembler.x86.Ver2
                     }
 
                     string callsite = methodToCompile.ToAsmString().Replace(".", "_");
-                    if (ldftn) assembly.AddAsm($"push {callsite}");
-                    else assembly.AddAsm($"call {callsite}");
-
-                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                    if (ldftn)
                     {
-                        // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
-                        var sizeOfRetType = _runtime.GetTypeSize(metadata, methodDef.MethodSignature.RetType);
-                        for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
-                            assembly.AddAsm("push eax");
+                        assembly.AddAsm($"push {callsite}");
+                        _stack.Push(new ElementType(ElementType.EType.MethodSignature));
+                    }
+                    else
+                    {
+                        assembly.AddAsm($"call {callsite}");
+
+                        if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        {
+                            // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
+                            var sizeOfRetType = _runtime.GetTypeSize(metadata, methodDef.MethodSignature.RetType);
+                            for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
+                                assembly.AddAsm("push eax");
+                        }
                     }
                 }
 
-                for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
-                    _stack.Pop();
-                if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(methodDef.MethodSignature.RetType);
-
-                // eax and ebx may have been clobbered
-                eaxType = null;
-                ebxType = null;
-
-                if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                if (!ldftn)
                 {
-                    _stack.Pop();   // pop the object reference from the stack
+                    for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
+                        _stack.Pop();
+                    if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        _stack.Push(methodDef.MethodSignature.RetType);
+
+                    // eax and ebx may have been clobbered
+                    eaxType = null;
+                    ebxType = null;
+
+                    if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                    {
+                        _stack.Pop();   // pop the object reference from the stack
+                    }
                 }
             }
             else throw new Exception("Unhandled CALL target");

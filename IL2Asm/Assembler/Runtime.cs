@@ -105,6 +105,7 @@ namespace IL2Asm
                         case "Single": return new ElementType(ElementType.EType.R4);
                         case "Double": return new ElementType(ElementType.EType.R8);
                         case "String": return new ElementType(ElementType.EType.String);
+                        case "Action": return new ElementType(ElementType.EType.Class, typeToken);
                     }
                 }
 
@@ -209,7 +210,8 @@ namespace IL2Asm
                 type.Type == ElementType.EType.IntPtr ||
                 type.Type == ElementType.EType.UIntPtr ||
                 type.Type == ElementType.EType.SzArray ||
-                type.Type == ElementType.EType.MVar) // note: mvar might not actually be _bytesPerRegister, this is a hack for now
+                type.Type == ElementType.EType.MVar || // note: mvar might not actually be _bytesPerRegister, this is a hack for now
+                type.Type == ElementType.EType.Class) 
                 return _bytesPerRegister;
             else if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
             {
@@ -248,6 +250,11 @@ namespace IL2Asm
                             _typeSizes.Add(typeDef.FullName, size);
                             return size;
                         }
+                    }
+
+                    if (typeRef.Namespace == "System")
+                    {
+                        if (typeRef.Name == "Action") return 4;
                     }
 
                     if (pe.Metadata.ExportedTypes != null)
