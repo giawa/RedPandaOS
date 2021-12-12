@@ -99,6 +99,7 @@ namespace Kernel
 
             PIC.Init();
             PIC.SetIrqCallback(0, PIT.Tick);
+            PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
             PIT.Init(50);
 
             while (true) ;
