@@ -30,8 +30,8 @@ namespace IL2Asm.Assembler.x86
                 isrMethods.AddAsm("mov fs, ax");
                 isrMethods.AddAsm("mov gs, ax");
 
-                if (irqStub) isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IrqHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
-                else isrMethods.AddAsm("call Kernel_Interrupts_InterruptHandler_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
+                if (irqStub) isrMethods.AddAsm("call Kernel_Devices_PIC_IrqHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
+                else isrMethods.AddAsm("call Kernel_Devices_PIC_IsrHandler_Void_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4_U4");
 
                 isrMethods.AddAsm("pop eax");
                 isrMethods.AddAsm("mov ds, ax");

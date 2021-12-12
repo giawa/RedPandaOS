@@ -1,6 +1,5 @@
 ﻿using CPUHelper;
 using Kernel.Devices;
-using Kernel.Interrupts;
 using Runtime;
 using System.Runtime.InteropServices;
 
@@ -98,8 +97,9 @@ namespace Kernel
             VGA.WriteVideoMemoryString("CR0: 0x");
             VGA.WriteHex((int)CPU.ReadCR0());
 
-            InterruptHandler.Init();
-            Timer.Init(50);
+            PIC.Init();
+            PIC.SetIrqCallback(0, PIT.Tick);
+            PIT.Init(50);
 
             while (true) ;
         }

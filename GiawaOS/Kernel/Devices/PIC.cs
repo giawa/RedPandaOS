@@ -1,8 +1,9 @@
 ﻿using CPUHelper;
 using Kernel.Devices;
+using System;
 using System.Runtime.InteropServices;
 
-namespace Kernel.Interrupts
+namespace Kernel.Devices
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct IDT_Entry
@@ -14,14 +15,17 @@ namespace Kernel.Interrupts
         public ushort base_hi;
     }
 
-    public static class InterruptHandler
+    public static class PIC
     {
         private static IDT_Entry[] _idt_entries;
         private static CPU.IDTPointer _idt_ptr;
 
+        private static Action[] _irqHandlers;
+
         public static void Init()
         {
-            _idt_entries = new IDT_Entry[256];//Memory.BumpHeap.MallocArray<IDT_Entry>(256);
+            _idt_entries = new IDT_Entry[256];
+            _irqHandlers = new Action[16];
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
             _idt_ptr.address = Memory.BumpHeap.ObjectToPtr(_idt_entries) + 4;
@@ -61,6 +65,13 @@ namespace Kernel.Interrupts
             CPU.Sti();
         }
 
+        public static void SetIrqCallback(int irq, Action callback)
+        {
+            if (_irqHandlers == null || irq < 0 || irq >= _irqHandlers.Length) return;
+
+            _irqHandlers[irq] = callback;
+        }
+
         public static void IsrHandler(
             uint ss, uint useresp, uint eflags, uint cs, uint eip,
             uint err_code, uint int_no,
@@ -83,17 +94,19 @@ namespace Kernel.Interrupts
             }
             CPU.OutDxAl(0x20, 0x20);
 
-            if (int_no == 32) PIT.Tick();
+            if (_irqHandlers[int_no - 32] != null) _irqHandlers[int_no - 32]();
             else
             {
-                VGA.WriteVideoMemoryString("IRQ ");
+                VGA.WriteVideoMemoryString("Unhandled IRQ ");
                 VGA.WriteHex(int_no);
                 VGA.WriteVideoMemoryChar(' ');
             }
         }
 
-        // this is automatically populated by the assembler with the addresses of the ISR labels
+#pragma warning disable CS0649
+        // these are automatically populated by the assembler with the addresses of the ISR labels
         private static uint[] ISR_ADDRESSES;
         private static uint[] IRQ_ADDRESSES;
+#pragma warning restore CS0649
     }
 }
