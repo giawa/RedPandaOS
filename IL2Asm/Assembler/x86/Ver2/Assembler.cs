@@ -87,7 +87,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 assembly.AddAsm("push ebp");
                 assembly.AddAsm("mov ebp, esp");
 
-                if (method.LocalVars != null)
+                /*if (method.LocalVars != null)
                 {
                     int localVarCount = method.LocalVars.LocalVariables.Length;
                     if (localVarCount > 0)
@@ -100,7 +100,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm("push edx; localvar.1");
                         assembly.AddAsm("mov edx, 0");
                     }
-                }
+                }*/
             }
 
             if (method.LocalVars != null)
@@ -116,7 +116,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     if (!v.Is32BitCapable(pe.Metadata) && v.Type != ElementType.EType.R4) throw new Exception("Not supported yet");
 
                 int localVarCount = method.LocalVars.LocalVariables.Length;
-                for (int i = 2; i < localVarCount; i++)
+                for (int i = 0; i < localVarCount; i++)
                 {
                     assembly.AddAsm($"push 0; localvar.{i}");
                     _stack.Push(method.LocalVars.LocalVariables[i]);
@@ -229,21 +229,20 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x11: LDLOC(code[i++], assembly); break;
 
                     // LDLOCA.S
-                    /*case 0x12:
+                    case 0x12:
                         _byte = code[i++];
 
                         var locType = assembly.Method.LocalVars.LocalVariables[_byte];
 
                         if (locType.IsPointer())
                         {
-                            LDLOC(BytesPerRegister, assembly);
+                            LDLOCA(_byte, assembly);
                         }
                         else
                         {
                             throw new Exception("Unsupported");
                         }
-                        _stack.Push(new ElementType(ElementType.EType.ByRef));
-                        break;*/
+                        break;
 
                     // STLOC.S
                     case 0x13: STLOC(code[i++], assembly); break;
@@ -336,12 +335,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (method.LocalVars != null)
                         {
                             int localVarCount = method.LocalVars.LocalVariables.Length;
-                            for (int p = 2; p < localVarCount; p++)
+                            for (int p = 0; p < localVarCount; p++)
                             {
                                 assembly.AddAsm("pop ebx; localvar that was pushed on stack");
                             }
-                            if (localVarCount > 1) assembly.AddAsm("pop edx; localvar.1");
-                            if (localVarCount > 0) assembly.AddAsm("pop ecx; localvar.0");
+                            //if (localVarCount > 1) assembly.AddAsm("pop edx; localvar.1");
+                            //if (localVarCount > 0) assembly.AddAsm("pop ecx; localvar.0");
                             //if (localVarCount > 2) PopStack(localVarCount - 2);   // don't pop the stack because there can be multiple RET per method
                         }
 
@@ -1291,7 +1290,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
             }
 
-            if (_stack.Count > 0 && _stack.Count != (method.LocalVars?.LocalVariables.Length - 2 ?? 0))
+            if (_stack.Count > 0 && _stack.Count != (method.LocalVars?.LocalVariables.Length ?? 0))
                 throw new Exception("Unbalanced stack");
             _stack.Clear();
 
@@ -1329,13 +1328,14 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void STLOC(byte b, AssembledMethod assembly)
         {
-            if (b == 0) assembly.AddAsm("pop ecx");
+            /*if (b == 0) assembly.AddAsm("pop ecx");
             else if (b == 1) assembly.AddAsm("pop edx");
-            else
+            else*/
             {
                 assembly.AddAsm("pop eax");
-                if (_methods.Count <= 1) assembly.AddAsm($"mov [ebp - {(b + 1 - 2) * BytesPerRegister}], eax");
-                else assembly.AddAsm($"mov [ebp - {(b + 1) * BytesPerRegister}], eax");
+                /*if (_methods.Count <= 1) assembly.AddAsm($"mov [ebp - {(b + 1 - 2) * BytesPerRegister}], eax");
+                else*/
+                assembly.AddAsm($"mov [ebp - {(b + 1) * BytesPerRegister}], eax");
             }
             if (b > 1) eaxType = _stack.Pop();
             else _stack.Pop();
@@ -1343,15 +1343,25 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDLOC(byte b, AssembledMethod assembly)
         {
-            if (b == 0) assembly.AddAsm("push ecx");
-            else if (b == 1) assembly.AddAsm("push edx");
-            else
+            //if (b == 0) assembly.AddAsm("push ecx");
+            //else if (b == 1) assembly.AddAsm("push edx");
+            //else
             {
-                if (_methods.Count <= 1) assembly.AddAsm($"mov eax, [ebp - {(b + 1 - 2) * BytesPerRegister}]");
-                else assembly.AddAsm($"mov eax, [ebp - {(b + 1) * BytesPerRegister}]");
+                /*if (_methods.Count <= 1) assembly.AddAsm($"mov eax, [ebp - {(b + 1 - 2) * BytesPerRegister}]");
+                else*/
+                assembly.AddAsm($"mov eax, [ebp - {(b + 1) * BytesPerRegister}]");
                 assembly.AddAsm("push eax");
                 eaxType = assembly.Method.LocalVars.LocalVariables[b];
             }
+            _stack.Push(assembly.Method.LocalVars.LocalVariables[b]);
+        }
+
+        private void LDLOCA(byte b, AssembledMethod assembly)
+        {
+            assembly.AddAsm($"mov eax, ebp");
+            assembly.AddAsm($"sub eax, {(b + 1) * BytesPerRegister}");
+            assembly.AddAsm("push eax");
+            eaxType = assembly.Method.LocalVars.LocalVariables[b];
             _stack.Push(assembly.Method.LocalVars.LocalVariables[b]);
         }
 
