@@ -26,6 +26,7 @@ namespace PELoader
         public string Namespace { get; private set; }
 
         public TypeRefLayout BaseType { get; private set; }
+        public TypeDefLayout Inherits { get; private set; }
 
         public uint TypeDefOrRef { get { return typeDefOrRef; } }
 
@@ -130,6 +131,19 @@ namespace PELoader
             }
 
             if ((typeDefOrRef & 0xff000000) == 0x01000000) BaseType = metadata.TypeRefs[(int)(typeDefOrRef & 0x00ffffff) - 1];
+            else if ((typeDefOrRef & 0xff000000) == 0x02000000 && typeDefOrRef != 0x02000000) Inherits = metadata.TypeDefs[(int)(typeDefOrRef & 0x00ffffff) - 1];
+        }
+
+        private bool _foundInheritedFields = false;
+
+        public void FindInheritedFieldsAndMethods(CLIMetadata metadata)
+        {
+            if (Inherits == null) return;
+            if (!Inherits._foundInheritedFields) Inherits.FindInheritedFieldsAndMethods(metadata);
+
+            foreach (var f in Inherits.Fields) Fields.Insert(0, f);
+            foreach (var m in Inherits.Methods) Methods.Insert(0, m);
+            foreach (var p in Inherits.Properties) Properties.Insert(0, p);
         }
 
         public string FullName
