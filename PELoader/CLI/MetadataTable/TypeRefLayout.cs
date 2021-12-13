@@ -58,6 +58,11 @@ namespace PELoader
             Namespace = metadata.GetString(typeNamespace);
         }
 
+        public string FullName
+        {
+            get { return $"{Namespace}.{Name}"; }
+        }
+
         public override string ToString()
         {
             return $"{Namespace}.{Name}";

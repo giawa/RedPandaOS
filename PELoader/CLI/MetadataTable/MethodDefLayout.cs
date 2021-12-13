@@ -141,6 +141,19 @@ namespace PELoader
             return $"{Parent.FullName}.{Name}";
         }
 
+        public string ToAsmString(GenericInstSig genericSig)
+        {
+            var asm = ToAsmString();
+
+            if (asm.Contains("`1") && genericSig != null)
+            {
+                //if (genericSig == null) throw new Exception("Name looked generic but no generic sig was found");
+                asm = asm.Replace("`1", $"_{genericSig.Params[0]}");
+            }
+
+            return asm;
+        }
+
         public string ToAsmString()
         {
             StringBuilder sb = new StringBuilder(ToString().Replace(".", "_"));
@@ -157,6 +170,37 @@ namespace PELoader
             }
 
             return sb.ToString();
+        }
+
+        public bool IsEquivalent(MemberRefLayout memberRef, TypeSpecLayout typeSpec)
+        {
+            if (typeSpec == null || memberRef == null) return false;
+            if (Parent.Token != typeSpec.Parent || Name != memberRef.Name) return false;
+            return memberRef.MemberSignature.IsEquivalent(MethodSignature);
+        }
+
+        private MethodDefLayout() { }
+
+        public MethodDefLayout Clone(CLIMetadata metadata)
+        {
+            MethodDefLayout methodDef = new MethodDefLayout();
+
+            methodDef.RVA = this.RVA;
+            methodDef.name = this.name;
+            methodDef.signature = this.signature;
+            methodDef.paramList = this.paramList;
+            methodDef.endOfParamList = this.endOfParamList;
+            methodDef.Name = this.Name;
+            methodDef.ImplFlags = this.ImplFlags;
+            methodDef.Flags = this.Flags;
+            methodDef.Parent = this.Parent;
+
+            methodDef.Params = new List<ParamLayout>(this.Params);
+            methodDef.Attributes = new List<CustomAttributeLayout>(this.Attributes);
+
+            methodDef.MethodSignature = new MethodRefSig(metadata, signature);
+
+            return methodDef;
         }
     }
 }

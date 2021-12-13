@@ -184,11 +184,11 @@ namespace PELoader
         public bool IsPointer()
         {
             var lowerByte = (EType)((uint)Type & 0xff);
-            return (lowerByte == EType.ByRefValueType || lowerByte == EType.Class || lowerByte == EType.Ptr || 
+            return (lowerByte == EType.ByRefValueType || lowerByte == EType.Class || lowerByte == EType.Ptr ||
                 lowerByte == EType.Object || lowerByte == EType.ByRef || lowerByte == EType.GenericInst || lowerByte == EType.String);
         }
 
-        public static bool operator==(ElementType e1, ElementType e2)
+        public static bool operator ==(ElementType e1, ElementType e2)
         {
             if (object.ReferenceEquals(e1, null) || object.ReferenceEquals(e2, null)) return false;
 
@@ -213,10 +213,21 @@ namespace PELoader
         public ElementType RetType { get; private set; }
         public ElementType[] Params { get; private set; }
 
+        public MethodRefSig(byte[] data, int offset)
+        {
+            ParseSignature(data, offset);
+        }
+
         public MethodRefSig(CLIMetadata metadata, uint addr)
         {
             var blob = metadata.GetBlob(addr);
-            var data = CLIMetadata.DecompressUnsignedSignature(blob, 1);    // first byte is the flags
+
+            ParseSignature(blob, 0);
+        }
+
+        private void ParseSignature(byte[] blob, int offset)
+        {
+            var data = CLIMetadata.DecompressUnsignedSignature(blob, offset + 1);    // first byte is the flags
 
             if (blob[0] == 0x06)
             {
@@ -237,7 +248,7 @@ namespace PELoader
                     GenParamCount = data[i++];
 
                 ParamCount = data[i++];
-                
+
                 RetType = new ElementType(data, ref i);
 
                 if (ParamCount > 0)
@@ -247,6 +258,37 @@ namespace PELoader
                     {
                         Params[p] = new ElementType(data, ref i);
                     }
+                }
+            }
+        }
+
+        public bool IsEquivalent(MethodRefSig other)
+        {
+            if (other.Flags != Flags) return false;
+            if (other.GenParamCount != GenParamCount) return false;
+            if (other.ParamCount != ParamCount) return false;
+            if (other.RetType != RetType) return false;
+            for (int i = 0; i < ParamCount; i++)
+                if (other.Params[i] != Params[i]) return false;
+            return true;
+        }
+
+        public void Override(GenericInstSig sig)
+        {
+            if (sig.Params.Length == 0) return;
+
+            if (RetType.Type == ElementType.EType.Var || RetType.Type == ElementType.EType.MVar)
+            {
+                RetType = sig.Params[0];
+                return;
+            }
+
+            for (int i = 0; i < ParamCount; i++)
+            {
+                if (Params[i].Type == ElementType.EType.Var || Params[i].Type == ElementType.EType.MVar)
+                {
+                    Params[i] = sig.Params[0];
+                    return;
                 }
             }
         }
@@ -383,6 +425,22 @@ namespace PELoader
             }
 
             return sb.ToString();
+        }
+
+        private MemberRefLayout(CLIMetadata metadata, MemberRefLayout original)
+        {
+            _parent = original._parent;
+            classIndex = original.classIndex;
+            nameAddr = original.nameAddr;
+            signature = original.signature;
+            Parent = original.Parent;
+            Name = original.Name;
+            MemberSignature = new MethodRefSig(metadata, signature);
+        }
+
+        public MemberRefLayout Clone(CLIMetadata metadata)
+        {
+            return new MemberRefLayout(metadata, this);
         }
     }
 }
