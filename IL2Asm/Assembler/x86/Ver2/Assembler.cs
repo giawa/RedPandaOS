@@ -1968,7 +1968,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     throw new Exception("Unable to handle this method");
                 }
                 assembly.AddAsm("; end plug");
-                
+
                 if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
                     _stack.Push(memberRef.MemberSignature.RetType);
             }
@@ -2397,8 +2397,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     if (data.Value.Type.Type == ElementType.EType.String)
                     {
+                        var s = (string)data.Value.Data;
+                        if (s.Contains("'")) s = s.Replace("'", "', 39, '");    // triggers end of string literal in nasm, so needs to be escaped
+                        if (s.Contains(";")) s = s.Replace(";", "', 59, '");    // triggers a comment in nasm, so needs to be escaped
+                        if (s.Contains("'', ")) s = s.Replace("'', ", "");      // can happen when ' is next to ; and they both got escaped
                         output.Add($"{data.Key}:");
-                        output.Add($"    db '{data.Value.Data}', 0");  // 0 for null termination after the string
+                        output.Add($"    db '{s}', 0");  // 0 for null termination after the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I4)
                     {
