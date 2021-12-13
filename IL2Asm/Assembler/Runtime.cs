@@ -67,7 +67,12 @@ namespace IL2Asm
 
         public ElementType GetType(CLIMetadata metadata, uint typeToken)
         {
-            if ((typeToken & 0xff000000) == 0x02000000)
+            if ((typeToken & 0xff000000) == 0x1b000000)
+            {
+                var typeSpec = metadata.TypeSpecs[(int)(typeToken & 0x00ffffff) - 1];
+                return typeSpec.Type;
+            }
+            else if ((typeToken & 0xff000000) == 0x02000000)
             {
                 var type = metadata.TypeDefs[(int)(typeToken & 0x00ffffff) - 1];
 

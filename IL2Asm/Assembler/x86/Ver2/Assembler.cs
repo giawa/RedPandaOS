@@ -1059,6 +1059,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Push(eaxType);
                         break;
 
+                    // LDOBJ
+                    //case 0x71: LDOBJ(assembly, pe.Metadata, code, ref i); break;
+
                     // LDSTR
                     case 0x72: LDSTR(assembly, pe.Metadata, code, ref i); break;
 
@@ -1082,6 +1085,12 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // STSFLD
                     case 0x80: STSFLD(assembly, pe.Metadata, code, ref i); break;
+
+                    // STOBJ
+                    case 0x81: STOBJ(assembly, pe.Metadata, code, ref i); break;
+
+                    // BOX
+                    case 0x8C: BOX(assembly, pe.Metadata, code, ref i); break;
 
                     // NEWARR
                     case 0x8D: NEWARR(pe, assembly, code, ref i); break;
@@ -1511,7 +1520,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _stack.Pop();
             ebxType = _stack.Pop();
 
-            if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType && ebxType.Type != ElementType.EType.Object)
+            if (!ebxType.Is32BitCapable(metadata))
                 throw new Exception("Unsupported type");
             if (!IsEquivalentType(eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
                 throw new Exception("Mismatched types");
@@ -1600,7 +1609,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             else
             {
-                if (ebxType.Type != ElementType.EType.ByRef && ebxType.Type != ElementType.EType.ByRefValueType && ebxType.Type != ElementType.EType.Object)
+                if (!ebxType.Is32BitCapable(metadata))
                     throw new Exception("Unsupported type");
 
                 assembly.AddAsm("pop ebx");
@@ -1702,6 +1711,67 @@ namespace IL2Asm.Assembler.x86.Ver2
                 assembly.AddAsm($"mov [{label}], eax");
             }
         }
+
+        private void BOX(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint token = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            var type = _runtime.GetType(metadata, token);
+            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                type = assembly.GenericInstSig.Params[0];
+
+            if (_stack.Peek() != type) throw new Exception("Unsupported type");
+
+            // if the types match then there's nothing to do
+        }
+
+        private void STOBJ(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint token = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            var type = _runtime.GetType(metadata, token);
+            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                type = assembly.GenericInstSig.Params[0];
+            var typeSize = _runtime.GetTypeSize(metadata, type);
+
+            //if ((typeSize % 4) != 0) throw new Exception("Unsupported type");
+
+            assembly.AddAsm("pop eax"); // the thing to copy
+            assembly.AddAsm("pop ebx"); // the address to copy it to
+
+            eaxType = _stack.Pop();
+            ebxType = _stack.Pop();
+
+            if (!ebxType.IsPointer()) throw new Exception("ebx should have been a pointer");
+
+            //for (int b = 0; b < Math.Ceiling(typeSize / 4f); b++)
+            //    assembly.AddAsm($"mov [ebx+{b * BytesPerRegister}], [eax+{b * BytesPerRegister}]");
+            assembly.AddAsm("mov [ebx], eax");
+        }
+
+        /*private void LDOBJ(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        {
+            uint token = BitConverter.ToUInt32(code, i);
+            i += 4;
+
+            var type = _runtime.GetType(metadata, token);
+            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                type = assembly.GenericInstSig.Params[0];
+            var typeSize = _runtime.GetTypeSize(metadata, type);
+
+            if ((typeSize % 4) != 0) throw new Exception("Unsupported type");
+
+            assembly.AddAsm("pop eax"); // the thing to copy
+            assembly.AddAsm("pop ebx"); // the address to copy it to
+
+            for (int b = 0; b < Math.Ceiling(typeSize / 4f); b++)
+                assembly.AddAsm($"mov [ebx+{b * BytesPerRegister}], [eax+{b * BytesPerRegister}]");
+
+            eaxType = _stack.Pop();
+            ebxType = _stack.Pop();
+        }*/
 
         private bool IsEquivalentType(ElementType type1, ElementType type2)
         {
@@ -1886,10 +1956,13 @@ namespace IL2Asm.Assembler.x86.Ver2
             var type = _runtime.GetType(metadata, BitConverter.ToUInt32(code, i));
             i += 4;
 
+            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                type = assembly.GenericInstSig.Params[0];
+
             eaxType = _stack.Pop();
             assembly.AddAsm("pop eax");
 
-            if (eaxType.Type != ElementType.EType.ByRefValueType) throw new Exception("Unsupported type");
+            if (eaxType.Type != ElementType.EType.ByRefValueType && eaxType.Type != ElementType.EType.ByRef) throw new Exception("Unsupported type");
 
             var sizeOfType = _runtime.GetTypeSize(metadata, type);
 
@@ -1995,7 +2068,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 foreach (var f in parent.Fields)
                 {
                     var fSize = _runtime.GetTypeSize(metadata, f.Type);
-                    if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
+                    //if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
                     objSize += fSize;
                 }
 
@@ -2233,7 +2306,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                     {
-                        int size = _runtime.GetTypeSize(metadata, methodSpec.MemberSignature.Types[0]);
+                        var type = methodSpec.MemberSignature.Types[0];
+                        if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                            type = assembly.GenericInstSig.Params[0];
+                        int size = _runtime.GetTypeSize(metadata, type);
                         assembly.AddAsm($"push {size}");
                     }
                     else if (memberName == "System.String.get_Chars_Char_I4")
