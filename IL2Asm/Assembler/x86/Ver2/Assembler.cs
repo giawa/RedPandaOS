@@ -236,16 +236,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         if (locType.IsPointer())
                         {
-                            if (_byte == 0) assembly.AddAsm("push ecx");
-                            else if (_byte == 1) assembly.AddAsm("push edx");
-                            else
-                            {
-                                //assembly.AddAsm("mov eax, ebp");
-                                //assembly.AddAsm($"sub eax, {BytesPerRegister * (_byte + 1)}");
-                                assembly.AddAsm($"mov eax, [ebp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
-                                assembly.AddAsm("push eax");
-                                eaxType = new ElementType(ElementType.EType.ByRef);
-                            }
+                            LDLOC(BytesPerRegister, assembly);
                         }
                         else
                         {
@@ -1147,6 +1138,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // STELEM_REF
                     case 0xA2: STELEM(4, assembly, pe.Metadata, code, ref i); break;
 
+                    // LDELEM
+                    case 0xA3: LDELEM(0, assembly, pe.Metadata, code, ref i); break;
+
                     // STELEM
                     case 0xA4: STELEM(0, assembly, pe.Metadata, code, ref i); break;
 
@@ -1686,10 +1680,20 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (!labelType.Is32BitCapable(metadata)) throw new Exception("Unsupported type");
 
             eaxType = _stack.Pop();
-            if (!IsEquivalentType(labelType, eaxType)) throw new Exception("Mismatched types");
-
-            assembly.AddAsm($"pop eax");
-            assembly.AddAsm($"mov [{label}], eax");
+            if (!IsEquivalentType(labelType, eaxType))
+            {
+                if (labelType.Type == ElementType.EType.Boolean && eaxType.Type == ElementType.EType.I4)
+                {
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm($"mov byte [{label}], al");
+                }
+                else throw new Exception("Unsupported type");
+            }
+            else
+            {
+                assembly.AddAsm($"pop eax");
+                assembly.AddAsm($"mov [{label}], eax");
+            }
         }
 
         private bool IsEquivalentType(ElementType type1, ElementType type2)
@@ -1745,8 +1749,26 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             else
             {
-                assembly.AddAsm($"mov eax, [{label}]");
-                assembly.AddAsm($"push eax");
+                var size = _runtime.GetTypeSize(metadata, eaxType);
+
+                if (size == 4)
+                {
+                    assembly.AddAsm($"mov eax, [{label}]");
+                    assembly.AddAsm($"push eax");
+                }
+                else if (size == 2)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    assembly.AddAsm($"mov word ax, [{label}]");
+                    assembly.AddAsm("push eax");
+                }
+                else if (size == 1)
+                {
+                    assembly.AddAsm("xor eax, eax");
+                    assembly.AddAsm($"mov byte al, [{label}]");
+                    assembly.AddAsm("push eax");
+                }
+                else throw new Exception("Unsupported type");
             }
         }
 
@@ -1790,6 +1812,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             switch (type.Type)
             {
+                case ElementType.EType.Boolean:
                 case ElementType.EType.U1: _initializedData.Add(label, new DataType(type, (byte)0)); break;
                 case ElementType.EType.I1: _initializedData.Add(label, new DataType(type, (sbyte)0)); break;
                 case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
@@ -2397,7 +2420,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         output.Add($"{data.Key}:");
                         output.Add($"    dw {(ushort)data.Value.Data}");
                     }
-                    else if (data.Value.Type.Type == ElementType.EType.U1)
+                    else if (data.Value.Type.Type == ElementType.EType.U1 || data.Value.Type.Type == ElementType.EType.Boolean)
                     {
                         output.Add($"{data.Key}:");
                         output.Add($"    db {(byte)data.Value.Data}");
