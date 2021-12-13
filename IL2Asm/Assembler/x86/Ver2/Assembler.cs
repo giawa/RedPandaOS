@@ -659,7 +659,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
-                        assembly.AddAsm("cmp ebx, 0");    // compare values
+                        assembly.AddAsm("cmp eax, 0");    // compare values
                         assembly.AddAsm($"je {_jmpLabel}");
                         eaxType = _stack.Pop();
                         break;
@@ -673,7 +673,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
-                        assembly.AddAsm("cmp ebx, 0");    // compare values
+                        assembly.AddAsm("cmp eax, 0");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
                         eaxType = _stack.Pop();
                         break;
