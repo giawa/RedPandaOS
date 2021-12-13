@@ -33,9 +33,16 @@ namespace Kernel.Memory
             // nop for now
         }
 
-        public static T Malloc<T>() where T : new()
+        public static T Malloc<T>()
         {
             uint size = (uint)Marshal.SizeOf<T>();
+            uint addr = Malloc(size);
+
+            return PtrToObject<T>(addr);
+        }
+
+        public static T Malloc<T>(uint size)
+        {
             uint addr = Malloc(size);
 
             return PtrToObject<T>(addr);
