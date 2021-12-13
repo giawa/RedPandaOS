@@ -298,9 +298,16 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // POP
                     case 0x26:
-                        var sizeOf = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
-                        if (sizeOf % 4 != 0) throw new Exception("Unsupported type");
-                        for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
+                        {
+                            assembly.AddAsm("pop eax");
+                        }
+                        else
+                        {
+                            var sizeOf = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
+                            if ((sizeOf % 4) != 0) throw new Exception("Unsupported type");
+                            for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
+                        }
                         eaxType = _stack.Pop();
                         break;
 
@@ -2335,17 +2342,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
                         _stack.Pop();
+
+                    if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                    {
+                        _stack.Pop();   // pop the object reference from the stack
+                    }
+
                     if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
                         _stack.Push(methodDef.MethodSignature.RetType);
 
                     // eax and ebx may have been clobbered
                     eaxType = null;
                     ebxType = null;
-
-                    if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
-                    {
-                        _stack.Pop();   // pop the object reference from the stack
-                    }
                 }
             }
             else throw new Exception("Unhandled CALL target");
