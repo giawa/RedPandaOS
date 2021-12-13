@@ -76,6 +76,13 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (_methods.Count > 1)
             {
                 string label = assembly.ToAsmString();
+
+                if (label.Contains("`1"))
+                {
+                    if (assembly.GenericInstSig == null) throw new Exception("Name looked generic but no generic sig was found");
+                    label = label.Replace("`1", $"_{assembly.GenericInstSig.Params[0].Type}");
+                }
+
                 assembly.AddAsm($"{label}:");
                 assembly.AddAsm("push ebp");
                 assembly.AddAsm("mov ebp, esp");
@@ -98,6 +105,13 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (method.LocalVars != null)
             {
+                for (int v = 0; v < method.LocalVars.LocalVariables.Length; v++)
+                {
+                    var lvar = method.LocalVars.LocalVariables[v];
+                    if (lvar.Type == ElementType.EType.Var || lvar.Type == ElementType.EType.MVar)
+                        method.LocalVars.LocalVariables[v] = assembly.GenericInstSig.Params[0];
+                }
+
                 foreach (var v in method.LocalVars.LocalVariables)
                     if (!v.Is32BitCapable(pe.Metadata) && v.Type != ElementType.EType.R4) throw new Exception("Not supported yet");
 
@@ -1366,6 +1380,18 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (eaxType.Type != ElementType.EType.SzArray /*|| !eaxType.NestedType.Is32BitCapable(metadata)*/) throw new Exception("Unsupported type");
 
+            // replace var/mvar with appropriate type (hack for now)
+            if (eaxType.NestedType.Type == ElementType.EType.Var || eaxType.NestedType.Type == ElementType.EType.MVar)
+            {
+                var varType = BitConverter.ToUInt32(code, i);   // TODO:  Actually look this up in the metadata
+                i += 4;
+
+                if (assembly.GenericInstSig != null)
+                {
+                    eaxType.NestedType = assembly.GenericInstSig.Params[0];
+                }
+            }
+
             var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
             if (sizeInBytes != 0 && sizePerElement != sizeInBytes) throw new Exception("Unsupported type");
 
@@ -1392,6 +1418,18 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _stack.Pop(); // the array (esp+4)
 
             if (eaxType.Type != ElementType.EType.SzArray /*|| !eaxType.NestedType.Is32BitCapable(metadata)*/) throw new Exception("Unsupported type");
+
+            // replace var/mvar with appropriate type (hack for now)
+            if (eaxType.NestedType.Type == ElementType.EType.Var || eaxType.NestedType.Type == ElementType.EType.MVar)
+            {
+                var varType = BitConverter.ToUInt32(code, i);   // TODO:  Actually look this up in the metadata
+                i += 4;
+
+                if (assembly.GenericInstSig != null)
+                {
+                    eaxType.NestedType = assembly.GenericInstSig.Params[0];
+                }
+            }
 
             var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
             if (sizeInBytes != 0 && sizePerElement != sizeInBytes) throw new Exception("Unsupported type");
@@ -1593,7 +1631,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("push eax");
 
             //ebxType = _stack.Pop();
-            eaxType = _runtime.GetFieldType(metadata, fieldToken);
+            eaxType = type;
             _stack.Push(eaxType);
         }
 
@@ -1673,6 +1711,9 @@ namespace IL2Asm.Assembler.x86.Ver2
             string label = GetStaticLabel(addr, metadata);
 
             if (!_initializedData.ContainsKey(label)) AddStaticField(metadata, label, addr);
+            var labelType = _initializedData[label].Type;
+
+            //if (!labelType.Is32BitCapable(metadata)) throw new Exception("Unsupported type");
 
             eaxType = _initializedData[label].Type;
             _stack.Push(eaxType);
@@ -1863,6 +1904,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                 generic = methodSpec.MemberSignature.ToAsmString();
             }
 
+            var genericOverride = GetNonGenericEquivalent(metadata, methodDesc);
+            if (genericOverride.Item2 != null) methodDesc = genericOverride.Item1;
+
             if ((methodDesc & 0xff000000) == 0x0a000000)
             {
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
@@ -1908,6 +1952,14 @@ namespace IL2Asm.Assembler.x86.Ver2
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
                 var method = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
+
+                // if we have a generic override then clone this memberref and replace values of mvar or var with the known parameter
+                if (genericOverride.Item2 != null)
+                {
+                    method = method.Clone(metadata);
+                    method.MethodSignature.Override(genericOverride.Item2);
+                }
+
                 var parent = method.Parent;
                 int objSize = 0;
                 foreach (var f in parent.Fields)
@@ -1936,15 +1988,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                 // the constructor needs this, arg1, ..., argn
                 // push all the arguments for the constructor again to reorder the stack
                 int argSize = 0;
-                foreach (var a in method.MethodSignature.Params)
+                if (method.MethodSignature.ParamCount > 0)
                 {
-                    argSize += _runtime.GetTypeSize(metadata, a);
-                }
-                if ((argSize % 4) != 0) throw new Exception("Unsupported type");
-                for (int j = 0; j < argSize / 4; j++)
-                {
-                    assembly.AddAsm($"mov ebx, [esp+{argSize+4}]");
-                    assembly.AddAsm("push ebx");
+                    foreach (var a in method.MethodSignature.Params)
+                    {
+                        argSize += _runtime.GetTypeSize(metadata, a);
+                    }
+                    if ((argSize % 4) != 0) throw new Exception("Unsupported type");
+                    for (int j = 0; j < argSize / 4; j++)
+                    {
+                        assembly.AddAsm($"mov ebx, [esp+{argSize + 4}]");
+                        assembly.AddAsm("push ebx");
+                    }
                 }
 
                 // now the object is allocated, we need to call whatever constructor was given to us
@@ -1978,9 +2033,25 @@ namespace IL2Asm.Assembler.x86.Ver2
             uint typeDesc = BitConverter.ToUInt32(code, i);
             i += 4;
 
-            if ((typeDesc & 0xff000000) != 0x01000000 && (typeDesc & 0xff000000) != 0x02000000) throw new Exception("Unsupported type");
+            ElementType arrayType;
 
-            var arrayType = _runtime.GetType(metadata, typeDesc);
+            if ((typeDesc & 0xff000000) == 0x1b000000)
+            {
+                var typeSpec = pe.Metadata.TypeSpecs[(int)(typeDesc & 0x00ffffff) - 1];
+
+                if (typeSpec.Type.Type == ElementType.EType.Var || typeSpec.Type.Type == ElementType.EType.MVar)
+                {
+                    if (assembly.GenericInstSig == null) throw new Exception("Got var or mvar when GenericInstSig was null");
+                    arrayType = assembly.GenericInstSig.Params[0];
+                }
+                else arrayType = typeSpec.Type;
+            }
+            else
+            {
+                if ((typeDesc & 0xff000000) != 0x01000000 && (typeDesc & 0xff000000) != 0x02000000) throw new Exception("Unsupported type");
+
+                arrayType = _runtime.GetType(metadata, typeDesc);
+            }
             var typeSize = _runtime.GetTypeSize(metadata, arrayType);
 
             if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
@@ -2037,6 +2108,31 @@ namespace IL2Asm.Assembler.x86.Ver2
             return false;
         }
 
+        private (uint, GenericInstSig) GetNonGenericEquivalent(CLIMetadata metadata, uint token)
+        {
+            if ((token & 0xff000000) == 0x0a000000)
+            {
+                var memberRef = metadata.MemberRefs[(int)(token & 0x00ffffff) - 1];
+
+                if ((memberRef.Parent & 0xff000000) == 0x1b000000)
+                {
+                    var typeSpec = metadata.TypeSpecs[(int)(memberRef.Parent & 0x00ffffff) - 1];
+
+                    for (uint j = 0; j < metadata.MethodDefs.Count; j++)
+                    {
+                        var methodDef = metadata.MethodDefs[(int)j];
+                        if (methodDef.IsEquivalent(memberRef, typeSpec))
+                        {
+                            if (typeSpec.GenericSig.Params.Length > 1) throw new Exception("Currently we only support a single generic argument");
+                            return ((0x06000000 | (j + 1)), typeSpec.GenericSig);
+                        }
+                    }
+                }
+            }
+
+            return (token, null);
+        }
+
         private void CALL(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, bool callvirt = false, bool ldftn = false)
         {
             var metadata = pe.Metadata;
@@ -2069,6 +2165,22 @@ namespace IL2Asm.Assembler.x86.Ver2
                     }
                 }
                 generic = methodSpec.MemberSignature.ToAsmString();
+            }
+
+            var genericOverride = GetNonGenericEquivalent(metadata, methodDesc);
+            if (genericOverride.Item2 != null)
+            {
+                methodDesc = genericOverride.Item1;
+
+                if (assembly.GenericInstSig != null)
+                {
+                    if (genericOverride.Item2.Params.Length == 1 && genericOverride.Item2.Params.Length == 1 &&
+                        (genericOverride.Item2.Params[0].Type == ElementType.EType.Var || genericOverride.Item2.Params[0].Type == ElementType.EType.MVar))
+                    {
+                        // this is a generic method being called a generic method, so we pass along the generic signature
+                        genericOverride = (genericOverride.Item1, assembly.GenericInstSig);
+                    }
+                }
             }
 
             if ((methodDesc & 0xff000000) == 0x0a000000)
@@ -2134,31 +2246,49 @@ namespace IL2Asm.Assembler.x86.Ver2
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
                 var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
+
+                // if we have a generic override then clone this memberref and replace values of mvar or var with the known parameter
+                if (genericOverride.Item2 != null)
+                {
+                    methodDef = methodDef.Clone(metadata);
+                    methodDef.MethodSignature.Override(genericOverride.Item2);
+                }
+
                 var memberName = methodDef.ToAsmString();
 
                 if (!CheckForPlugAndInvoke(pe.Filename, memberName, assembly))
                 {
-                    if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
+                    //if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
+                    memberName = methodDef.ToAsmString(genericOverride.Item2);
 
                     bool methodAlreadyCompiled = false;
                     foreach (var method in _methods)
-                        if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
+                        if (method.Method != null && method.Method.MethodDef.ToAsmString(method.GenericInstSig) == memberName)
                             methodAlreadyCompiled = true;
 
                     var methodHeaderToCompile = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
-                    var methodToCompile = new AssembledMethod(metadata, methodHeaderToCompile, methodSpec);
+                    var methodToCompile = new AssembledMethod(metadata, methodHeaderToCompile, methodSpec, genericOverride.Item2);
 
                     if (!methodAlreadyCompiled)
                     {
                         bool methodWaitingToCompile = false;
+
                         foreach (var method in _methodsToCompile)
-                            if (method.Method.MethodDef == methodDef && method.MethodSpec == methodSpec)
+                            if (method.Method.MethodDef.ToAsmString(method.GenericInstSig) == memberName && method.MethodSpec == methodSpec)
                                 methodWaitingToCompile = true;
+
                         if (!methodWaitingToCompile)
                             _methodsToCompile.Add(methodToCompile);
                     }
 
                     string callsite = methodToCompile.ToAsmString().Replace(".", "_");
+
+                    if (callsite.Contains("`1"))
+                    {
+                        if (genericOverride.Item2 == null) throw new Exception("Name looked generic but no generic sig was found");
+                        callsite = callsite.Replace("`1", $"_{genericOverride.Item2.Params[0].Type}");
+                    }
+
                     if (ldftn)
                     {
                         assembly.AddAsm($"push {callsite}");

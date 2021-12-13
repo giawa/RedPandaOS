@@ -45,8 +45,8 @@ namespace IL2Asm
 
                 PortableExecutableFile pe = null;
 
-                foreach (var a in _assemblies) 
-                    if (a.Filename == path + $"/{assemblyRef.Name}.dll" || 
+                foreach (var a in _assemblies)
+                    if (a.Filename == path + $"/{assemblyRef.Name}.dll" ||
                         a.Filename == path + $"/publish/{assemblyRef.Name}.dll" ||
                         a.Filename == path + $"/{assemblyRef.Name}.exe") pe = a;
 
@@ -136,14 +136,45 @@ namespace IL2Asm
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;
 
-                var pe = GetParentAssembly(metadata, typeRefToken);
-
-                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                if ((typeRefToken & 0xff000000) == 0x1b000000)
                 {
-                    var f = pe.Metadata.Fields[i];
-                    if (f.Name == field.Name)
+                    var typeSpec = metadata.TypeSpecs[(int)(typeRefToken & 0x00ffffff) - 1];
+                    if ((typeSpec.Parent & 0xff000000) == 0x02000000)
                     {
-                        return f.Type;
+                        var typeDef = metadata.TypeDefs[(int)(typeSpec.Parent & 0x00ffffff) - 1];
+
+                        foreach (var f in typeDef.Fields)
+                        {
+                            if (f.Name == field.Name)
+                            {
+                                if (f.Type.Type == ElementType.EType.SzArray)
+                                {
+                                    ElementType compoundType = new ElementType(f.Type.Type);
+                                    compoundType.NestedType = new ElementType(type.NestedType.Type);
+                                    compoundType.NestedType.NestedType = f.Type.NestedType;
+                                    return compoundType;
+                                }
+                                else
+                                {
+                                    ElementType compoundType = new ElementType(type.Type);
+                                    compoundType.NestedType = new ElementType(f.Type.Type);
+                                    return compoundType;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var pe = GetParentAssembly(metadata, typeRefToken);
+
+                    for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                    {
+                        var f = pe.Metadata.Fields[i];
+                        if (f.Name == field.Name)
+                        {
+                            return f.Type;
+                        }
                     }
                 }
 
@@ -178,15 +209,33 @@ namespace IL2Asm
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;
 
-                var pe = GetParentAssembly(metadata, typeRefToken);
-
-                for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                if ((typeRefToken & 0xff000000) == 0x1b000000)
                 {
-                    var f = pe.Metadata.Fields[i];
-                    if (f.Name == field.Name)
+                    var typeSpec = metadata.TypeSpecs[(int)(typeRefToken & 0x00ffffff) - 1];
+                    if ((typeSpec.Parent & 0xff000000) == 0x02000000)
                     {
-                        var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
-                        return offset;
+                        var typeDef = metadata.TypeDefs[(int)(typeSpec.Parent & 0x00ffffff) - 1];
+
+                        int offset = 0;
+                        foreach (var f in typeDef.Fields)
+                        {
+                            if (f.Name == field.Name) return offset;
+                            offset += GetTypeSize(metadata, f.Type);
+                        }
+                    }
+                }
+                else
+                {
+                    var pe = GetParentAssembly(metadata, typeRefToken);
+
+                    for (int i = 0; i < pe.Metadata.Fields.Count; i++)
+                    {
+                        var f = pe.Metadata.Fields[i];
+                        if (f.Name == field.Name)
+                        {
+                            var offset = GetFieldOffset(pe.Metadata, 0x04000000 | (uint)(i + 1));
+                            return offset;
+                        }
                     }
                 }
 
@@ -211,7 +260,7 @@ namespace IL2Asm
                 type.Type == ElementType.EType.UIntPtr ||
                 type.Type == ElementType.EType.SzArray ||
                 type.Type == ElementType.EType.MVar || // note: mvar might not actually be _bytesPerRegister, this is a hack for now
-                type.Type == ElementType.EType.Class) 
+                type.Type == ElementType.EType.Class)
                 return _bytesPerRegister;
             else if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
             {

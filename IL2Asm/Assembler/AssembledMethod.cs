@@ -9,14 +9,16 @@ namespace IL2Asm
         public MethodHeader Method { get; private set; }
         public MethodSpecLayout MethodSpec { get; private set; }
         public CLIMetadata Metadata { get; private set; }
+        public GenericInstSig GenericInstSig { get; private set; }
 
         public List<string> Assembly { get; private set; }
 
-        public AssembledMethod(CLIMetadata metadata, MethodHeader method, MethodSpecLayout methodSpec)
+        public AssembledMethod(CLIMetadata metadata, MethodHeader method, MethodSpecLayout methodSpec = null, GenericInstSig genericSig = null)
         {
             Method = method;
             Metadata = metadata;
             MethodSpec = methodSpec;
+            GenericInstSig = genericSig;
 
             Assembly = new List<string>();
         }
