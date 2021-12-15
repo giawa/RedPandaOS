@@ -1,4 +1,4 @@
-# GiawaOS
+# RedPandaOS
 This is a place to toy around with what might be necessary to build an operating system using C#.  The roadmap looks something like this:
 
 - Understand IL by:
