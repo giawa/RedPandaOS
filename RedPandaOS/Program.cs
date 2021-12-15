@@ -59,9 +59,9 @@ namespace GiawaOS
                 assembler32.Assemble(file, mallocMethod);
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
-                IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
-                IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);
-                IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
                 File.WriteAllLines("pm.asm", pm.ToArray());
 
                 /*using (StreamWriter stream = new StreamWriter("bios.asm", true))
@@ -103,7 +103,7 @@ namespace GiawaOS
                     // then boot qemu
                     Console.WriteLine();
                     Console.WriteLine("* Booting OS!");
-                    var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin");
+                    var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -smp cores=6,sockets=1,threads=1");
                     qemu.WaitForExit();
                 }
                 catch (Exception e)

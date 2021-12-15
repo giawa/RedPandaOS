@@ -28,6 +28,23 @@ namespace Kernel.Memory
             return addr;
         }
 
+        [Allocator]
+        public static uint MallocPageAligned(uint size, uint init = 0)
+        {
+            if ((_addr & 0xfffff000) != 0)
+            {
+                _addr = _addr & 0xfffff000;
+                _addr += 0x1000;
+            }
+
+            for (uint i = _addr; i < _addr + size; i += 4)
+                CPUHelper.CPU.WriteMemInt(i, init);
+
+            var addr = _addr;
+            _addr += size;
+            return addr;
+        }
+
         public static void Free(uint addr)
         {
             // nop for now

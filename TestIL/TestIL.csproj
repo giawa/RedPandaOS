@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CPUHelper\CPUHelper.csproj" />
-    <ProjectReference Include="..\GiawaOS\GiawaOS.csproj" />
+    <ProjectReference Include="..\GiawaOS\RedPandaOS.csproj" />
     <ProjectReference Include="..\IL2Asm\IL2Asm.csproj" />
   </ItemGroup>
 

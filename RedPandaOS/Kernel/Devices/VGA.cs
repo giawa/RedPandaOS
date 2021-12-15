@@ -47,9 +47,14 @@ namespace Kernel.Devices
 
         public static void Clear()
         {
-            offset = VIDEO_MEMORY;
+            /*offset = VIDEO_MEMORY;
             for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
                 WriteVideoMemoryChar(' ');
+            offset = VIDEO_MEMORY;*/
+            for (int i = (int)VIDEO_MEMORY; i < (int)VIDEO_MEMORY + VGA_WIDTH * VGA_HEIGHT * 2; i+=2)
+            {
+                CPU.WriteMemory(i, ' ');
+            }
             offset = VIDEO_MEMORY;
         }
 
