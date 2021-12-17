@@ -1982,7 +1982,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _stack.Pop();
             assembly.AddAsm("pop eax");
 
-            if (eaxType.Type != ElementType.EType.ByRefValueType && eaxType.Type != ElementType.EType.ByRef) throw new Exception("Unsupported type");
+            if (!eaxType.IsPointer()) throw new Exception("Unsupported type");
 
             var sizeOfType = _runtime.GetTypeSize(metadata, type);
 
