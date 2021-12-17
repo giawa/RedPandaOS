@@ -892,13 +892,23 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         break;
 
-                    // MUL
+                    // DIV
                     case 0x5B:
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();
                         _stack.Push(eaxType);
 
-                        if (eaxType.Type == ElementType.EType.R4)
+                        if (eaxType.Is32BitCapable(pe.Metadata))
+                        {
+                            assembly.AddAsm("pop ebx");
+                            assembly.AddAsm("pop eax");
+                            assembly.AddAsm("push edx"); // divide clobbers edx
+                            assembly.AddAsm("mov edx, 0");
+                            assembly.AddAsm("div ebx");
+                            assembly.AddAsm("pop edx");  // divide clobbers edx
+                            assembly.AddAsm("push eax");
+                        }
+                        else if (eaxType.Type == ElementType.EType.R4)
                         {
                             assembly.AddAsm("fld dword [esp + 4]");
                             assembly.AddAsm("fld dword [esp]");
