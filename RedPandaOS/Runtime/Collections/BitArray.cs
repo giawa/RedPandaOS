@@ -39,7 +39,7 @@
 
                 for (int j = 0; j < 32; j++)
                 {
-                    if ((t & (1 << j)) != 0) return (i * 32 + j);
+                    if ((t & (1U << j)) != 0) return (i * 32 + j);
                 }
             }
 
@@ -55,7 +55,7 @@
 
                 for (int j = 0; j < 32; j++)
                 {
-                    if ((t & (1 << j)) == 0) return (i * 32 + j);
+                    if ((t & (1U << j)) == 0) return (i * 32 + j);
                 }
             }
 
