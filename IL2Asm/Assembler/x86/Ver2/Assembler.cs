@@ -234,14 +234,14 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         var locType = assembly.Method.LocalVars.LocalVariables[_byte];
 
-                        if (locType.IsPointer())
+                        //if (locType.IsPointer())
                         {
                             LDLOCA(_byte, assembly);
                         }
-                        else
+                        /*else
                         {
                             throw new Exception("Unsupported");
-                        }
+                        }*/
                         break;
 
                     // STLOC.S
@@ -781,13 +781,27 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         break;
 
+                    // LDIND.I4
+                    case 0x4A:
+                        if (_stack.Peek().Type != ElementType.EType.ByRef && _stack.Peek().Type != ElementType.EType.ByRefValueType)
+                            throw new Exception("Unsupported type");
+
+                        eaxType = _stack.Pop();
+                        ebxType = new ElementType(ElementType.EType.I4);
+                        _stack.Push(ebxType);
+
+                        assembly.AddAsm("pop eax");
+                        assembly.AddAsm("mov ebx, [eax]");
+                        assembly.AddAsm("push ebx");
+                        break;
+
                     // LDIND.U4
                     case 0x4B:
                         if (_stack.Peek().Type != ElementType.EType.ByRef && _stack.Peek().Type != ElementType.EType.ByRefValueType)
                             throw new Exception("Unsupported type");
 
                         eaxType = _stack.Pop();
-                        ebxType = new ElementType(ElementType.EType.I4);
+                        ebxType = new ElementType(ElementType.EType.U4);
                         _stack.Push(ebxType);
 
                         assembly.AddAsm("pop eax");
