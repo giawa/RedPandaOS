@@ -59,6 +59,21 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
         }
 
+        private Stack<ElementType> DuplicateStack()
+        {
+            List<ElementType> temp = new List<ElementType>();
+            while (_stack.Count > 0) temp.Add(_stack.Pop());
+            Stack<ElementType> clone = new Stack<ElementType>();
+
+            for (int i = temp.Count - 1; i >= 0; i--)
+            {
+                _stack.Push(temp[i]);
+                clone.Push(temp[i]);
+            }
+
+            return clone;
+        }
+
         public void Assemble(PortableExecutableFile pe, AssembledMethod assembly)//MethodDefLayout methodDef, MethodSpecLayout methodSpec)
         {
             if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0) throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
@@ -70,6 +85,8 @@ namespace IL2Asm.Assembler.x86.Ver2
             var methodDef = assembly.Method.MethodDef;
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
+
+            Dictionary<int, Stack<ElementType>> branchStacks = new Dictionary<int, Stack<ElementType>>();
 
             var code = method.Code;
 
@@ -143,6 +160,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                 int opcode = code[i++];
 
                 if (opcode == 0xfe) opcode = (opcode << 8) | code[i++];
+
+                if (branchStacks.ContainsKey(i - 1)) _stack = branchStacks[i - 1];
 
                 // add label for this opcode
                 string label = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}";
@@ -364,6 +383,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _sbyte = (sbyte)code[i++];
                         _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm($"jmp {_jmpLabel}");
+
+                        // unconditional branches can unbalance the stack
+                        // so we store the current stack state which will be recovered at the branch il code
+                        branchStacks[i + _sbyte] = DuplicateStack();
+
                         break;
 
                     // BRFALSE.S
