@@ -76,7 +76,17 @@ namespace Kernel
             VGA.WriteString(_welcomeMessage, 0x0700);
             VGA.WriteLine();
 
-            ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
+            Memory.Paging.InitializePaging(256);    // loads the entire kernel + heap into paging
+
+            VGA.WriteFormattedString("{0} : {1}", 0x20000, CPU.ReadMemInt(0x20000));
+            /*for (uint i = 0; i < 1; i++)
+            {
+                VGA.WriteHex(0x7000 + i * 4);
+                VGA.WriteVideoMemoryString(" : ");
+                VGA.WriteHex(CPU.ReadMemInt(0x7000 + i * 4));
+                VGA.WriteLine();
+            }*/
+
             /*ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
 
             if (pool.TryAlloc(out var item))
