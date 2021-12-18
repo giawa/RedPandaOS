@@ -178,6 +178,19 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmMethod]
+        public static uint ReadCR2()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadCR2_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadCR2Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov eax, cr2");
+            assembly.AddAsm("push eax");
+        }
+
         public enum CPUIDLeaf : uint
         {
             HighestFunctionParameterAndManufacturerId = 0,
@@ -399,6 +412,22 @@ namespace CPUHelper
         public static void StiAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("sti");
+        }
+
+        [AsmMethod]
+        public static void SetPageDirectory(uint physicalAddresses)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.SetPageDirectory_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void SetPageDirectoryAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");         // pop address of uint[]
+            assembly.AddAsm("mov cr3, eax");    // move address of the start of the uint[] into cr3
+            assembly.AddAsm("mov eax, cr0");    // load cr0
+            assembly.AddAsm("or eax, 0x80000000");  // enable page bit
+            assembly.AddAsm("mov cr0, eax");    // load cr0 with the page bit now set
         }
     }
 }
