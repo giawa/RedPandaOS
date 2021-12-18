@@ -15,13 +15,9 @@ namespace Kernel.Memory
             if (modulo != 0) size = size + (4 - modulo);
 
             for (uint i = _addr; i < _addr + size; i += 4)
-                CPUHelper.CPU.WriteMemInt(i, init);
+                CPU.WriteMemInt(i, init);
 
-            /*Devices.VGA.WriteVideoMemoryString("Allocating ");
-            Devices.VGA.WriteHex(size);
-            Devices.VGA.WriteVideoMemoryString(" bytes at ");
-            Devices.VGA.WriteHex(_addr);
-            Devices.VGA.WriteLine();*/
+            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1}", size, _addr);
 
             var addr = _addr;
             _addr += size;
@@ -38,7 +34,9 @@ namespace Kernel.Memory
             }
 
             for (uint i = _addr; i < _addr + size; i += 4)
-                CPUHelper.CPU.WriteMemInt(i, init);
+                CPU.WriteMemInt(i, init);
+
+            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1}", size, _addr);
 
             var addr = _addr;
             _addr += size;

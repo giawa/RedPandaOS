@@ -65,11 +65,19 @@ namespace Kernel
 
         static void Start()
         {
+            Logging.LoggingLevel = LogLevel.Warning;
+
+            PIC.Init();
+            PIC.SetIrqCallback(0, PIT.Tick);
+            PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
+            PIT.Init(50);
+
             VGA.Clear();
-            VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
+            VGA.WriteString(_welcomeMessage, 0x0700);
             VGA.WriteLine();
 
             ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
+            /*ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
 
             if (pool.TryAlloc(out var item))
             {
@@ -94,7 +102,7 @@ namespace Kernel
                     VGA.WriteLine();
                 }
             }
-            else VGA.WriteVideoMemoryString("Could not allocate item");
+            else VGA.WriteVideoMemoryString("Could not allocate item");*/
 
             /*VGA.WriteLine();
 
@@ -166,17 +174,16 @@ namespace Kernel
             VGA.WriteHex((int)CPU.ReadCR0());
             VGA.WriteLine();*/
 
-            PIC.Init();
-            PIC.SetIrqCallback(0, PIT.Tick);
-            PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
-            PIT.Init(50);
+            
+
+
 
             while (true) ;
         }
 
         private static void Something()
         {
-            VGA.WriteVideoMemoryString("Testing actions!");
+            VGA.WriteString("Testing actions!");
             VGA.WriteLine();
         }
 
@@ -251,12 +258,12 @@ namespace Kernel
                 int integer = (int)temp;
                 temp -= integer;
                 temp *= 10;
-                VGA.WriteVideoMemoryChar(integer + 48);
+                VGA.WriteChar(integer + 48);
 
-                if (i == 0) VGA.WriteVideoMemoryChar('.');
+                if (i == 0) VGA.WriteChar('.');
             }
 
-            VGA.WriteVideoMemoryChar('e');
+            VGA.WriteChar('e');
             PrintInt((int)tens);
         }
 
@@ -269,12 +276,12 @@ namespace Kernel
                 divisor *= 10;
             }
 
-            if (value < 0) VGA.WriteVideoMemoryChar('-');
+            if (value < 0) VGA.WriteChar('-');
 
             while (divisor > 0)
             {
                 int c = Math32.Divide(value, divisor);
-                VGA.WriteVideoMemoryChar(Math32.Modulo(c, 10) + 48);
+                VGA.WriteChar(Math32.Modulo(c, 10) + 48);
 
                 divisor = Math32.Divide(divisor, 10);
             }
@@ -289,9 +296,9 @@ namespace Kernel
         public void Print()
         {
             VGA.WriteHex(Value);
-            VGA.WriteVideoMemoryChar('.');
+            VGA.WriteChar('.');
             Init.PrintFloat(Part2);
-            VGA.WriteVideoMemoryChar(' ');
+            VGA.WriteChar(' ');
         }
     }
 }

@@ -15,7 +15,36 @@ namespace Kernel.Devices
             offset = VIDEO_MEMORY;
         }
 
-        public static void WriteVideoMemoryString(string s, ushort effect = 0x0f00)
+        public static void WriteFormattedString(string s, uint u1, ushort effect = 0x0f00)
+        {
+            WriteFormattedString(s, u1, 0, effect);
+        }
+
+        public static void WriteFormattedString(string s, uint u1, uint u2, ushort effect = 0x0f00)
+        {
+            int i = 0;
+
+            while (s[i] != 0)
+            {
+                if (s[i] == '{' && s[i + 2] == '}')
+                {
+                    if (s[i + 1] == '0') WriteHex(u1);
+                    else if (s[i + 1] == '1') WriteHex(u2);
+
+                    i += 3;
+                    continue;
+                }
+
+                CPU.WriteMemory((int)offset, (ushort)(s[i] | effect));
+                i++;
+                offset += 2;
+            }
+
+            Scroll();
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
+        }
+
+        public static void WriteString(string s, ushort effect = 0x0f00)
         {
             int i = 0;
 
@@ -58,7 +87,7 @@ namespace Kernel.Devices
             offset = VIDEO_MEMORY;
         }
 
-        public static void WriteVideoMemoryChar(int c, ushort effect = 0x0f00)
+        public static void WriteChar(int c, ushort effect = 0x0f00)
         {
             CPU.WriteMemory((int)offset, (ushort)((c & 255) | effect));
             offset += 2;
@@ -137,8 +166,8 @@ namespace Kernel.Devices
         public static void WriteHexChar(int value)
         {
             value &= 0x0f;
-            if (value >= 10) WriteVideoMemoryChar(value + 55);
-            else WriteVideoMemoryChar(value + 48);
+            if (value >= 10) WriteChar(value + 55);
+            else WriteChar(value + 48);
         }
 
         public static void Scroll()

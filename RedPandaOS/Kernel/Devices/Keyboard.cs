@@ -23,16 +23,16 @@
                     else if (keycode == 0x0e)
                     {
                         VGA.Delete();
-                        VGA.WriteVideoMemoryChar(' ');
+                        VGA.WriteChar(' ');
                         VGA.Delete();
                     }
                     else if (keycode == 0x1c) VGA.WriteLine();
-                    else VGA.WriteVideoMemoryChar(ScanCodeToASCII(keycode));
+                    else VGA.WriteChar(ScanCodeToASCII(keycode));
                 }
             }
             else
             {
-                VGA.WriteVideoMemoryString("Status was: 0x");
+                VGA.WriteString("Status was: 0x");
                 VGA.WriteHex(status);
                 VGA.WriteLine();
             }

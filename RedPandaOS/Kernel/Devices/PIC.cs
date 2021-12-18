@@ -21,11 +21,13 @@ namespace Kernel.Devices
         private static CPU.IDTPointer _idt_ptr;
 
         private static Action[] _irqHandlers;
+        private static Action[] _idtHandlers;
 
         public static void Init()
         {
             _idt_entries = new IDT_Entry[256];
             _irqHandlers = new Action[16];
+            _idtHandlers = new Action[32];
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
             _idt_ptr.address = Memory.BumpHeap.ObjectToPtr(_idt_entries) + 4;
@@ -65,6 +67,13 @@ namespace Kernel.Devices
             CPU.Sti();
         }
 
+        public static void SetIdtCallback(int idt, Action callback)
+        {
+            if (_idtHandlers == null || idt < 0 || idt >= _idtHandlers.Length) return;
+
+            _idtHandlers[idt] = callback;
+        }
+
         public static void SetIrqCallback(int irq, Action callback)
         {
             if (_irqHandlers == null || irq < 0 || irq >= _irqHandlers.Length) return;
@@ -78,8 +87,15 @@ namespace Kernel.Devices
             uint eax, uint ebx, uint ecx, uint edx, uint esp, uint ebp, uint esi, uint edi,
             uint ds)
         {
-            VGA.WriteVideoMemoryString("Interrupt ");
-            VGA.WriteHex(int_no);
+            if (_idtHandlers[int_no] != null) _idtHandlers[int_no]();
+            else
+            {
+                VGA.WriteString("Unhandled Interrupt ");
+                VGA.WriteHex(int_no);
+                VGA.WriteChar(' ');
+
+                while (true) ;
+            }
         }
 
         public static void IrqHandler(
@@ -97,9 +113,11 @@ namespace Kernel.Devices
             if (_irqHandlers[int_no - 32] != null) _irqHandlers[int_no - 32]();
             else
             {
-                VGA.WriteVideoMemoryString("Unhandled IRQ ");
+                VGA.WriteString("Unhandled IRQ ");
                 VGA.WriteHex(int_no);
-                VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteChar(' ');
+
+                while (true) ;
             }
         }
 
