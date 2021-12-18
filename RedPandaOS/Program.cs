@@ -10,7 +10,7 @@ namespace GiawaOS
     {
         public static void Main()
         {
-            PortableExecutableFile file = new PortableExecutableFile(@"GiawaOS.dll");
+            PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
 
             // find the Program.Main entry point
             var bootloader1 = FindEntryPoint(file, "Stage1", "Start");
