@@ -1781,7 +1781,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var field = metadata.Fields[(addr & 0x00ffffff) - 1];
                 var parent = field.Parent;
 
-                return $"{parent.FullName}.{field.Name}".Replace('.', '_');
+                return $"{parent.FullName}.{field.Name}".Replace('.', '_').Replace('<', '_').Replace('>', '_');
             }
             else
             {

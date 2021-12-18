@@ -82,6 +82,12 @@ namespace IL2Asm
                     eType.Token = typeToken;
                     return eType;
                 }
+                else if (type.BaseType.Name == "Object")
+                {
+                    var eType = new ElementType(ElementType.EType.Class);
+                    eType.Token = typeToken;
+                    return eType;
+                }
 
                 throw new Exception("Unsupported type");
             }
@@ -275,6 +281,7 @@ namespace IL2Asm
                 if ((token & 0xff000000) == 0x02000000)
                 {
                     var typeDef = metadata.TypeDefs[(int)(token & 0x00ffffff) - 1];
+                    if (typeDef.BaseType.Name == "Enum") return _bytesPerRegister;
                     if (_typeSizes.ContainsKey(typeDef.FullName)) return _typeSizes[typeDef.FullName];
 
                     foreach (var field in typeDef.Fields)
