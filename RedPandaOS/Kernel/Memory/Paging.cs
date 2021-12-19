@@ -59,61 +59,15 @@ namespace Kernel.Memory
 
     public class PageDirectory
     {
-        public PageTable GetPageTable(uint num)
-        {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
-            baseAddr += num * (uint)Marshal.SizeOf<PageTable>();
-            return BumpHeap.PtrToObject<PageTable>(CPUHelper.CPU.ReadMemInt(baseAddr));
-        }
+        public uint PhysicalAddress;
+        public FixedArray<PageTable> PageTables;
+        public FixedArray<uint> TableAddresses;
 
-        public void SetPageTable(uint num, PageTable pageTable)
+        public PageDirectory()
         {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
-            baseAddr += num * (uint)Marshal.SizeOf<PageTable>();
-            CPUHelper.CPU.WriteMemInt(baseAddr, BumpHeap.ObjectToPtr(pageTable));
-        }
-
-        public uint GetTableAddress(uint num)
-        {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
-            baseAddr += 1024 * (uint)Marshal.SizeOf<PageTable>();
-            baseAddr += (num << 2);
-            return CPUHelper.CPU.ReadMemInt(baseAddr);
-        }
-
-        public void SetTableAddress(uint num, uint value)
-        {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
-            baseAddr += 1024 * (uint)Marshal.SizeOf<PageTable>();
-            baseAddr += (num << 2);
-            CPUHelper.CPU.WriteMemInt(baseAddr, value);
-        }
-
-        public uint GetTableAddressesOffset()
-        {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
-            baseAddr += 1024 * (uint)Marshal.SizeOf<PageTable>();
-            return baseAddr;
-        }
-
-        // note: This seems like a major waste because this un-page aligns this whole object
-        // maybe we should have an array of PageDirectory addresses somewhere instead
-        public uint PhysicalAddress
-        {
-            get
-            {
-                var baseAddr = BumpHeap.ObjectToPtr(this);
-                baseAddr += 1024 * (uint)Marshal.SizeOf<PageTable>();
-                baseAddr += 1024 * 4;
-                return CPUHelper.CPU.ReadMemInt(baseAddr);
-            }
-            set
-            {
-                var baseAddr = BumpHeap.ObjectToPtr(this);
-                baseAddr += 1024 * (uint)Marshal.SizeOf<PageTable>();
-                baseAddr += 1024 * 4;
-                CPUHelper.CPU.WriteMemInt(baseAddr, value);
-            }
+            PageTables = new FixedArray<PageTable>(1024, 1);
+            TableAddresses = new FixedArray<uint>(1024, 1);
+            PhysicalAddress = TableAddresses.AddressOfArray;
         }
     }
 
@@ -134,9 +88,7 @@ namespace Kernel.Memory
             _frames = new BitArray(frameCount);
             PIC.SetIdtCallback(14, PageFault);  // allocates an Action
 
-            var directoryAddr = BumpHeap.MallocPageAligned(4 * 1024 * 2 + 4);
-            _kernelDirectory = BumpHeap.PtrToObject<PageDirectory>(directoryAddr);
-            _kernelDirectory.PhysicalAddress = directoryAddr;
+            _kernelDirectory = new PageDirectory();
 
             uint addr = 0;
 
@@ -164,16 +116,16 @@ namespace Kernel.Memory
 
             uint tableIndex = address >> 10;
 
-            if (dir.GetPageTable(tableIndex) != null)
+            if (dir.PageTables[tableIndex] != null)
             {
-                return dir.GetPageTable(tableIndex).GetPage(address & 0x3ff);
+                return dir.PageTables[tableIndex].GetPage(address & 0x3ff);
             }
             else if (make)
             {
                 uint newTableAddress = BumpHeap.MallocPageAligned(4096);
                 PageTable newTable = BumpHeap.PtrToObject<PageTable>(newTableAddress);
-                dir.SetPageTable(tableIndex, newTable);
-                dir.SetTableAddress(tableIndex, newTableAddress | 0x7U);
+                dir.PageTables[tableIndex] = newTable;
+                dir.TableAddresses[tableIndex] = newTableAddress | 0x7U;
                 return newTable.GetPage(address & 0x3ff);
             }
             else return _emptyPage;
@@ -183,8 +135,7 @@ namespace Kernel.Memory
         {
             _currentDirectory = dir;
 
-            // the table addresses beging after the page tables, which is 4096 bytes into this object
-            CPUHelper.CPU.SetPageDirectory(dir.PhysicalAddress + 4096U);
+            CPUHelper.CPU.SetPageDirectory(dir.PhysicalAddress);
         }
 
         public static int AllocateFrame(Page page, bool isKernel, bool isWriteable)
