@@ -4,12 +4,28 @@ using System.Runtime.InteropServices;
 
 namespace Kernel.Memory
 {
-    public static class BumpHeap
+    public class BumpHeap : IHeapAllocator
     {
-        private static uint _addr = 0x20000;    // the start of the kernel heap
+        private static BumpHeap _instance;
+
+        public static BumpHeap Instance
+        {
+            get 
+            { 
+                if (_instance == null) _instance = new BumpHeap();
+                return _instance; 
+            }
+        }
+
+        private BumpHeap()
+        {
+            _addr = 0x21000;
+        }
+
+        private uint _addr = 0x21000;    // the start of the bump heap
 
         [Allocator]
-        public static uint Malloc(uint size, uint init = 0)
+        public uint Malloc(uint size, uint init = 0)
         {
             uint modulo = Runtime.Math32.Modulo(size, 4);
             if (modulo != 0) size = size + (4 - modulo);
@@ -25,10 +41,11 @@ namespace Kernel.Memory
         }
 
         [Allocator]
-        public static uint MallocPageAligned(uint size, uint init = 0)
+        public uint MallocPageAligned(uint size, uint init = 0)
         {
-            if ((_addr & 0xfffff000) != 0)
+            if ((_addr & 0xfff) != 0)
             {
+                Logging.WriteLine(LogLevel.Trace, "Addr {0} was not page aligned", _addr);
                 _addr = _addr & 0xfffff000;
                 _addr += 0x1000;
             }
@@ -43,57 +60,33 @@ namespace Kernel.Memory
             return addr;
         }
 
-        public static void Free(uint addr)
+        public void Free(uint addr)
         {
             // nop for now
         }
 
-        public static T Malloc<T>()
+        public T Malloc<T>()
         {
             uint size = (uint)Marshal.SizeOf<T>();
             uint addr = Malloc(size);
 
-            return PtrToObject<T>(addr);
+            return Utilities.PtrToObject<T>(addr);
         }
 
-        public static T Malloc<T>(uint size)
+        public T Malloc<T>(uint size)
         {
             uint addr = Malloc(size);
 
-            return PtrToObject<T>(addr);
+            return Utilities.PtrToObject<T>(addr);
         }
 
-        public static T[] MallocArray<T>(uint arraySize)
+        public T[] MallocArray<T>(uint arraySize)
         {
             uint size = (uint)Marshal.SizeOf<T>();
             size *= arraySize;
             uint addr = Malloc(size);
 
-            return PtrToObject<T[]>(addr);
-        }
-
-        [AsmMethod]
-        public static T PtrToObject<T>(uint addr)
-        {
-            return default(T);
-        }
-
-        [AsmPlug("Kernel_Memory_BumpHeap_PtrToObject_MVar_U4", IL2Asm.BaseTypes.Architecture.X86)]
-        private static void PtrToObjectTAsm(IAssembledMethod assembly)
-        {
-            assembly.AddAsm($"; PtrToObject nop");
-        }
-
-        [AsmMethod]
-        public static uint ObjectToPtr<T>(T obj)
-        {
-            return 0;
-        }
-
-        [AsmPlug("Kernel_Memory_BumpHeap_ObjectToPtr_U4_MVar", IL2Asm.BaseTypes.Architecture.X86)]
-        private static void ObjectToPtrTAsm(IAssembledMethod assembly)
-        {
-            assembly.AddAsm($"; ObjectToPtr nop");
+            return Utilities.PtrToObject<T[]>(addr);
         }
     }
 }

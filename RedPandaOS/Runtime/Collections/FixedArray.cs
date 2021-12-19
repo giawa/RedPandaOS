@@ -14,8 +14,8 @@ namespace Runtime.Collections
         {
             uint sizeInBytes = (uint)size * (uint)Marshal.SizeOf<T>();
 
-            if (pageAligned != 0) _array = BumpHeap.MallocPageAligned(sizeInBytes);
-            else _array = BumpHeap.Malloc(sizeInBytes);
+            if (pageAligned != 0) _array = KernelHeap.KernelAllocator.MallocPageAligned(sizeInBytes);
+            else _array = KernelHeap.KernelAllocator.Malloc(sizeInBytes);
 
             _count = size;
         }
@@ -24,7 +24,7 @@ namespace Runtime.Collections
         {
             get
             {
-                return BumpHeap.ObjectToPtr(_array);
+                return Utilities.ObjectToPtr(_array);
             }
         }
 
@@ -33,12 +33,12 @@ namespace Runtime.Collections
             get
             {
                 uint addr = _array + (uint)index * (uint)Marshal.SizeOf<T>();
-                return BumpHeap.PtrToObject<T>(CPUHelper.CPU.ReadMemInt(addr));
+                return Utilities.PtrToObject<T>(CPUHelper.CPU.ReadMemInt(addr));
             }
             set
             {
                 uint addr = _array + (uint)index * (uint)Marshal.SizeOf<T>();
-                CPUHelper.CPU.WriteMemInt(addr, BumpHeap.ObjectToPtr(value));
+                CPUHelper.CPU.WriteMemInt(addr, Utilities.ObjectToPtr(value));
             }
         }
 
@@ -47,12 +47,12 @@ namespace Runtime.Collections
             get
             {
                 uint addr = _array + index * (uint)Marshal.SizeOf<T>();
-                return BumpHeap.PtrToObject<T>(CPUHelper.CPU.ReadMemInt(addr));
+                return Utilities.PtrToObject<T>(CPUHelper.CPU.ReadMemInt(addr));
             }
             set
             {
                 uint addr = _array + index * (uint)Marshal.SizeOf<T>();
-                CPUHelper.CPU.WriteMemInt(addr, BumpHeap.ObjectToPtr(value));
+                CPUHelper.CPU.WriteMemInt(addr, Utilities.ObjectToPtr(value));
             }
         }
     }

@@ -18,7 +18,7 @@ namespace GiawaOS
             var methodDef32 = FindEntryPoint(file, "Init", "Start");
             var isrHandler = FindEntryPoint(file, "PIC", "IsrHandler");
             var irqHandler = FindEntryPoint(file, "PIC", "IrqHandler");
-            var malloc = FindEntryPoint(file, "BumpHeap", "Malloc");
+            var malloc = FindEntryPoint(file, "KernelHeap", "Malloc");
 
             if (bootloader1 != null && methodDef32 != null)
             {

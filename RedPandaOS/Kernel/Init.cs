@@ -65,26 +65,38 @@ namespace Kernel
 
         static void Start()
         {
-            Logging.LoggingLevel = LogLevel.Warning;
+            //Memory.Utilities.KernelAllocator = Memory.BumpHeap.Instance;
+            Logging.LoggingLevel = LogLevel.Trace;
 
             PIC.Init();
             PIC.SetIrqCallback(0, PIT.Tick);
             PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
             PIT.Init(50);
 
-            VGA.Clear();
+            /*VGA.Clear();
             VGA.WriteString(_welcomeMessage, 0x0700);
-            VGA.WriteLine();
+            VGA.WriteLine();*/
 
             Memory.Paging.InitializePaging(256);    // loads the entire kernel + heap into paging
 
-            VGA.WriteFormattedString("{0} : {1}", 0x20000, CPU.ReadMemInt(0x20000));
-            /*for (uint i = 0; i < 1; i++)
+            //PCI.ScanBus();
+
+            VGA.WriteHex(CPU.ReadMemInt(0xA0A000));
+
+            //FixedArray<uint> array = new FixedArray<uint>(10, 0);
+
+            /*array[0] = 12;
+            array[1] = 24;
+            array[2] = 36;
+
+            Logging.WriteLine(LogLevel.Trace, "array[0] = {0}", array[0]);
+            Logging.WriteLine(LogLevel.Trace, "array[1] = {0}", array[1]);
+            Logging.WriteLine(LogLevel.Trace, "array[2] = {0}", array[2]);
+            Logging.WriteLine(LogLevel.Trace, "array[3] = {0}", array[3]);*/
+
+            /*for (uint i = 0; i < 8; i++)
             {
-                VGA.WriteHex(0x7000 + i * 4);
-                VGA.WriteVideoMemoryString(" : ");
-                VGA.WriteHex(CPU.ReadMemInt(0x7000 + i * 4));
-                VGA.WriteLine();
+                Logging.WriteLine(LogLevel.Trace, "{0} : {1}", 0x25000 + i * 4, CPU.ReadMemInt(0x25000 + i * 4));
             }*/
 
             /*ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
@@ -184,7 +196,7 @@ namespace Kernel
             VGA.WriteHex((int)CPU.ReadCR0());
             VGA.WriteLine();*/
 
-            
+
 
 
 

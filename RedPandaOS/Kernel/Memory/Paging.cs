@@ -51,9 +51,9 @@ namespace Kernel.Memory
     {
         public Page GetPage(uint num)
         {
-            var baseAddr = BumpHeap.ObjectToPtr(this);
+            var baseAddr = Utilities.ObjectToPtr(this);
             baseAddr += num * (uint)Marshal.SizeOf<Page>();
-            return BumpHeap.PtrToObject<Page>(baseAddr);
+            return Utilities.PtrToObject<Page>(baseAddr);
         }
     }
 
@@ -94,7 +94,8 @@ namespace Kernel.Memory
 
             while (addr < 0xFFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
             {
-                var result = AllocateFrame(GetPage(addr, true, _kernelDirectory), true, true);
+                var page = GetPage(addr, true, _kernelDirectory);
+                var result = AllocateFrame(page, true, true);
                 if (result == -1)
                 {
                     Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0}", addr);
@@ -121,8 +122,8 @@ namespace Kernel.Memory
             }
             else if (make)
             {
-                uint newTableAddress = BumpHeap.MallocPageAligned(4096);
-                PageTable newTable = BumpHeap.PtrToObject<PageTable>(newTableAddress);
+                uint newTableAddress = KernelHeap.KernelAllocator.MallocPageAligned(4096);
+                PageTable newTable = Utilities.PtrToObject<PageTable>(newTableAddress);
                 dir.PageTables[tableIndex] = newTable;
                 dir.TableAddresses[tableIndex] = newTableAddress | 0x7U;
                 return newTable.GetPage(address & 0x3ff);
@@ -135,6 +136,18 @@ namespace Kernel.Memory
             _currentDirectory = dir;
 
             CPUHelper.CPU.SetPageDirectory(dir.PhysicalAddress);
+        }
+
+        public static int AllocateFrame(Page page, uint frame, bool isKernel, bool isWriteable)
+        {
+            if (page.Frame != 0) return 0;
+
+            page.Present = true;
+            page.ReadWrite = isWriteable;
+            page.User = !isKernel;
+            page.Frame = frame;
+
+            return 0;
         }
 
         public static int AllocateFrame(Page page, bool isKernel, bool isWriteable)

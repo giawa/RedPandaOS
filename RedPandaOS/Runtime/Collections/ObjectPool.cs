@@ -1,4 +1,6 @@
-﻿namespace Runtime.Collections
+﻿using Kernel.Memory;
+
+namespace Runtime.Collections
 {
     public class ObjectPool<T> where T : class
     {
@@ -27,7 +29,7 @@
                 return false;
             }
 
-            _array[index] = Kernel.Memory.BumpHeap.Malloc<T>((uint)System.Runtime.InteropServices.Marshal.SizeOf<T>());
+            _array[index] = KernelHeap.KernelAllocator.Malloc<T>((uint)System.Runtime.InteropServices.Marshal.SizeOf<T>());
             item = _array[index];
 
             return true;
