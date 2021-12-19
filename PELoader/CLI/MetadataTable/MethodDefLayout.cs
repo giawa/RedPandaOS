@@ -148,7 +148,10 @@ namespace PELoader
             if (asm.Contains("`1") && genericSig != null)
             {
                 //if (genericSig == null) throw new Exception("Name looked generic but no generic sig was found");
-                asm = asm.Replace("`1", $"_{genericSig.Params[0]}");
+                string genericName = genericSig.Params[0].Type.ToString();
+                if (genericSig.Params[0].Type == ElementType.EType.ValueType)
+                    genericName += genericSig.Params[0].Token.ToString();
+                asm = asm.Replace("`1", $"_{genericName}");
             }
 
             return asm;

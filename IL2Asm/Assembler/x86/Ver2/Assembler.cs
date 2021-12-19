@@ -92,13 +92,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (_methods.Count > 1)
             {
-                string label = assembly.ToAsmString();
-
-                if (label.Contains("`1"))
-                {
-                    if (assembly.GenericInstSig == null) throw new Exception("Name looked generic but no generic sig was found");
-                    label = label.Replace("`1", $"_{assembly.GenericInstSig.Params[0].Type}");
-                }
+                string label = assembly.ToAsmString(assembly.GenericInstSig);
 
                 assembly.AddAsm($"{label}:");
                 assembly.AddAsm("push ebp");
@@ -2499,13 +2493,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                             _methodsToCompile.Add(methodToCompile);
                     }
 
-                    string callsite = methodToCompile.ToAsmString().Replace(".", "_");
-
-                    if (callsite.Contains("`1"))
-                    {
-                        if (genericOverride.Item2 == null) throw new Exception("Name looked generic but no generic sig was found");
-                        callsite = callsite.Replace("`1", $"_{genericOverride.Item2.Params[0].Type}");
-                    }
+                    string callsite = methodToCompile.ToAsmString(genericOverride.Item2);
 
                     if (ldftn)
                     {

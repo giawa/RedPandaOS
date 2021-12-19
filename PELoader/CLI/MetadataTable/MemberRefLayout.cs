@@ -174,6 +174,7 @@ namespace PELoader
                     {
                         var typeRef = metadata.TypeRefs[(int)(typeDef.typeDefOrRef & 0x00ffffff) - 1];
                         if (typeRef.Name == "Enum" && typeRef.Namespace == "System") return true;   // enums can work like ints
+                        else if (typeRef.Name == "ValueType" && typeDef.Fields.Count == 1) return typeDef.Fields[0].Type.Is32BitCapable(metadata);
                         else break;
                     }
                 }

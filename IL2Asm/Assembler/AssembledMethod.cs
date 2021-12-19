@@ -45,6 +45,23 @@ namespace IL2Asm
             return asmName;
         }
 
+        public string ToAsmString(GenericInstSig genericSig)
+        {
+            if (Method == null || Method.MethodDef == null) return "Unknown Method";
+
+            var asmName = Method.MethodDef.ToAsmString(genericSig);
+
+            if (asmName.Contains("MVar"))
+            {
+                if (MethodSpec.MemberSignature.Types.Length != 1)
+                    throw new Exception("Multiple generics are not yet supported");
+
+                asmName = asmName.Replace("MVar", MethodSpec.MemberSignature.TypeNames[0]);
+            }
+
+            return asmName;
+        }
+
         public override string ToString()
         {
             return Method?.MethodDef?.ToAsmString() ?? "Unknown Method";
