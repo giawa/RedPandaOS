@@ -1631,6 +1631,9 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (!IsEquivalentType(eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
                 throw new Exception("Mismatched types");
 
+            if (type.Type == ElementType.EType.GenericInst && type.NestedType != null)
+                type = type.NestedType;
+
             if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
             {
                 if (offset == 0) assembly.AddAsm("mov word [ebx], ax");
@@ -1645,7 +1648,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 throw new Exception("Unsupported type");
             }
-            else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
+            else if (type.Is32BitCapable(metadata))//type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
             {
                 if (offset == 0) assembly.AddAsm("mov [ebx], eax");
                 else assembly.AddAsm($"mov [ebx + {offset}], eax");
@@ -1718,6 +1721,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                 if (!ebxType.Is32BitCapable(metadata))
                     throw new Exception("Unsupported type");
 
+                if (type.Type == ElementType.EType.GenericInst && type.NestedType != null)
+                    type = type.NestedType;
+
                 assembly.AddAsm("pop ebx");
 
                 if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
@@ -1736,7 +1742,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     throw new Exception("Unsupported type");
                 }
-                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
+                else if (type.Is32BitCapable(metadata))//type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
                 {
                     if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
                     else assembly.AddAsm($"mov eax, [ebx + {offset}]");
