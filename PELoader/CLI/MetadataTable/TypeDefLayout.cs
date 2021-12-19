@@ -20,6 +20,7 @@ namespace PELoader
         public List<FieldLayout> Fields = new List<FieldLayout>();
         public List<MethodDefLayout> Methods = new List<MethodDefLayout>();
         public List<PropertyLayout> Properties = new List<PropertyLayout>();
+        public List<uint> Implements = new List<uint>();
 
         public string Name { get; private set; }
 

@@ -1622,7 +1622,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             if (!ebxType.Is32BitCapable(metadata))
                 throw new Exception("Unsupported type");
-            if (!IsEquivalentType(eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
+            if (!IsEquivalentType(metadata, eaxType, type) && (!eaxType.Is32BitCapable(metadata) || !type.Is32BitCapable(metadata)))
                 throw new Exception("Mismatched types");
 
             if (type.Type == ElementType.EType.GenericInst && type.NestedType != null)
@@ -1802,7 +1802,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (!labelType.Is32BitCapable(metadata)) throw new Exception("Unsupported type");
 
             eaxType = _stack.Pop();
-            if (!IsEquivalentType(labelType, eaxType))
+            if (!IsEquivalentType(metadata, labelType, eaxType))
             {
                 if (labelType.Type == ElementType.EType.Boolean && eaxType.Type == ElementType.EType.I4)
                 {
@@ -1879,13 +1879,27 @@ namespace IL2Asm.Assembler.x86.Ver2
             ebxType = _stack.Pop();
         }*/
 
-        private bool IsEquivalentType(ElementType type1, ElementType type2)
+        private bool IsEquivalentType(CLIMetadata metadata, ElementType type1, ElementType type2)
         {
             if (type1.Type == ElementType.EType.MVar || type2.Type == ElementType.EType.MVar) return true;
             if (type1 == type2) return true;
 
             if (type1.Type == ElementType.EType.U4 || type1.Type == ElementType.EType.I4)
                 return (type2.Type == ElementType.EType.U4 || type2.Type == ElementType.EType.I4);
+
+            if (type1.Type == ElementType.EType.Class && type2.Type == ElementType.EType.Class)
+            {
+                if ((type1.Token & 0xff000000) == 0x02000000)
+                {
+                    var tdef = metadata.TypeDefs[(int)(type1.Token & 0x00ffffff) - 1];
+                    if (tdef.Implements.Contains(type2.Token)) return true;
+                }
+                if ((type2.Token & 0xff000000) == 0x02000000)
+                {
+                    var tdef = metadata.TypeDefs[(int)(type2.Token & 0x00ffffff) - 1];
+                    if (tdef.Implements.Contains(type1.Token)) return true;
+                }
+            }
 
             return false;
         }

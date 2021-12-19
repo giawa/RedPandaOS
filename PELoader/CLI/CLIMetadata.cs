@@ -347,6 +347,7 @@ namespace PELoader
 
             for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindFieldsAndMethods(this);
             for (int i = 0; i < _typeDefs.Count; i++) _typeDefs[i].FindInheritedFieldsAndMethods(this);
+            for (int i = 0; i < _interfaceImpls.Count; i++) _typeDefs[(int)_interfaceImpls[i].classIndex - 1].Implements.Add(_interfaceImpls[i].interfaceIndex);
 
             // similarly, for MethodDefs find the param list end
             for (int i = 0; i < _methodDefs.Count - 1; i++)
