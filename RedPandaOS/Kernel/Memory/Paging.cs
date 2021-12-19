@@ -86,7 +86,7 @@ namespace Kernel.Memory
 
             // get all the non-aligned memory allocation out of the way
             _frames = new BitArray(frameCount);
-            PIC.SetIdtCallback(14, PageFault);  // allocates an Action
+            PIC.SetIsrCallback(14, PageFault);  // allocates an Action
 
             _kernelDirectory = new PageDirectory();
 

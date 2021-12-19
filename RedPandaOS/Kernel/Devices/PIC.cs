@@ -21,13 +21,13 @@ namespace Kernel.Devices
         private static CPU.IDTPointer _idt_ptr;
 
         private static Action[] _irqHandlers;
-        private static Action[] _idtHandlers;
+        private static Action[] _isrHandlers;
 
         public static void Init()
         {
             _idt_entries = new IDT_Entry[256];
             _irqHandlers = new Action[16];
-            _idtHandlers = new Action[32];
+            _isrHandlers = new Action[32];
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
             _idt_ptr.address = Memory.BumpHeap.ObjectToPtr(_idt_entries) + 4;
@@ -67,11 +67,11 @@ namespace Kernel.Devices
             CPU.Sti();
         }
 
-        public static void SetIdtCallback(int idt, Action callback)
+        public static void SetIsrCallback(int idt, Action callback)
         {
-            if (_idtHandlers == null || idt < 0 || idt >= _idtHandlers.Length) return;
+            if (_isrHandlers == null || idt < 0 || idt >= _isrHandlers.Length) return;
 
-            _idtHandlers[idt] = callback;
+            _isrHandlers[idt] = callback;
         }
 
         public static void SetIrqCallback(int irq, Action callback)
@@ -87,7 +87,7 @@ namespace Kernel.Devices
             uint eax, uint ebx, uint ecx, uint edx, uint esp, uint ebp, uint esi, uint edi,
             uint ds)
         {
-            if (_idtHandlers[int_no] != null) _idtHandlers[int_no]();
+            if (_isrHandlers[int_no] != null) _isrHandlers[int_no]();
             else
             {
                 VGA.WriteString("Unhandled Interrupt ");
