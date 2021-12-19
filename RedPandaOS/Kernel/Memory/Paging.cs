@@ -80,7 +80,7 @@ namespace Kernel.Memory
         {
             if (_frames != null)
             {
-                VGA.WriteString("Paging was already initialized");
+                Logging.WriteLine(LogLevel.Warning, "Paging was already initialized");
                 return;
             }
 
@@ -97,8 +97,7 @@ namespace Kernel.Memory
                 var result = AllocateFrame(GetPage(addr, true, _kernelDirectory), true, true);
                 if (result == -1)
                 {
-                    VGA.WriteString("Could not allocate frame at address: 0x");
-                    VGA.WriteHex(addr);
+                    Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0}", addr);
                     while (true) ;
                 }
                 addr += 0x1000U;
@@ -145,8 +144,7 @@ namespace Kernel.Memory
             int idx = _frames.IndexOfFirstZero();
             if (idx == -1)
             {
-                VGA.WriteString("No free frame found");
-                VGA.WriteLine();
+                Logging.WriteLine(LogLevel.Error, "No free frame found");
                 return -1;
             }
             _frames[idx] = true;
@@ -171,8 +169,7 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            VGA.WriteString("Got page fault interrupt at address 0x");
-            VGA.WriteHex(addr);
+            Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0}", addr);
 
             while (true) ;
         }
