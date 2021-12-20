@@ -972,6 +972,29 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         break;
 
+                    // MOD
+                    case 0x5E:
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        _stack.Push(eaxType);
+
+                        if (eaxType.Is32BitCapable(pe.Metadata))
+                        {
+                            assembly.AddAsm("pop ebx");
+                            assembly.AddAsm("pop eax");
+                            assembly.AddAsm("push edx"); // divide clobbers edx
+                            assembly.AddAsm("mov edx, 0");
+                            assembly.AddAsm("div ebx");
+                            assembly.AddAsm("mov eax, edx");    // we want the remainder
+                            assembly.AddAsm("pop edx");  // divide clobbers edx
+                            assembly.AddAsm("push eax");
+                        }
+                        else
+                        {
+                            throw new Exception("Unsupported type");
+                        }
+                        break;
+
                     // AND
                     case 0x5F:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
