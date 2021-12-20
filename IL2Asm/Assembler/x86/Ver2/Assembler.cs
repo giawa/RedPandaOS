@@ -1143,12 +1143,11 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             ProcessStaticConstructor(pe, methodDef);
 
-            var methodsToCompile = _methodsToCompile.ToArray();
-            _methodsToCompile.Clear();
-
-            for (int i = 0; i < methodsToCompile.Length; i++)
+            while (_methodsToCompile.Count > 0)
             {
-                Assemble(pe, methodsToCompile[i]);
+                var m = _methodsToCompile[0];
+                _methodsToCompile.RemoveAt(0);
+                Assemble(pe, m);
             }
         }
 
