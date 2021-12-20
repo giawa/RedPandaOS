@@ -235,7 +235,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // STARG.S
                     case 0x10:
-                        STARG(code[i++], assembly, callingStackTypes, callingStackSize, methodDef);
+                        STARG(code[i++], assembly, pe.Metadata, callingStackTypes, callingStackSize, methodDef);
                         break;
 
                     // LDLOC.S
@@ -642,6 +642,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();*/
+                        break;
+
+                    // BLE.UN.S
+                    case 0x36:
+                        _sbyte = (sbyte)code[i++];
+                        Branch(i + _sbyte, assembly, pe.Metadata, "jbe", "jbe");
                         break;
 
                     // BLT.UN.S
@@ -1491,12 +1497,12 @@ namespace IL2Asm.Assembler.x86.Ver2
             _stack.Push(arg.Type);
         }
 
-        private void STARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
+        private void STARG(int s, AssembledMethod assembly, CLIMetadata metadata, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
             //if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
             var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
-            if (_stack.Peek() != arg.Type) throw new Exception("Type mismatch");
+            if (!IsEquivalentType(metadata, _stack.Peek(), arg.Type)) throw new Exception("Type mismatch");
             for (int b = 0; b < Math.Ceiling(arg.SizeInBytes / 4f); b++)
             {
                 assembly.AddAsm("pop eax");
