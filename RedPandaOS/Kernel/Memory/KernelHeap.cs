@@ -5,14 +5,14 @@ namespace Kernel.Memory
 {
     public static class KernelHeap
     {
-        public static BumpHeap KernelAllocator;
+        public static SplitBumpHeap KernelAllocator;
 
         private static uint _addr;
 
         static KernelHeap()
         {
             if (_addr == 0) _addr = 0x20000;    // the start of the kernel heap
-            KernelAllocator = BumpHeap.Instance;
+            KernelAllocator = SplitBumpHeap.Instance;
         }
 
         [Allocator]
