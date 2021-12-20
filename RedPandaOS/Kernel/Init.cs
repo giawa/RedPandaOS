@@ -156,17 +156,17 @@ namespace Kernel
             /*int entries = CPU.ReadMemShort(0x500);
             VGA.WriteLine();
 
-            VGA.WriteVideoMemoryString("Memory Regions as given by BIOS:");
+            VGA.WriteString("Memory Regions as given by BIOS:");
             VGA.WriteLine();
 
             for (int i = 0; i < entries; i++)
             {
                 CopyTo((uint)(0x502 + 24 * i), ref _entry, 24);
                 if ((_entry.Type & 1) != 1) continue;
-                VGA.WriteVideoMemoryString("Memory Region ");
-                VGA.WriteVideoMemoryChar(48 + i);
-                VGA.WriteVideoMemoryChar(' ');
-                VGA.WriteHex(_entry.BaseH); VGA.WriteHex(_entry.BaseL); VGA.WriteVideoMemoryChar(' ');
+                VGA.WriteString("Memory Region ");
+                VGA.WriteChar(48 + i);
+                VGA.WriteChar(' ');
+                VGA.WriteHex(_entry.BaseH); VGA.WriteHex(_entry.BaseL); VGA.WriteChar(' ');
                 VGA.WriteHex(_entry.LengthH); VGA.WriteHex(_entry.LengthL); VGA.WriteLine();
             }*/
 

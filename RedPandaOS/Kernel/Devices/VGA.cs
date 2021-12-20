@@ -10,6 +10,11 @@ namespace Kernel.Devices
         private const int VGA_HEIGHT = 25;
         private static uint offset = VIDEO_MEMORY;
 
+        static VGA()
+        {
+            Clear();
+        }
+
         public static void ResetPosition()
         {
             offset = VIDEO_MEMORY;
