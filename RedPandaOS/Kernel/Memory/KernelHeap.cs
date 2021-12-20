@@ -20,13 +20,17 @@ namespace Kernel.Memory
         {
             // it's possible the static constructor gets called after other things trying to malloc
             // so check for the case where the address is still zero and the constructor hasn't been called
-            if (_addr == 0) _addr = 0x20000;    
+            if (_addr == 0) _addr = 0x20000;
 
             if (KernelAllocator != null)
                 return KernelAllocator.Malloc(size, init);
 
-            uint modulo = Runtime.Math32.Modulo(size, 4);
-            if (modulo != 0) size = size + (4 - modulo);
+            if ((_addr & 0x03) != 0)
+            {
+                Logging.WriteLine(LogLevel.Trace, "[KernelHeap] Addr {0} was not word aligned", _addr);
+                _addr = _addr & 0xfffffffc;
+                _addr += 4;
+            }
 
             for (uint i = _addr; i < _addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
@@ -35,6 +39,13 @@ namespace Kernel.Memory
 
             var addr = _addr;
             _addr += size;
+
+            if (_addr >= 0x21000)
+            {
+                Logging.WriteLine(LogLevel.Panic, "[KernelHeap] Out of memory");
+                while (true) ;
+            }
+
             return addr;
         }
     }

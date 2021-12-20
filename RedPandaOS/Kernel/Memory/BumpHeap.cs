@@ -27,8 +27,12 @@ namespace Kernel.Memory
         [Allocator]
         public uint Malloc(uint size, uint init = 0)
         {
-            uint modulo = Runtime.Math32.Modulo(size, 4);
-            if (modulo != 0) size = size + (4 - modulo);
+            if ((_addr & 0x03) != 0)
+            {
+                Logging.WriteLine(LogLevel.Trace, "Addr {0} was not word aligned", _addr);
+                _addr = _addr & 0xfffffffc;
+                _addr += 4;
+            }
 
             for (uint i = _addr; i < _addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
