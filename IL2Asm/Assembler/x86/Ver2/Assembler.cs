@@ -244,17 +244,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // LDLOCA.S
                     case 0x12:
                         _byte = code[i++];
-
-                        var locType = assembly.Method.LocalVars.LocalVariables[_byte];
-
-                        //if (locType.IsPointer())
-                        {
-                            LDLOCA(_byte, assembly);
-                        }
-                        /*else
-                        {
-                            throw new Exception("Unsupported");
-                        }*/
+                        LDLOCA(_byte, assembly);
                         break;
 
                     // STLOC.S
@@ -425,223 +415,43 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // BGE.S
                     case 0x2F:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jge", "jae");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jge {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jae {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BGT.S
                     case 0x30:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jg", "ja");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jg {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"ja {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BLE.S
                     case 0x31:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jle", "jbe");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jle {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jbe {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BLT.S
                     case 0x32:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jl", "jb");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jl {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jb {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BNE.UN.S
                     case 0x33:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jne", "jne");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jne {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jne {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BGE.UN.S
                     case 0x34:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jae", "jae");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jae {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jae {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BGT.UN.S
                     case 0x35:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jg", "ja");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jg {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"ja {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BLE.UN.S
@@ -653,32 +463,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // BLT.UN.S
                     case 0x37:
                         _sbyte = (sbyte)code[i++];
-                        //_jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _sbyte, assembly, pe.Metadata, "jb", "jb");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jb {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jb {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // BR
@@ -754,34 +539,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     case 0x40:
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
-
-                        //_jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
-
                         Branch(i + _int, assembly, pe.Metadata, "jne", "jne");
-
-                        /*if (_stack.Peek().Is32BitCapable(pe.Metadata))
-                        {
-                            assembly.AddAsm("pop eax");        // value2
-                            assembly.AddAsm("pop ebx");        // value1
-                            assembly.AddAsm("cmp ebx, eax");    // compare values
-                            assembly.AddAsm($"jne {_jmpLabel}");
-                        }
-                        else if (_stack.Peek().Type == ElementType.EType.R4)
-                        {
-                            assembly.AddAsm("fld dword [esp]");
-                            assembly.AddAsm("fld dword [esp + 4]");
-                            assembly.AddAsm("fcomip");
-                            assembly.AddAsm("pop eax"); // remove one of the R4s from the stack
-                            assembly.AddAsm("pop ebx"); // remove one of the R4s from the stack
-                            assembly.AddAsm($"jne {_jmpLabel}");
-                        }
-                        else
-                        {
-                            throw new Exception("Unsupported type");
-                        }
-
-                        eaxType = _stack.Pop();
-                        ebxType = _stack.Pop();*/
                         break;
 
                     // SWITCH
