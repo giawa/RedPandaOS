@@ -129,9 +129,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 for (int i = 0; i < localVarCount; i++)
                 {
-                    assembly.AddAsm($"push 0; localvar.{i}");
+                    //assembly.AddAsm($"push 0; localvar.{i}");
                     _stack.Push(method.LocalVars.LocalVariables[i]);
                 }
+                if (localVarCount > 0) assembly.AddAsm($"sub esp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
             }
 
             List<StackElementType> callingStackTypes = new List<StackElementType>();
@@ -219,6 +220,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = 1 + callingStackSize / 4 - arg.StackLocation / 4 - (arg.SizeInBytes / 4 - 1);
                         assembly.AddAsm("mov eax, ebp");
                         assembly.AddAsm($"add eax, {4 * _int}");
+                        //assembly.AddAsm($"lea eax, [ebp + 4 * {_int}]");
                         assembly.AddAsm("push eax");
 
                         if (arg.Type.Type == ElementType.EType.ValueType) eaxType = new ElementType(ElementType.EType.ByRefValueType);
@@ -342,6 +344,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                             {
                                 assembly.AddAsm("pop ebx; localvar that was pushed on stack");
                             }
+                            /*if (localVarCount > 0)
+                            {
+                                if (localVarCount > 0) assembly.AddAsm($"add esp, {BytesPerRegister * localVarCount} ; pop {localVarCount} localvars");
+                            }*/
                             //if (localVarCount > 1) assembly.AddAsm("pop edx; localvar.1");
                             //if (localVarCount > 0) assembly.AddAsm("pop ecx; localvar.0");
                             //if (localVarCount > 2) PopStack(localVarCount - 2);   // don't pop the stack because there can be multiple RET per method
@@ -1234,8 +1240,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDLOCA(byte b, AssembledMethod assembly)
         {
-            assembly.AddAsm($"mov eax, ebp");
-            assembly.AddAsm($"sub eax, {(b + 1) * BytesPerRegister}");
+            /*assembly.AddAsm($"mov eax, ebp");
+            assembly.AddAsm($"sub eax, {(b + 1) * BytesPerRegister}");*/
+            assembly.AddAsm($"lea eax, [ebp - {(b + 1) * BytesPerRegister}]");
             assembly.AddAsm("push eax");
             eaxType = assembly.Method.LocalVars.LocalVariables[b];
             _stack.Push(assembly.Method.LocalVars.LocalVariables[b]);
@@ -1299,12 +1306,13 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             if (size != sizePerElement) throw new Exception("Unsupported type");
 
-            assembly.AddAsm("mov eax, [esp+4]");    // get index
-            if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
-            assembly.AddAsm("mov ebx, [esp+8]");    // get address of array
-            assembly.AddAsm("add eax, ebx");        // now we have the final address
+            assembly.AddAsm("mov eax, [esp + 4]");    // get index
+            //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
+            assembly.AddAsm("mov ebx, [esp + 8]");    // get address of array
+            //assembly.AddAsm("add eax, ebx");        // now we have the final address
+            assembly.AddAsm($"lea eax, [4 + ebx + {size} * eax]");
             assembly.AddAsm("pop ebx");             // pop value off the stack
-            assembly.AddAsm("mov [eax+4], ebx");    // move value into the location (+4 to skip array length)
+            assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
             assembly.AddAsm("add esp, 8");          // clean up the stack
         }
 
@@ -1339,10 +1347,11 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (size != sizePerElement) throw new Exception("Unsupported type");
 
             assembly.AddAsm("pop eax");             // get index
-            if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
+            //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
             assembly.AddAsm("pop ebx");             // get address of array
-            assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm("mov ebx, [eax+4]");    // bring value from memory to register (+4 to skip array length)
+            //assembly.AddAsm("add eax, ebx");        // now we have the final address
+            assembly.AddAsm($"lea eax, [4 + ebx + {size} * eax]");
+            assembly.AddAsm("mov ebx, [eax]");    // bring value from memory to register (+4 to skip array length)
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
             else if (sizePerElement == 1) assembly.AddAsm("and ebx, 255");
@@ -1362,32 +1371,45 @@ namespace IL2Asm.Assembler.x86.Ver2
                 i += 4;
             }
 
-            assembly.AddAsm("pop ebx"); // index
+            /*assembly.AddAsm("pop ebx"); // index
             ebxType = _stack.Pop();
             assembly.AddAsm("pop eax"); // array
             eaxType = _stack.Pop();
-
+            
             if (eaxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
             if (!ldelem_ref && eaxType.NestedType.Token != type) throw new Exception("Type mismatch");
+            
+            var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);*/
+
+            assembly.AddAsm("pop eax"); // index
+            eaxType = _stack.Pop();
+            assembly.AddAsm("pop ebx"); // array
+            ebxType = _stack.Pop();
+
+            if (ebxType.Type != ElementType.EType.SzArray) throw new Exception("Unsupported operation");
+            if (!ldelem_ref && ebxType.NestedType.Token != type) throw new Exception("Type mismatch");
+
+            var sizePerElement = _runtime.GetTypeSize(metadata, ebxType.NestedType);
 
             // going to use ecx to store the array position
-            assembly.AddAsm("push ecx");
+            /*assembly.AddAsm("push ecx");
             assembly.AddAsm("mov ecx, eax");
 
             // edx will get clobbered by the multiply
             assembly.AddAsm("push edx");
 
-            var sizePerElement = _runtime.GetTypeSize(metadata, eaxType.NestedType);
             assembly.AddAsm($"mov eax, {sizePerElement}");
             assembly.AddAsm("mul ebx");
             assembly.AddAsm("add eax, ecx");
             assembly.AddAsm("add eax, 4");  // the first 4 bytes are the array size, so skip over that
 
             assembly.AddAsm("pop edx");
-            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop ecx");*/
+            assembly.AddAsm($"lea eax, [4 + ebx + {sizePerElement} * eax]");
 
             assembly.AddAsm("push eax");
-            eaxType = eaxType.NestedType;
+            //eaxType = eaxType.NestedType;
+            eaxType = ebxType.NestedType;
             if (eaxType.Type == ElementType.EType.ValueType) eaxType = new ElementType(ElementType.EType.ByRefValueType);
             _stack.Push(eaxType);
         }
@@ -2068,11 +2090,12 @@ namespace IL2Asm.Assembler.x86.Ver2
             // compute the total size in bytes to allocate at runtime
             assembly.AddAsm("pop eax");
             assembly.AddAsm("push eax");    // push the size to recover this later
-            assembly.AddAsm($"mov ebx, {typeSize}");
+            /*assembly.AddAsm($"mov ebx, {typeSize}");
             assembly.AddAsm("push edx");    // multiply clobbers edx
             assembly.AddAsm("mul ebx");
             assembly.AddAsm("pop edx");     // multiply clobbers edx
-            assembly.AddAsm("add eax, 4");  // add 4 bytes for the array length
+            assembly.AddAsm("add eax, 4");  // add 4 bytes for the array length*/
+            assembly.AddAsm($"lea eax, [4 + {typeSize} * eax]");
             assembly.AddAsm("push eax");    // size in bytes to allocate
 
             ebxType = _stack.Pop();
@@ -2222,8 +2245,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         assembly.AddAsm("pop eax");  // pop index
                         assembly.AddAsm("pop ebx");  // pop this
-                        assembly.AddAsm("add eax, ebx");
-                        assembly.AddAsm("mov ebx, eax");
+                        /*assembly.AddAsm("add eax, ebx");
+                        assembly.AddAsm("mov ebx, eax");*/
+                        assembly.AddAsm("lea ebx, [eax + ebx]");
                         assembly.AddAsm("mov eax, [ebx]");
                         assembly.AddAsm("and eax, 255");
                         assembly.AddAsm("push eax");
