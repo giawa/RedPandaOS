@@ -68,7 +68,7 @@ namespace Kernel.Devices
         {
             offset += 160;
             offset -= VIDEO_MEMORY;
-            offset -= Math32.Modulo(offset, 160);
+            offset -= offset % 160;
             offset += VIDEO_MEMORY;
 
             Scroll();

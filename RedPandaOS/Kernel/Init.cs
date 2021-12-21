@@ -65,7 +65,6 @@ namespace Kernel
 
         static void Start()
         {
-            //Memory.Utilities.KernelAllocator = Memory.BumpHeap.Instance;
             Logging.LoggingLevel = LogLevel.Trace;
 
             PIC.Init();
@@ -79,11 +78,11 @@ namespace Kernel
 
             Memory.Paging.InitializePaging(256);    // loads the entire kernel + heap into paging
 
-            //PCI.ScanBus();
+            PCI.ScanBus();
 
             VGA.WriteHex(CPU.ReadMemInt(0xA0A000));
 
-            //FixedArray<uint> array = new FixedArray<uint>(10, 0);
+            FixedArray<uint> array = new FixedArray<uint>(10, 0);
 
             /*array[0] = 12;
             array[1] = 24;
@@ -303,7 +302,7 @@ namespace Kernel
             while (divisor > 0)
             {
                 int c = Math32.Divide(value, divisor);
-                VGA.WriteChar(Math32.Modulo(c, 10) + 48);
+                VGA.WriteChar((c % 10) + 48);
 
                 divisor = Math32.Divide(divisor, 10);
             }

@@ -236,7 +236,7 @@ namespace TestIL
 
             for (int i = 0; i < 255; i++)
             {
-                VGA.WriteVideoMemoryChar(Runtime.Math32.Modulo(i, 10) + 48, (ushort)(i << 8));
+                VGA.WriteChar((i % 10) + 48, (ushort)(i << 8));
             }
 
             VGA.WriteLine();
@@ -283,7 +283,7 @@ namespace TestIL
             {
                 for (int i = 2; i < num; i++)
                 {
-                    if (Runtime.Math32.Modulo(num, i) == 0) return 0;
+                    if (num % i == 0) return 0;
                 }
                 return num;
             }
@@ -341,7 +341,7 @@ namespace TestIL
             while (divisor > 0)
             {
                 int c = Runtime.Math32.Divide(value, divisor);
-                Bios.WriteByte((byte)(Runtime.Math32.Modulo(c, 10) + 48));
+                Bios.WriteByte((byte)((c % 10) + 48));
 
                 divisor = Runtime.Math32.Divide(divisor, 10);
             }

@@ -30,7 +30,7 @@
             return quotient;
         }
 
-        public static uint Modulo(uint source, uint div)
+        /*public static uint Modulo(uint source, uint div)
         {
             uint remainder = source;
             while (remainder >= div) remainder -= div;
@@ -42,7 +42,7 @@
             int remainder = source;
             while (remainder >= div) remainder -= div;
             return remainder;
-        }
+        }*/
 
         public static int Ceiling(int source, int div)
         {

@@ -19,7 +19,7 @@
         {
             if (_count == _array.Length) return false;
 
-            var index = Math32.Modulo(_head + _count, _array.Length);
+            var index = (_head + _count) % _array.Length;
             _array[index] = item;
             _count++;
 
@@ -31,7 +31,7 @@
             if (_count == 0) return _array[0];
 
             T item = _array[_head];
-            _head = Math32.Modulo(_head + 1, _array.Length);
+            _head = (_head + 1) % _array.Length;
             _count--;
 
             return item;
