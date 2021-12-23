@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Reflection;
 
 namespace IL2Asm.Assembler.x86_RealMode
 {
@@ -563,12 +564,11 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             ProcessStaticConstructor(pe, methodDef);
 
-            var methodsToCompile = _methodsToCompile.ToArray();
-            _methodsToCompile.Clear();
-
-            for (int i = 0; i < methodsToCompile.Length; i++)
+            while (_methodsToCompile.Count > 0)
             {
-                Assemble(pe, methodsToCompile[i]);
+                var m = _methodsToCompile[0];
+                _methodsToCompile.RemoveAt(0);
+                Assemble(pe, m);
             }
         }
 
@@ -732,8 +732,47 @@ namespace IL2Asm.Assembler.x86_RealMode
         }
 
         private List<MethodDefLayout> _methodsToCompile = new List<MethodDefLayout>();
-        private bool _addedLoadDisk = false;
-        private bool _addedDetectMemory = false;
+
+        private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
+
+        private bool CheckForPlugAndInvoke(string dllPath, string memberName, AssembledMethod assembly)
+        {
+            if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\RedPandaOS.dll";
+
+            if (File.Exists(dllPath))
+            {
+                if (!_loadedAssemblies.ContainsKey(dllPath)) _loadedAssemblies[dllPath] = Assembly.LoadFile(dllPath);
+
+                var possiblePlugs = _loadedAssemblies[dllPath].GetTypes().
+                    SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
+                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
+                               m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86_Real).ToArray();
+
+                if (possiblePlugs.Length == 1)
+                {
+                    var asmFlags = possiblePlugs[0].GetCustomAttribute<BaseTypes.AsmPlugAttribute>().Flags;
+
+                    if ((asmFlags & BaseTypes.AsmFlags.Inline) != 0)
+                    {
+                        possiblePlugs[0].Invoke(null, new object[] { assembly });
+                    }
+                    else
+                    {
+                        var name = memberName.Replace(".", "_").Replace("<", "_").Replace(">", "_");
+                        AssembledMethod plugMethod = new AssembledMethod(assembly.Metadata, null);
+                        plugMethod.AddAsm($"{name}:");
+                        possiblePlugs[0].Invoke(null, new object[] { plugMethod });
+                        _methods.Add(plugMethod);
+                        assembly.AddAsm($"call {name}");
+                        assembly.AddAsm("push ax");
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
@@ -747,190 +786,10 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                 assembly.AddAsm($"; start {memberName} plug");
 
-                if (memberName == "CPUHelper.Bios.WriteByte_Void_U1")
-                {
-                    assembly.AddAsm("pop ax");
-                    assembly.AddAsm("mov ah, 0x0e");
-                    assembly.AddAsm("int 0x10");
-                }
-                else if (memberName == "CPUHelper.Bios.EnterProtectedMode_Void_ByRefValueType")
-                {
-                    assembly.AddAsm("pop bx");
-                    assembly.AddAsm("mov [gdt_ptr + 2], bx");
-                    assembly.AddAsm("cli");
-                    assembly.AddAsm("lgdt [gdt_ptr]");
-                    assembly.AddAsm("mov eax, cr0");
-                    assembly.AddAsm("or eax, 0x1");
-                    assembly.AddAsm("mov cr0, eax");
-                    assembly.AddAsm("jmp 08h:0xA000");  // our 32 bit code starts at 0xA000, freshly loaded from the disk
-                    assembly.AddAsm("");
-                    assembly.AddAsm("gdt_ptr:");
-                    assembly.AddAsm("dw 23");
-                    assembly.AddAsm("dd 0; this gets filled in with bx, which is the address of the gdt object");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadDX_U2")
-                {
-                    assembly.AddAsm("push dx");
-                }
-                else if (memberName == "CPUHelper.CPU.ReadMem_U2_U2")
-                {
-                    assembly.AddAsm("pop bx");
-                    assembly.AddAsm("mov ax, [bx]");
-                    assembly.AddAsm("push ax");
-                }
-                else if (memberName == "CPUHelper.CPU.WriteMemory_Void_I4_U2")
-                {
-                    assembly.AddAsm("pop ax");
-                    assembly.AddAsm("pop bx");
-                    assembly.AddAsm("mov [bx], ax");
-                }
-                else if (memberName == "CPUHelper.CPU.Jump_Void_U4")
-                {
-                    assembly.AddAsm("pop ax");
-                    assembly.AddAsm("jmp ax");
-                }
-                else if (memberName == "CPUHelper.Bios.EnableA20_Boolean")
-                {
-                    // from https://wiki.osdev.org/A20_Line
-                    assembly.AddAsm("mov ax, 0x2403");
-                    assembly.AddAsm("int 0x15");
-                    assembly.AddAsm("jb bios_a20_failed");
-                    assembly.AddAsm("cmp ah, 0");
-                    assembly.AddAsm("jnz bios_a20_failed");
+                var file = memberName.Substring(0, memberName.IndexOf('.'));
+                var path = $"{Environment.CurrentDirectory}\\{file}.dll";
 
-                    assembly.AddAsm("mov ax, 0x2402");
-                    assembly.AddAsm("int 0x15");
-                    assembly.AddAsm("jb bios_a20_failed");
-                    assembly.AddAsm("cmp ah, 0");
-                    assembly.AddAsm("jnz bios_a20_failed");
-
-                    assembly.AddAsm("cmp al, 1");
-                    assembly.AddAsm("jz bios_a20_activated");
-
-                    assembly.AddAsm("mov ax, 0x2401");
-                    assembly.AddAsm("int 0x15");
-                    assembly.AddAsm("jb bios_a20_failed");
-                    assembly.AddAsm("cmp ah, 0");
-                    assembly.AddAsm("jnz bios_a20_failed");
-
-                    assembly.AddAsm("bios_a20_activated:");
-                    assembly.AddAsm("push 1");
-                    assembly.AddAsm("jmp bios_a20_complete");
-
-                    assembly.AddAsm("bios_a20_failed:");
-                    assembly.AddAsm("push 0");
-
-                    assembly.AddAsm("bios_a20_complete:");
-                }
-                else if (memberName == "CPUHelper.Bios.ResetDisk_Void")
-                {
-                    assembly.AddAsm("mov ah, 0x00; reset disk drive");
-                    assembly.AddAsm("int 0x13");
-                }
-                else if (memberName == "CPUHelper.Bios.LoadDisk_U2_U1_U1_U1_U2_U2_U1_U1")
-                {
-                    assembly.AddAsm("call LoadDisk_U2_U2_U2_U1_U1");
-                    assembly.AddAsm("push ax");
-
-                    if (!_addedLoadDisk)
-                    {
-                        AssembledMethod loadDiskMethod = new AssembledMethod(null, null, null);
-                        loadDiskMethod.AddAsm("; Bios.LoadDisk_U2_U2_U2_U1_U1 plug");
-                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1:");
-                        loadDiskMethod.AddAsm("push bp");
-                        loadDiskMethod.AddAsm("mov bp, sp");
-                        loadDiskMethod.AddAsm("push cx");
-                        loadDiskMethod.AddAsm("push dx");
-                        loadDiskMethod.AddAsm("push es");
-
-                        // bp + 4 is sectors to read
-                        // bp + 6 is drive
-                        // bp + 8 is lowAddr
-                        // bp + 10 is hiAddr
-                        // bp + 12 is sector
-                        // bp + 14 is head
-                        // bp + 16 is cylinder
-                        loadDiskMethod.AddAsm("mov es, [bp + 10]");
-                        loadDiskMethod.AddAsm("mov bx, [bp + 8]");
-
-                        loadDiskMethod.AddAsm("mov ah, 0x02");
-                        loadDiskMethod.AddAsm("mov al, [bp + 4]");
-
-                        loadDiskMethod.AddAsm("mov cl, [bp + 12]"); // starting at sector 2, sector 1 is our boot sector and already in memory
-                        loadDiskMethod.AddAsm("mov ch, [bp + 16]"); // first 8 bits of cylinder
-                        loadDiskMethod.AddAsm("mov dh, [bp + 14]"); // head
-                        loadDiskMethod.AddAsm("mov dl, [bp + 6]");  // drive number from bios
-
-                        loadDiskMethod.AddAsm("int 0x13");
-                        //loadDiskMethod.AddAsm("mov al, dl");
-
-                        loadDiskMethod.AddAsm("jc LoadDisk_U2_U2_U2_U1_U1_Cleanup");
-                        loadDiskMethod.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
-
-                        loadDiskMethod.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
-                        loadDiskMethod.AddAsm("pop es");
-                        loadDiskMethod.AddAsm("pop dx");
-                        loadDiskMethod.AddAsm("pop cx");
-                        loadDiskMethod.AddAsm("pop bp");
-                        loadDiskMethod.AddAsm("ret 14");
-
-                        _methods.Add(loadDiskMethod);
-                        _addedLoadDisk = true;
-                    }
-                }
-                else if (memberName == "CPUHelper.Bios.DetectMemory_U2_U2_ByRefValueType")
-                {
-                    assembly.AddAsm("call DetectMemory_U2_U2_ByRef");
-                    assembly.AddAsm("push ax");
-
-                    if (!_addedDetectMemory)
-                    {
-                        AssembledMethod detectMemMethod = new AssembledMethod(null, null, null);
-                        detectMemMethod.AddAsm("; Bios.DetectMemory_U2_U2_ByRef plug");
-                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef:");
-                        detectMemMethod.AddAsm("push bp");
-                        detectMemMethod.AddAsm("mov bp, sp");
-                        detectMemMethod.AddAsm("push cx");
-                        detectMemMethod.AddAsm("push dx");
-
-                        // bp + 4 is SMAP_ret
-                        // bp + 6 is address
-
-                        detectMemMethod.AddAsm("mov di, [bp + 6]");
-                        detectMemMethod.AddAsm("mov bx, [bp + 4]");
-                        detectMemMethod.AddAsm("mov ebx, [bx + 4]");
-                        detectMemMethod.AddAsm("mov edx, 0x534D4150");
-                        detectMemMethod.AddAsm("mov ecx, 24");
-                        detectMemMethod.AddAsm("mov eax, 0xE820");
-                        detectMemMethod.AddAsm("int 0x15");
-
-                        detectMemMethod.AddAsm("jc DetectMemory_U2_U2_ByRef_Error");
-                        detectMemMethod.AddAsm("push ebx"); // this is the continuation
-                        detectMemMethod.AddAsm("mov bx, [bp + 4]");
-                        detectMemMethod.AddAsm("mov [bx], eax");    // al will now contain magic number
-
-                        // now grab the continuation
-                        detectMemMethod.AddAsm("mov ax, bx");
-                        detectMemMethod.AddAsm("add ax, 4");
-                        detectMemMethod.AddAsm("mov bx, ax");
-                        detectMemMethod.AddAsm("pop eax");
-                        detectMemMethod.AddAsm("mov [bx], eax");    // now we have the continuation as well
-
-                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef_Cleanup:");
-                        detectMemMethod.AddAsm("pop dx");
-                        detectMemMethod.AddAsm("pop cx");
-                        detectMemMethod.AddAsm("pop bp");
-                        detectMemMethod.AddAsm("ret 4");
-
-                        detectMemMethod.AddAsm("DetectMemory_U2_U2_ByRef_Error:");
-                        detectMemMethod.AddAsm("mov ax, 0xff");
-                        detectMemMethod.AddAsm("jmp DetectMemory_U2_U2_ByRef_Cleanup");
-
-                        _methods.Add(detectMemMethod);
-                        _addedDetectMemory = true;
-                    }
-                }
-                else
+                if (!CheckForPlugAndInvoke(path, memberName, assembly))
                 {
                     throw new Exception("Unable to handle this method");
                 }
