@@ -1310,7 +1310,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
             assembly.AddAsm("mov ebx, [esp + 8]");    // get address of array
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm($"lea eax, [4 + ebx + {size} * eax]");
+            assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
             assembly.AddAsm("pop ebx");             // pop value off the stack
             assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
             assembly.AddAsm("add esp, 8");          // clean up the stack
@@ -1350,7 +1350,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
             assembly.AddAsm("pop ebx");             // get address of array
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm($"lea eax, [4 + ebx + {size} * eax]");
+            assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
             assembly.AddAsm("mov ebx, [eax]");    // bring value from memory to register (+4 to skip array length)
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
@@ -1405,7 +1405,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             assembly.AddAsm("pop edx");
             assembly.AddAsm("pop ecx");*/
-            assembly.AddAsm($"lea eax, [4 + ebx + {sizePerElement} * eax]");
+            assembly.AddAsm($"lea eax, [8 + ebx + {sizePerElement} * eax]");
 
             assembly.AddAsm("push eax");
             //eaxType = eaxType.NestedType;
@@ -2095,7 +2095,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("mul ebx");
             assembly.AddAsm("pop edx");     // multiply clobbers edx
             assembly.AddAsm("add eax, 4");  // add 4 bytes for the array length*/
-            assembly.AddAsm($"lea eax, [4 + {typeSize} * eax]");
+            assembly.AddAsm($"lea eax, [8 + {typeSize} * eax]");
             assembly.AddAsm("push eax");    // size in bytes to allocate
 
             ebxType = _stack.Pop();
@@ -2107,6 +2107,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             // put the length into the first element
             assembly.AddAsm("pop ebx");     // take the size we pushed earlier
             assembly.AddAsm("mov [eax], ebx");
+            assembly.AddAsm($"mov dword [eax + 4], {typeSize}");
 
             assembly.AddAsm("push eax");
 
