@@ -85,6 +85,14 @@ namespace CPUHelper
             assembly.AddAsm("mov [ebx], ax");
         }
 
+        [AsmPlug("CPUHelper.CPU.WriteMemory_Void_I4_U2", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void WriteMemoryAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ax");
+            assembly.AddAsm("pop bx");
+            assembly.AddAsm("mov [bx], ax");
+        }
+
         [AsmMethod]
         public static void OutDxAl(ushort dx, byte al)
         {
@@ -157,6 +165,12 @@ namespace CPUHelper
         public static ushort ReadDX()
         {
             return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadDX_U2", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void ReadDXAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push dx");
         }
 
         [AsmMethod]
@@ -357,6 +371,13 @@ namespace CPUHelper
         public static void Jump(uint addr)
         {
 
+        }
+
+        [AsmPlug("CPUHelper.CPU.Jump_Void_U4", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void JumpAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ax");
+            assembly.AddAsm("jmp ax");
         }
 
         [AsmMethod]
