@@ -15,16 +15,26 @@ namespace IL2Asm.BaseTypes
         RiscV
     }
 
+    [Flags]
+    public enum AsmFlags : byte
+    {
+        None = 0x00,
+        Inline = 0x01
+    }
+
     public class AsmPlugAttribute : Attribute
     {
         public string AsmMethodName { get; private set; }
 
         public Architecture Architecture { get; private set; }
 
-        public AsmPlugAttribute(string asmMethodName, Architecture architecture)
+        public AsmFlags Flags { get; private set; }
+
+        public AsmPlugAttribute(string asmMethodName, Architecture architecture, AsmFlags flags = AsmFlags.Inline)
         {
             AsmMethodName = asmMethodName;
             Architecture = architecture;
+            Flags = flags;
         }
     }
 }

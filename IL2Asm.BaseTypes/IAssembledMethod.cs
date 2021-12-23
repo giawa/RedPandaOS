@@ -8,5 +8,7 @@ namespace IL2Asm.BaseTypes
         public List<string> Assembly { get; }
 
         public void AddAsm(string asm);
+
+        public string GetUniqueLabel(string name);
     }
 }

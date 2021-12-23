@@ -565,7 +565,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm($"jae {defaultLabel}");
 
                         // implement a jump table
-                        assembly.AddAsm($"jmp [eax*4 + {jmpTableName}]");
+                        assembly.AddAsm($"jmp [eax * 4 + {jmpTableName}]");
 
                         StringBuilder sb = new StringBuilder();
 
@@ -2121,6 +2121,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private bool CheckForPlugAndInvoke(string dllPath, string memberName, AssembledMethod assembly)
         {
+            if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\RedPandaOS.dll";
+
             if (File.Exists(dllPath))
             {
                 if (!_loadedAssemblies.ContainsKey(dllPath)) _loadedAssemblies[dllPath] = Assembly.LoadFile(dllPath);
@@ -2132,7 +2134,22 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 if (possiblePlugs.Length == 1)
                 {
-                    possiblePlugs[0].Invoke(null, new object[] { assembly });
+                    var asmFlags = possiblePlugs[0].GetCustomAttribute<BaseTypes.AsmPlugAttribute>().Flags;
+
+                    if ((asmFlags & BaseTypes.AsmFlags.Inline) != 0)
+                    {
+                        possiblePlugs[0].Invoke(null, new object[] { assembly });
+                    }
+                    else
+                    {
+                        var name = memberName.Replace(".", "_").Replace("<", "_").Replace(">", "_");
+                        AssembledMethod plugMethod = new AssembledMethod(assembly.Metadata, null);
+                        plugMethod.AddAsm($"{name}:");
+                        possiblePlugs[0].Invoke(null, new object[] { plugMethod });
+                        _methods.Add(plugMethod);
+                        assembly.AddAsm($"call {name}");
+                    }
+                    
                     return true;
                 }
             }
