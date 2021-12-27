@@ -54,7 +54,7 @@ namespace Kernel.Memory
                     CPU.WriteMemInt(this.Address + 4, 128); // put the size of the array in the first 4 bytes of the array (as if created normally)
                     CPU.WriteMemInt(this.Address + 8, 1);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
 
-                    for (uint i = 3; i < 131; i++)
+                    for (uint i = 3; i < 35; i++)
                         CPU.WriteMemInt(this.Address + (i << 2), 0);
                     //Array.Clear(Used._array, 0, Used._array.Length);
                     
