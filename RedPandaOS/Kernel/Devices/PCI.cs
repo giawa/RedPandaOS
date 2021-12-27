@@ -59,15 +59,15 @@
             }
 
             //VGA.WriteHex(storageDevice.Bus); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Device); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Function); VGA.WriteLine();
-            VGA.WriteString("BAR0: "); VGA.WriteHex(storageDevice.BAR0); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR0Size); VGA.WriteLine();
-            VGA.WriteString("BAR1: "); VGA.WriteHex(storageDevice.BAR1); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR1Size); VGA.WriteLine();
+            Logging.WriteLine(LogLevel.Trace, "BAR0: {0} {1}", storageDevice.BAR0, storageDevice.BAR0Size);
+            Logging.WriteLine(LogLevel.Trace, "BAR1: {0} {1}", storageDevice.BAR1, storageDevice.BAR1Size);
 
             if (headerType == 0)
             {
-                VGA.WriteString("BAR2: "); VGA.WriteHex(storageDevice.BAR2); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR2Size); VGA.WriteLine();
-                VGA.WriteString("BAR3: "); VGA.WriteHex(storageDevice.BAR3); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR3Size); VGA.WriteLine();
-                VGA.WriteString("BAR4: "); VGA.WriteHex(storageDevice.BAR4); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR4Size); VGA.WriteLine();
-                VGA.WriteString("BAR5: "); VGA.WriteHex(storageDevice.BAR5); VGA.WriteChar(' '); VGA.WriteHex(storageDevice.BAR5Size); VGA.WriteLine();
+                Logging.WriteLine(LogLevel.Trace, "BAR2: {0} {1}", storageDevice.BAR2, storageDevice.BAR2Size);
+                Logging.WriteLine(LogLevel.Trace, "BAR3: {0} {1}", storageDevice.BAR3, storageDevice.BAR3Size);
+                Logging.WriteLine(LogLevel.Trace, "BAR4: {0} {1}", storageDevice.BAR4, storageDevice.BAR4Size);
+                Logging.WriteLine(LogLevel.Trace, "BAR5: {0} {1}", storageDevice.BAR5, storageDevice.BAR5Size);
             }
         }
 
@@ -90,8 +90,7 @@
 
         public static void ScanBus()
         {
-            VGA.WriteString("Enumerating PCI bus:");
-            VGA.WriteLine();
+            Logging.WriteLine(LogLevel.Trace, "Enumerating PCI bus:");
 
             // there are up to 256 PCI busses, so check each one
             for (int i = 0; i < 256; i++)
