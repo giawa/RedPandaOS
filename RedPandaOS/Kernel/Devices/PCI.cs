@@ -49,13 +49,13 @@
             if (headerType == 0)
             {
                 storageDevice.BAR2 = ReadDword(bus, device, function, 0x18);
-                storageDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x18, storageDevice.BAR2);
+                storageDevice.BAR2Size = ProbeMemorySize(bus, device, function, 0x18, storageDevice.BAR2);
                 storageDevice.BAR3 = ReadDword(bus, device, function, 0x1C);
-                storageDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x1C, storageDevice.BAR3);
+                storageDevice.BAR3Size = ProbeMemorySize(bus, device, function, 0x1C, storageDevice.BAR3);
                 storageDevice.BAR4 = ReadDword(bus, device, function, 0x20);
-                storageDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x20, storageDevice.BAR4);
+                storageDevice.BAR4Size = ProbeMemorySize(bus, device, function, 0x20, storageDevice.BAR4);
                 storageDevice.BAR5 = ReadDword(bus, device, function, 0x24);
-                storageDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x24, storageDevice.BAR5);
+                storageDevice.BAR5Size = ProbeMemorySize(bus, device, function, 0x24, storageDevice.BAR5);
             }
 
             //VGA.WriteHex(storageDevice.Bus); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Device); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Function); VGA.WriteLine();
@@ -83,7 +83,10 @@
             // write the original value back
             WriteDword(bus, device, function, offset, initialValue);
 
-            return ~(newValue & 0xfffffff0) + 1;
+            if ((initialValue & 1) != 0) newValue &= 0xfffffffc;
+            else newValue &= 0xfffffff0;
+
+            return ~newValue + 1;
         }
 
         private static PCIDevice storageDevice;
@@ -199,7 +202,9 @@
                     break;
                 case ClassCode.NetworkController: VGA.WriteString("Network Controller"); break;
                 case ClassCode.DisplayController: VGA.WriteString("Display Controller"); break;
+                case ClassCode.MultimediaController: VGA.WriteString("Multimedia Controller"); break;
                 case ClassCode.BridgeDevice: VGA.WriteString("Bridge Device"); break;
+                case ClassCode.SerialBusController: VGA.WriteString("Serial Bus Controller"); break;
                 default: VGA.WriteString("Unknown "); VGA.WriteHex((byte)code); break;
             }
         }
@@ -239,7 +244,7 @@
             InputDeviceController = 0x09,
             DockingStation = 0x0A,
             Processor = 0x0B,
-            SetialBusController = 0x0C,
+            SerialBusController = 0x0C,
             WirelessController = 0x0D,
             IntelligentController = 0x0E,
             SatelliteCommunicationController = 0x0F,
