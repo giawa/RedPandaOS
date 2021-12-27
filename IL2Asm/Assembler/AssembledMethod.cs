@@ -10,6 +10,7 @@ namespace IL2Asm
         public MethodSpecLayout MethodSpec { get; private set; }
         public CLIMetadata Metadata { get; private set; }
         public GenericInstSig GenericInstSig { get; private set; }
+        public int MethodCounter { get; set; }
 
         public List<string> Assembly { get; private set; }
 

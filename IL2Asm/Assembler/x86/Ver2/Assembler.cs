@@ -84,7 +84,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             //var assembly = new AssembledMethod(pe.Metadata, method, methodSpec);
             var methodDef = assembly.Method.MethodDef;
             _methods.Add(assembly);
-            Runtime.GlobalMethodCounter++;
+            assembly.MethodCounter = Runtime.GlobalMethodCounter++;
 
             Dictionary<int, Stack<ElementType>> branchStacks = new Dictionary<int, Stack<ElementType>>();
 
@@ -159,7 +159,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 if (branchStacks.ContainsKey(i - 1)) _stack = branchStacks[i - 1];
 
                 // add label for this opcode
-                string label = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                string label = $"IL_{(i - 1).ToString("X4")}_{assembly.MethodCounter}";
                 assembly.AddAsm($"{label}:");
                 int asmCount = assembly.Assembly.Count;
 
@@ -371,7 +371,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // BR.S
                     case 0x2B:
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm($"jmp {_jmpLabel}");
 
                         // unconditional branches can unbalance the stack
@@ -385,7 +385,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("cmp eax, 0");
                         assembly.AddAsm($"je {_jmpLabel}");
@@ -397,7 +397,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm("cmp eax, 0");
                         assembly.AddAsm($"jne {_jmpLabel}");
@@ -409,7 +409,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata) && _stack.Peek().Type != ElementType.EType.R4) throw new Exception("Unsupported type");
 
                         _sbyte = (sbyte)code[i++];
-                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("pop ebx");        // value1
                         assembly.AddAsm("cmp ebx, eax");    // compare values
@@ -477,7 +477,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
-                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm($"jmp {_jmpLabel}");
                         break;
 
@@ -488,7 +488,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
-                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("cmp eax, 0");    // compare values
                         assembly.AddAsm($"je {_jmpLabel}");
@@ -502,7 +502,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
-                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("cmp eax, 0");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
@@ -516,7 +516,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
-                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("pop ebx");        // value1
                         assembly.AddAsm("cmp ebx, eax");    // compare values
@@ -532,7 +532,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _int = BitConverter.ToInt32(code, i);
                         i += 4;
 
-                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("pop ebx");        // value1
                         assembly.AddAsm("cmp ebx, eax");    // compare values
@@ -550,8 +550,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // SWITCH
                     case 0x45:
-                        var defaultLabel = $"IL_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_Default";
-                        var jmpTableName = $"DD_{(i - 1).ToString("X4")}_{Runtime.GlobalMethodCounter}_JmpTable";
+                        var defaultLabel = $"IL_{(i - 1).ToString("X4")}_{assembly.MethodCounter}_Default";
+                        var jmpTableName = $"DD_{(i - 1).ToString("X4")}_{assembly.MethodCounter}_JmpTable";
 
                         _uint = BitConverter.ToUInt32(code, i);
                         i += 4;
@@ -574,7 +574,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                             _int = BitConverter.ToInt32(code, i);
                             i += 4;
 
-                            _jmpLabel = $"IL_{(ilPosition + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                            _jmpLabel = $"IL_{(ilPosition + _int).ToString("X4")}_{assembly.MethodCounter}";
 
                             sb.Append(_jmpLabel);
                             if (j < _uint - 1) sb.Append(", ");
@@ -1181,7 +1181,7 @@ namespace IL2Asm.Assembler.x86.Ver2
         private void Branch(int jmpTo, AssembledMethod assembly, CLIMetadata metadata, string asm32jmpType, string asmR4jmpType)
         {
             //_sbyte = (sbyte)code[i++];
-            _jmpLabel = $"IL_{jmpTo.ToString("X4")}_{Runtime.GlobalMethodCounter}";
+            _jmpLabel = $"IL_{jmpTo.ToString("X4")}_{assembly.MethodCounter}";
 
             if (_stack.Peek().Is32BitCapable(metadata))
             {
