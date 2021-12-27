@@ -63,7 +63,7 @@ namespace Plugs
             assembly.AddAsm($"{endLabel}:");
             assembly.AddAsm("pop ecx");
 
-            assembly.AddAsm("ret");
+            assembly.AddAsm("ret 12");  // pop all the pushed items off the stack
         }
     }
 }
