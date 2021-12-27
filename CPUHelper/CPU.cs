@@ -193,6 +193,19 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static uint ReadESI()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadESI_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadESIAsm(IAssembledMethod assembly)
+        {
+            //assembly.AddAsm("mov eax, esi");
+            assembly.AddAsm("push esi");
+        }
+
+        [AsmMethod]
         public static uint ReadCR2()
         {
             return 0;
@@ -406,7 +419,7 @@ namespace CPUHelper
         }
 
         [AsmPlug("CPUHelper.CPU.Interrupt3_Void", IL2Asm.BaseTypes.Architecture.X86)]
-        public static void Interrupt3Asm(IAssembledMethod assembly)
+        private static void Interrupt3Asm(IAssembledMethod assembly)
         {
             assembly.AddAsm("int 3");
         }
@@ -418,7 +431,7 @@ namespace CPUHelper
         }
 
         [AsmPlug("CPUHelper.CPU.Interrupt4_Void", IL2Asm.BaseTypes.Architecture.X86)]
-        public static void Interrupt4Asm(IAssembledMethod assembly)
+        private static void Interrupt4Asm(IAssembledMethod assembly)
         {
             assembly.AddAsm("int 4");
         }
@@ -430,7 +443,7 @@ namespace CPUHelper
         }
 
         [AsmPlug("CPUHelper.CPU.Sti_Void", IL2Asm.BaseTypes.Architecture.X86)]
-        public static void StiAsm(IAssembledMethod assembly)
+        private static void StiAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("sti");
         }
@@ -442,13 +455,38 @@ namespace CPUHelper
         }
 
         [AsmPlug("CPUHelper.CPU.SetPageDirectory_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
-        public static void SetPageDirectoryAsm(IAssembledMethod assembly)
+        private static void SetPageDirectoryAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("pop eax");         // pop address of uint[]
             assembly.AddAsm("mov cr3, eax");    // move address of the start of the uint[] into cr3
             assembly.AddAsm("mov eax, cr0");    // load cr0
             assembly.AddAsm("or eax, 0x80000000");  // enable page bit
             assembly.AddAsm("mov cr0, eax");    // load cr0 with the page bit now set
+        }
+
+        [AsmMethod]
+        public static uint Rdtsc()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.Rdtsc_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void RdtscAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("rdtsc");
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmMethod]
+        public static uint ReadEDX()
+        {
+            return 0;   
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadEDX_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadEDXAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push edx");
         }
     }
 }
