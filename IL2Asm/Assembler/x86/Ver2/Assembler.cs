@@ -310,8 +310,16 @@ namespace IL2Asm.Assembler.x86.Ver2
                         {
                             var sizeOf = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
                             if ((sizeOf % 4) != 0) throw new Exception("Unsupported type");
+
+                            if (sizeOf <= 8)
+                            {
                                 for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
                             }
+                            else
+                            {
+                                assembly.AddAsm($"add esp, {sizeOf}");
+                            }
+                        }
                         eaxType = _stack.Pop();
                         break;
 
@@ -1560,10 +1568,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                     else assembly.AddAsm($"mov eax, [ebx + {offset}]");*/
                 }
 
+                // if this is just 4 or 8 bytes then we can pop once or twice, but otherwise manipulate esp directly
+                if (ebxSize <= 8)
+                {
                     for (int b = 0; b < Math.Ceiling(ebxSize / 4f); b++)
                         assembly.AddAsm("pop ebx");
                 }
                 else
+                {
+                    assembly.AddAsm($"add esp, {ebxSize}");
+                }
+            }
+            else
             {
                 if (!ebxType.Is32BitCapable(metadata))
                     throw new Exception("Unsupported type");
