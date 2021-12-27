@@ -18,12 +18,17 @@ namespace Kernel.Memory
         [Allocator]
         public static uint Malloc(uint size, uint init = 0)
         {
+            if (KernelAllocator != null)
+                return KernelAllocator.Malloc(size, init);
+
+            return MallocEternal(size, init);
+        }
+
+        public static uint MallocEternal(uint size, uint init = 0)
+        {
             // it's possible the static constructor gets called after other things trying to malloc
             // so check for the case where the address is still zero and the constructor hasn't been called
             if (_addr == 0) _addr = 0x20000;
-
-            if (KernelAllocator != null)
-                return KernelAllocator.Malloc(size, init);
 
             if ((_addr & 0x03) != 0)
             {
