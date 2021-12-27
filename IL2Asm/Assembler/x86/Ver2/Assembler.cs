@@ -269,7 +269,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     // LDC.I4.S
                     case 0x1F:
-                        assembly.AddAsm($"push {code[i++]}");
+                        assembly.AddAsm($"push {(sbyte)code[i++]}");
                         _stack.Push(new ElementType(ElementType.EType.I4));
                         break;
 
