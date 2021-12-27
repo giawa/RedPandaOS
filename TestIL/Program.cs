@@ -188,7 +188,7 @@ namespace TestIL
         static void Main32()
         {
             VGA.Clear();
-            VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
+            //VGA.WriteVideoMemoryString(_welcomeMessage, 0x0700);
             VGA.WriteLine();
 
             // check if A20 is enabled
@@ -215,7 +215,7 @@ namespace TestIL
             //VGA.WriteHex(0x12345678);
 
             //_entry = Marshal.PtrToStructure<SMAP_entry>((IntPtr)0x502);
-            VGA.WriteVideoMemoryString("Memory Regions as given by BIOS:");
+            /*VGA.WriteVideoMemoryString("Memory Regions as given by BIOS:");
             VGA.WriteLine();
             //int i = 0;
             for (int i = 0; i < entries; i++)
@@ -259,7 +259,7 @@ namespace TestIL
             VGA.WriteVideoMemoryChar(':');
             VGA.WriteVideoMemoryChar('/', 0x0300);
             VGA.WriteVideoMemoryChar('$');
-            VGA.WriteVideoMemoryChar(' ');
+            VGA.WriteVideoMemoryChar(' ');*/
 
             while (true) ;
         }
