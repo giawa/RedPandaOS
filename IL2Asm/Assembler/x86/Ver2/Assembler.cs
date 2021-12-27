@@ -1846,6 +1846,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         // special case for inserting the 32 ISR addresses for the kernel
                         StringBuilder isrNames = new StringBuilder();
                         isrNames.Append("32");  // size of array
+                        isrNames.Append(", 4");   // size per element
                         for (int i = 0; i < 32; i++) isrNames.Append($", ISR{i}");
                         var isrType = new ElementType(ElementType.EType.SzArray);
                         isrType.NestedType = new ElementType(ElementType.EType.I4);
@@ -1859,6 +1860,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         // special case for inserting the 32 ISR addresses for the kernel
                         StringBuilder irqNames = new StringBuilder();
                         irqNames.Append("16");  // size of array
+                        irqNames.Append(", 4");   // size per element
                         for (int i = 0; i < 16; i++) irqNames.Append($", IRQ{i}");
                         var irqType = new ElementType(ElementType.EType.SzArray);
                         irqType.NestedType = new ElementType(ElementType.EType.I4);
