@@ -310,8 +310,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                         {
                             var sizeOf = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
                             if ((sizeOf % 4) != 0) throw new Exception("Unsupported type");
-                            for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
-                        }
+                                for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++) assembly.AddAsm("pop eax");
+                            }
                         eaxType = _stack.Pop();
                         break;
 
@@ -1310,10 +1310,53 @@ namespace IL2Asm.Assembler.x86.Ver2
             //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
             assembly.AddAsm("mov ebx, [esp + 8]");    // get address of array
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
+            //assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
+            LeaOrMul_EBXOffset(assembly, 8, size);
             assembly.AddAsm("pop ebx");             // pop value off the stack
             assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
             assembly.AddAsm("add esp, 8");          // clean up the stack
+        }
+
+        private void LeaOrMul_EBXOffset(AssembledMethod assembly, int offset, int size)
+        {
+            int temp = size;
+            while ((temp & 1) == 0) temp = temp >> 1;
+            
+            if (temp == 1)
+            {
+                // this was a power of 2, so we can use lea
+                assembly.AddAsm($"lea eax, [{offset} + ebx + {size} * eax]");
+            }
+            else
+            {
+                assembly.AddAsm("push edx");    // mul clobbers edx
+                assembly.AddAsm($"mov edx, {size}");
+                assembly.AddAsm("mul edx");
+                assembly.AddAsm("pop edx");
+                assembly.AddAsm($"lea eax, [{offset} + eax + ebx]");
+                //assembly.AddAsm("add eax, ebx");
+                //assembly.AddAsm($"add eax, {offset}");
+            }
+        }
+
+        private void LeaOrMul(AssembledMethod assembly, int offset, int size)
+        {
+            int temp = size;
+            while ((temp & 1) == 0) temp = temp >> 1;
+
+            if (temp == 1)
+            {
+                // this was a power of 2, so we can use lea
+                assembly.AddAsm($"lea eax, [{offset} + {size} * eax]");
+            }
+            else
+            {
+                assembly.AddAsm("push edx");    // mul clobbers edx
+                assembly.AddAsm($"mov edx, {size}");
+                assembly.AddAsm("mul edx");
+                assembly.AddAsm("pop edx");
+                assembly.AddAsm($"add eax, {offset}");
+            }
         }
 
         private void LDELEM(int sizeInBytes, AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -1350,7 +1393,8 @@ namespace IL2Asm.Assembler.x86.Ver2
             //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");    // multiply by 'shl' to get offset
             assembly.AddAsm("pop ebx");             // get address of array
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
-            assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
+            //assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
+            LeaOrMul_EBXOffset(assembly, 8, size);
             assembly.AddAsm("mov ebx, [eax]");    // bring value from memory to register (+4 to skip array length)
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
@@ -1405,7 +1449,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             assembly.AddAsm("pop edx");
             assembly.AddAsm("pop ecx");*/
-            assembly.AddAsm($"lea eax, [8 + ebx + {sizePerElement} * eax]");
+            //assembly.AddAsm($"lea eax, [8 + ebx + {sizePerElement} * eax]");
+            LeaOrMul_EBXOffset(assembly, 8, sizePerElement);
 
             assembly.AddAsm("push eax");
             //eaxType = eaxType.NestedType;
@@ -1515,10 +1560,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                     else assembly.AddAsm($"mov eax, [ebx + {offset}]");*/
                 }
 
-                for (int b = 0; b < Math.Ceiling(ebxSize / 4f); b++)
-                    assembly.AddAsm("pop ebx");
-            }
-            else
+                    for (int b = 0; b < Math.Ceiling(ebxSize / 4f); b++)
+                        assembly.AddAsm("pop ebx");
+                }
+                else
             {
                 if (!ebxType.Is32BitCapable(metadata))
                     throw new Exception("Unsupported type");
@@ -2097,7 +2142,8 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("mul ebx");
             assembly.AddAsm("pop edx");     // multiply clobbers edx
             assembly.AddAsm("add eax, 4");  // add 4 bytes for the array length*/
-            assembly.AddAsm($"lea eax, [8 + {typeSize} * eax]");
+            //assembly.AddAsm($"lea eax, [8 + {typeSize} * eax]");
+            LeaOrMul(assembly, 8, typeSize);
             assembly.AddAsm("push eax");    // size in bytes to allocate
 
             ebxType = _stack.Pop();
