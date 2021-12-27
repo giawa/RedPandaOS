@@ -30,7 +30,7 @@ namespace Kernel.Devices
             _isrHandlers = new Action[32];
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
-            _idt_ptr.address = Utilities.ObjectToPtr(_idt_entries) + 4;
+            _idt_ptr.address = Utilities.ObjectToPtr(_idt_entries) + 8; // plus 8 bytes to find start of actual array data
 
             // remap the IRQ table
             CPU.OutDxAl(0x20, 0x11);
