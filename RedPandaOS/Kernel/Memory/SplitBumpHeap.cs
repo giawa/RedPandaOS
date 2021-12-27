@@ -50,7 +50,7 @@ namespace Kernel.Memory
                     // byte 4->7: length of the _array
                     // byte 8->135: the actual contents of _array
                     Used = Utilities.PtrToObject<BitArray>(this.Address);   // 4 bytes (pointer to the array)
-                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 8);  // 136 bytes (4 byte size of array, 4 byte size of elements, 128 entries)
+                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 4);  // 136 bytes (4 byte size of array, 4 byte size of elements, 128 entries)
                     CPU.WriteMemInt(this.Address + 4, 128); // put the size of the array in the first 4 bytes of the array (as if created normally)
                     CPU.WriteMemInt(this.Address + 8, 1);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
 
