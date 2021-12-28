@@ -720,8 +720,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         break;
 
-                    // DIV
+                    // DIV and DIV.UN
                     case 0x5B:
+                    case 0x5C:
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();
                         _stack.Push(eaxType);
@@ -916,6 +917,23 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         _stack.Pop();
                         eaxType = new ElementType(ElementType.EType.R4);
+                        _stack.Push(eaxType);
+                        break;
+
+                    // CONV.U4
+                    case 0x6D:
+                        if (_stack.Peek().Is32BitCapable(pe.Metadata))
+                        {
+                            // no conversion required, we're already 32 bit
+                        }
+                        else if (_stack.Peek().Type == ElementType.EType.R4)
+                        {
+                            // TODO: This doesn't work if the floating point number is negative
+                            assembly.AddAsm("fld dword [esp]");
+                            assembly.AddAsm("fisttp dword [esp]");
+                        }
+                        _stack.Pop();
+                        eaxType = new ElementType(ElementType.EType.U4);
                         _stack.Push(eaxType);
                         break;
 
