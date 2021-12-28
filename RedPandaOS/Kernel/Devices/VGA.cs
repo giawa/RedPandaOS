@@ -25,7 +25,7 @@ namespace Kernel.Devices
             WriteFormattedString(s, u1, 0, effect);
         }
 
-        public static void WriteFormattedString(string s, uint u1, uint u2, ushort effect = 0x0f00)
+        public static void WriteFormattedString(string s, uint u1, uint u2, uint u3, ushort effect = 0x0f00)
         {
             int i = 0;
 
@@ -35,6 +35,7 @@ namespace Kernel.Devices
                 {
                     if (s[i + 1] == '0') WriteHex(u1);
                     else if (s[i + 1] == '1') WriteHex(u2);
+                    else if (s[i + 1] == '2') WriteHex(u3);
 
                     i += 3;
                     continue;
@@ -47,6 +48,25 @@ namespace Kernel.Devices
 
             Scroll();
             SetCursorPos((offset - VIDEO_MEMORY) >> 1);
+        }
+
+        public static void WriteInt(uint value)
+        {
+            uint divisor = 1;
+
+            while (divisor * 10 <= value)
+            {
+                divisor *= 10;
+            }
+
+            while (divisor > 0)
+            {
+                uint c = value / divisor;// Runtime.Math32.Divide(value, divisor);
+                //Bios.WriteByte((byte)((c % 10) + 48));
+                VGA.WriteChar((int)(c % 10) + 48);
+
+                divisor = divisor / 10;// Runtime.Math32.Divide(divisor, 10);
+            }
         }
 
         public static void WriteString(string s, ushort effect = 0x0f00)

@@ -19,11 +19,11 @@ namespace Kernel
             LoggingLevel = LogLevel.Trace;
         }
 
-        public static void WriteLine(LogLevel level, string s, uint u1, uint u2 = 0)
+        public static void WriteLine(LogLevel level, string s, uint u1, uint u2 = 0, uint u3 = 0)
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteFormattedString(s, u1, u2);
+                VGA.WriteFormattedString(s, u1, u2, u3);
                 VGA.WriteLine();
             }
         }
@@ -37,11 +37,11 @@ namespace Kernel
             }
         }
 
-        public static void Write(LogLevel level, string s)
+        public static void Write(LogLevel level, string s, uint u1, uint u2 = 0, uint u3 = 0)
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteString(s);
+                VGA.WriteFormattedString(s, u1, u2, u3);
             }
         }
     }
