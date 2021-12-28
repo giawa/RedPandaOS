@@ -5,6 +5,16 @@ namespace Plugs
 {
     public static class SystemPlugs
     {
+        [CSharpPlug("System.Threading.Thread.Sleep_Void_I4")]
+        private static void ThreadingThreadSleep(int milliseconds)
+        {
+            uint start = Kernel.Devices.PIT.TickCount;
+            uint end = start + Kernel.Devices.PIT.Frequency * (uint)milliseconds / 1000;
+            if (start == end) end++;    // delay was less than the accuracy of the timer, so always wait at least 1 tick
+
+            while (Kernel.Devices.PIT.TickCount < end) ;
+        }
+
         [AsmPlug("System.Array.Clear_Void_Class_I4_I4", Architecture.X86, AsmFlags.None)]
         private static void ArrayClearAsm(IAssembledMethod assembly)
         {

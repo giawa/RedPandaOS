@@ -7,6 +7,7 @@ namespace Kernel.Devices
         public static void Init(int frequency)
         {
             int divisor = Runtime.Math32.Divide(1193180, frequency);
+            Frequency = (uint)frequency;
 
             CPU.OutDxAl(0x43, 0x36);
             CPU.OutDxAl(0x40, (byte)divisor);
@@ -14,6 +15,10 @@ namespace Kernel.Devices
         }
 
         private static uint _tickCount = 0;
+
+        public static uint TickCount { get { return _tickCount; } }
+
+        public static uint Frequency { get; private set; }
 
         public static void Tick()
         {
