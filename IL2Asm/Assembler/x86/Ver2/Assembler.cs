@@ -1241,9 +1241,12 @@ namespace IL2Asm.Assembler.x86.Ver2
         {
             if (assembly.HasStackFrame) return;
 
+            int offset = 0;
+            if (assembly.Assembly[0].StartsWith(assembly.ToAsmString(assembly.GenericInstSig))) offset = 1;
+
             assembly.HasStackFrame = true;
-            assembly.Assembly.Insert(1, "push ebp");
-            assembly.Assembly.Insert(2, "mov ebp, esp");
+            assembly.Assembly.Insert(offset, "push ebp");
+            assembly.Assembly.Insert(offset + 1, "mov ebp, esp");
         }
 
         private void STLOC(byte b, AssembledMethod assembly)
