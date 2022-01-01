@@ -860,6 +860,17 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Push(eaxType);*/
                         break;
 
+                    // NEG
+                    case 0x65:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        // we push same type back on to stack, so no modification to _stack is required
+                        assembly.AddAsm("pop eax");
+                        assembly.AddAsm("neg eax");
+                        assembly.AddAsm("push eax");
+
+                        break;
+
                     // NOT
                     case 0x66:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
