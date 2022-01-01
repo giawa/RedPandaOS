@@ -751,7 +751,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
                         break;
 
-                    // MOD
+                    // MOD.UN and MOD (REM.UN and REM)
+                    case 0x5D:
                     case 0x5E:
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();
