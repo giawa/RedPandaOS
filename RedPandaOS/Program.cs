@@ -60,6 +60,7 @@ namespace GiawaOS
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.UseIncOrDec.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
                 File.WriteAllLines("pm.asm", pm.ToArray());
