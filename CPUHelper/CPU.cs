@@ -161,6 +161,44 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        public static void InDxMultiDword(ushort dx, uint address, int count)
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.InDxMultiDword_Void_U2_U4_I4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void InDxMultiDwordAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // count
+            assembly.AddAsm("pop edi"); // data location
+            assembly.AddAsm("pop ebx"); // dx
+            assembly.AddAsm("push ecx");    // will get clobbered in a moment
+            assembly.AddAsm("push edx");    // will get clobbered in a moment
+            assembly.AddAsm("mov ecx, eax");
+            assembly.AddAsm("mov edx, ebx");
+            assembly.AddAsm("rep insd");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("pop ecx");
+        }
+
+        public static void OutDxMultiDword(ushort dx, uint address, int count)
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.OutDxMultiDword_Void_U2_U4_I4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void OutDxMultiDwordAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // count
+            assembly.AddAsm("pop esi"); // data location
+            assembly.AddAsm("pop ebx"); // dx
+            assembly.AddAsm("push ecx");    // will get clobbered in a moment
+            assembly.AddAsm("push edx");    // will get clobbered in a moment
+            assembly.AddAsm("mov ecx, eax");
+            assembly.AddAsm("mov edx, ebx");
+            assembly.AddAsm("rep outsd");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("pop ecx");
+        }
+
         [AsmMethod]
         public static ushort ReadDX()
         {
