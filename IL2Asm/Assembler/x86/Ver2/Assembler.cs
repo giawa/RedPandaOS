@@ -346,14 +346,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                         if (method.LocalVars != null)
                         {
                             int localVarCount = method.LocalVars.LocalVariables.Length;
-                            for (int p = 0; p < localVarCount; p++)
+
+                            if (localVarCount > 0)
                             {
-                                assembly.AddAsm("pop ebx; localvar that was pushed on stack");
+                                if (localVarCount <= 2)
+                                {
+                                    for (int p = 0; p < localVarCount; p++)
+                                    {
+                                        assembly.AddAsm("pop ebx; localvar that was pushed on stack");
+                                    }
+                                }
+                                else assembly.AddAsm($"add esp, {BytesPerRegister * localVarCount} ; pop {localVarCount} localvars");
                             }
-                            /*if (localVarCount > 0)
-                            {
-                                if (localVarCount > 0) assembly.AddAsm($"add esp, {BytesPerRegister * localVarCount} ; pop {localVarCount} localvars");
-                            }*/
                             //if (localVarCount > 1) assembly.AddAsm("pop edx; localvar.1");
                             //if (localVarCount > 0) assembly.AddAsm("pop ecx; localvar.0");
                             //if (localVarCount > 2) PopStack(localVarCount - 2);   // don't pop the stack because there can be multiple RET per method
@@ -2260,7 +2264,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
                                 m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName).SingleOrDefault() ?? null;
-                        
+
                         var methodToCompile = QueueCompileMethod(pe, methodDef, null, null);
 
                         string callsite = methodToCompile.ToAsmString();
