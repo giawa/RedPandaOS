@@ -282,17 +282,19 @@ namespace Kernel.Devices
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
 
-            for (int i = 0; i < size; i++)
-            {
-                if (reg < 0x08)
-                    _buffer[i] = CPUHelper.CPU.InDxDword((ushort)(_channels[channel].Base + reg - 0x00));
-                else if (reg < 0x0C)
-                    _buffer[i] = CPUHelper.CPU.InDxDword((ushort)(_channels[channel].Base + reg - 0x06));
-                else if (reg < 0x0E)
-                    _buffer[i] = CPUHelper.CPU.InDxDword((ushort)(_channels[channel].Control + reg - 0x0C));
-                else if (reg < 0x16)
-                    _buffer[i] = CPUHelper.CPU.InDxDword((ushort)(_channels[channel].BusMasterIDE + reg - 0x0E));
-            }
+            uint arrayBase = Memory.Utilities.ObjectToPtr(_buffer) + 8;
+            ushort dx = 0;
+
+            if (reg < 0x08)
+                dx = (ushort)(_channels[channel].Base + reg);
+            else if (reg < 0x0C)
+                dx = (ushort)(_channels[channel].Base + reg - 0x06);
+            else if (reg < 0x0E)
+                dx = (ushort)(_channels[channel].Control + reg - 0x0C);
+            else if (reg < 0x16)
+                dx = (ushort)(_channels[channel].BusMasterIDE + reg - 0x0E);
+
+            CPUHelper.CPU.InDxMultiDword(dx, arrayBase, size);
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
@@ -339,10 +341,10 @@ namespace Kernel.Devices
             {
                 // lba48
                 lbaMode = 2;
-                lbaIo[0] = (byte)((lba & 0x000000FF) >> 0);
-                lbaIo[1] = (byte)((lba & 0x0000FF00) >> 8);
-                lbaIo[2] = (byte)((lba & 0x00FF0000) >> 16);
-                lbaIo[3] = (byte)((lba & 0xFF000000) >> 24);
+                lbaIo[0] = (byte)lba;
+                lbaIo[1] = (byte)(lba >> 8);
+                lbaIo[2] = (byte)(lba >> 16);
+                lbaIo[3] = (byte)(lba >> 24);
                 lbaIo[4] = 0; // LBA28 is integer, so 32-bits are enough to access 2TB.
                 lbaIo[5] = 0; // LBA28 is integer, so 32-bits are enough to access 2TB.
                 head = 0; // Lower 4-bits of HDDEVSEL are not used here.
@@ -351,9 +353,9 @@ namespace Kernel.Devices
             {
                 // lba28
                 lbaMode = 1;
-                lbaIo[0] = (byte)((lba & 0x00000FF) >> 0);
-                lbaIo[1] = (byte)((lba & 0x000FF00) >> 8);
-                lbaIo[2] = (byte)((lba & 0x0FF0000) >> 16);
+                lbaIo[0] = (byte)lba;
+                lbaIo[1] = (byte)(lba >> 8);
+                lbaIo[2] = (byte)(lba >> 16);
                 lbaIo[3] = 0; // These Registers are not used here.
                 lbaIo[4] = 0; // These Registers are not used here.
                 lbaIo[5] = 0; // These Registers are not used here.
@@ -408,40 +410,36 @@ namespace Kernel.Devices
             // not supporting dma yet, so force to 0
             WriteRegister(channel, Register.Command, (byte)GetAccessCommand(lbaMode, 0, direction));
 
+            uint arrayBase = Memory.Utilities.ObjectToPtr(data) + 8;
+
             // the below is for pio reads, this would need to be in an if statement and have a dma branch once dma is supported
             if (direction == 0)
             {
                 // read
-                for (int i = 0; i < data.Length; i++)
+                for (uint i = 0; i < numSectors; i++)
                 {
-                    if ((i % 128) == 0)
+                    err = Poll(channel, 1);
+                    if (err != 0)
                     {
-                        err = Poll(channel, 1);
-                        if (err != 0)
-                        {
-                            Logging.WriteLine(LogLevel.Trace, "Got err {0}.  Aborting {1}", err, (uint)i);
-                            return err;
-                        }
+                        Logging.WriteLine(LogLevel.Trace, "Got err {0}.  Aborting {1}", err, i);
+                        return err;
                     }
 
-                    data[i] = CPUHelper.CPU.InDxDword(bus);
+                    CPUHelper.CPU.InDxMultiDword(bus, (i << 9) + arrayBase, 128);
                 }
             }
             else
             {
-                for (int i = 0; i < data.Length; i++)
+                for (uint i = 0; i < numSectors; i++)
                 {
-                    if ((i % 128) == 0)
+                    err = Poll(channel, 0);
+                    if (err != 0)
                     {
-                        err = Poll(channel, 0);
-                        if (err != 0)
-                        {
-                            Logging.WriteLine(LogLevel.Trace, "Got err {0}.  Aborting {1}", err, (uint)i);
-                            return err;
-                        }
+                        Logging.WriteLine(LogLevel.Trace, "Got err {0}.  Aborting {1}", err, i);
+                        return err;
                     }
 
-                    CPUHelper.CPU.OutDxEax(bus, data[i]);
+                    CPUHelper.CPU.OutDxMultiDword(bus, (i << 9) + arrayBase, 128);
                 }
 
                 if (lbaMode == 0 || lbaMode == 1) WriteRegister(channel, Register.Command, (byte)Command.Cache_Flush);
