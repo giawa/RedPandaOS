@@ -95,8 +95,6 @@ namespace IL2Asm.Assembler.x86.Ver2
                 string label = assembly.ToAsmString(assembly.GenericInstSig);
 
                 assembly.AddAsm($"{label}:");
-                assembly.AddAsm("push ebp");
-                assembly.AddAsm("mov ebp, esp");
 
                 /*if (method.LocalVars != null)
                 {
@@ -371,7 +369,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                             }
                         }
                         if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
-                        assembly.AddAsm("pop ebp");
+                        if (assembly.HasStackFrame) assembly.AddAsm("pop ebp");
                         if (method.MethodDef.Name.StartsWith("IsrHandler") || method.MethodDef.Name.StartsWith("IrqHandler")) assembly.AddAsm("ret");
                         else assembly.AddAsm($"ret {bytes}");
                         break;
@@ -1235,8 +1233,18 @@ namespace IL2Asm.Assembler.x86.Ver2
             ebxType = _stack.Pop();
         }
 
+        private void AddStackFrame(AssembledMethod assembly)
+        {
+            if (assembly.HasStackFrame) return;
+
+            assembly.HasStackFrame = true;
+            assembly.Assembly.Insert(1, "push ebp");
+            assembly.Assembly.Insert(2, "mov ebp, esp");
+        }
+
         private void STLOC(byte b, AssembledMethod assembly)
         {
+            AddStackFrame(assembly);
             /*if (b == 0) assembly.AddAsm("pop ecx");
             else if (b == 1) assembly.AddAsm("pop edx");
             else*/
@@ -1252,6 +1260,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDLOC(byte b, AssembledMethod assembly)
         {
+            AddStackFrame(assembly);
             //if (b == 0) assembly.AddAsm("push ecx");
             //else if (b == 1) assembly.AddAsm("push edx");
             //else
@@ -1267,6 +1276,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDLOCA(byte b, AssembledMethod assembly)
         {
+            AddStackFrame(assembly);
             /*assembly.AddAsm($"mov eax, ebp");
             assembly.AddAsm($"sub eax, {(b + 1) * BytesPerRegister}");*/
             assembly.AddAsm($"lea eax, [ebp - {(b + 1) * BytesPerRegister}]");
@@ -1277,6 +1287,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void LDARG(int s, AssembledMethod assembly, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
+            AddStackFrame(assembly);
             //if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
             var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;
@@ -1290,6 +1301,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private void STARG(int s, AssembledMethod assembly, CLIMetadata metadata, List<StackElementType> callingStackTypes, int callingStackSize, MethodDefLayout methodDef)
         {
+            AddStackFrame(assembly);
             //if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) throw new Exception("Verify this is working");
             var arg = callingStackTypes[s];
             _int = 1 + callingStackSize / 4 - arg.StackLocation / 4;

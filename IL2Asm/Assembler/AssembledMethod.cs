@@ -11,8 +11,9 @@ namespace IL2Asm
         public CLIMetadata Metadata { get; private set; }
         public GenericInstSig GenericInstSig { get; private set; }
         public int MethodCounter { get; set; }
+        public bool HasStackFrame { get; set; } = false;
 
-        public List<string> Assembly { get; private set; }
+        public List<string> Assembly { get; private set; } = new List<string>();
 
         public AssembledMethod(CLIMetadata metadata, MethodHeader method, MethodSpecLayout methodSpec = null, GenericInstSig genericSig = null)
         {
@@ -20,8 +21,6 @@ namespace IL2Asm
             Metadata = metadata;
             MethodSpec = methodSpec;
             GenericInstSig = genericSig;
-
-            Assembly = new List<string>();
         }
 
         public void AddAsm(string asm)
