@@ -93,10 +93,17 @@ namespace GiawaOS
 
                         stream.Write(new byte[512 - (pmBytes.Length % 512)]);
 
+                        byte[] temp = new byte[512];
                         while (stream.Length < 94720)
                         {
-                            byte[] temp = new byte[512];
                             for (int i = 0; i < 512; i++) temp[i] = (byte)(stream.Length / 512);
+                            stream.Write(temp);
+                        }
+                        
+                        // create a 32MiB hard disk for now
+                        while (stream.Length < 32 * 1024 * 1024)
+                        {
+                            Array.Clear(temp, 0, temp.Length);
                             stream.Write(temp);
                         }
                     }
@@ -104,7 +111,8 @@ namespace GiawaOS
                     // then boot qemu
                     Console.WriteLine();
                     Console.WriteLine("* Booting OS!");
-                    var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -smp cores=6,sockets=1,threads=1");
+                    //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                    var qemu = Process.Start("qemu-system-x86_64", "-device piix3-ide,id=ide -drive id=disk,file=boot.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                     qemu.WaitForExit();
                 }
                 catch (Exception e)
