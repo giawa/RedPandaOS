@@ -244,6 +244,18 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static uint ReadEBP()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadEBP_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadEBPAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push ebp");
+        }
+
+        [AsmMethod]
         public static uint ReadCR2()
         {
             return 0;
