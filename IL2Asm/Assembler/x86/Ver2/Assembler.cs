@@ -1285,6 +1285,13 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.HasStackFrame = true;
             assembly.Assembly.Insert(offset, "push ebp");
             assembly.Assembly.Insert(offset + 1, "mov ebp, esp");
+
+            // fix up any existing ret calls by prepending "pop ebp" before "ret"
+            for (int i = 0; i < assembly.Assembly.Count; i++)
+            {
+                if (assembly.Assembly[i].TrimStart().StartsWith("ret "))
+                    assembly.Assembly.Insert(i++, "pop ebp");
+            }
         }
 
         private void STLOC(byte b, AssembledMethod assembly)
