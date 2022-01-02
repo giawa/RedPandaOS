@@ -44,5 +44,13 @@ namespace Kernel
                 VGA.WriteFormattedString(s, u1, u2, u3);
             }
         }
+
+        public static void Write(LogLevel level, string s)
+        {
+            if (level >= LoggingLevel)
+            {
+                VGA.WriteString(s);
+            }
+        }
     }
 }
