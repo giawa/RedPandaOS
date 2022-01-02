@@ -272,7 +272,8 @@ namespace IL2Asm
                 type.Type == ElementType.EType.SzArray ||
                 type.Type == ElementType.EType.MVar || // note: mvar might not actually be _bytesPerRegister, this is a hack for now
                 type.Type == ElementType.EType.Class ||
-                type.Type == ElementType.EType.GenericInst)
+                type.Type == ElementType.EType.GenericInst ||
+                type.Type == ElementType.EType.Object)
                 return _bytesPerRegister;
             else if (type.Type == ElementType.EType.ValueType || type.Type == ElementType.EType.Class)
             {

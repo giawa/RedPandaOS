@@ -96,6 +96,12 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 assembly.AddAsm($"{label}:");
 
+                if (assembly.HasStackFrame)
+                {
+                    assembly.AddAsm("push ebp");
+                    assembly.AddAsm("mov ebp, esp");
+                }
+
                 /*if (method.LocalVars != null)
                 {
                     int localVarCount = method.LocalVars.LocalVariables.Length;
@@ -535,6 +541,22 @@ namespace IL2Asm.Assembler.x86.Ver2
                         ebxType = _stack.Pop();
                         break;
 
+                    // BGT
+                    case 0x3D:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
+                        assembly.AddAsm("pop eax");        // value2
+                        assembly.AddAsm("pop ebx");        // value1
+                        assembly.AddAsm("cmp ebx, eax");    // compare values
+                        assembly.AddAsm($"jnbe {_jmpLabel}");
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        break;
+
                     // BLT
                     case 0x3F:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
@@ -546,7 +568,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm("pop eax");        // value2
                         assembly.AddAsm("pop ebx");        // value1
                         assembly.AddAsm("cmp ebx, eax");    // compare values
-                        assembly.AddAsm($"jl {_jmpLabel}");
+                        assembly.AddAsm($"jnge {_jmpLabel}");
                         eaxType = _stack.Pop();
                         ebxType = _stack.Pop();
                         break;
@@ -960,6 +982,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // NEWOBJ
                     case 0x73: NEWOBJ(pe, assembly, code, ref i); break;
 
+                    // THROW
+                    case 0x7A: assembly.AddAsm($"call {ThrowExceptionMethod}"); _stack.Pop(); break;
+
                     // LDFLD
                     case 0x7B: LDFLD(assembly, pe.Metadata, code, ref i); break;
 
@@ -1134,8 +1159,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Push(eaxType);
                         break;
 
-                    // CLT
+                    // CLT and CLT.UN
                     case 0xFE04:
+                    case 0xFE05:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
 
                         assembly.AddAsm("pop eax");       // value2
@@ -2012,6 +2038,7 @@ namespace IL2Asm.Assembler.x86.Ver2
         }
 
         public string HeapAllocatorMethod { get; set; }
+        public string ThrowExceptionMethod { get; set; }
 
         private void NEWOBJ(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
         {
@@ -2082,6 +2109,23 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     //assembly.AddAsm("pop eax"); // function pointer
                     //assembly.AddAsm("pop ebx"); // this (which is always null)
+                }
+                else if (memberName == "System.Exception..ctor_Void_String")
+                {
+                    if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+                    assembly.AddAsm("push 8");
+                    assembly.AddAsm("push 0");
+                    assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+                    assembly.AddAsm("pop ebx");         // the function ptr
+                    assembly.AddAsm($"add esp, {BytesPerRegister}");    // the object ptr (normally null, we don't use this yet)
+                    assembly.AddAsm("mov [eax], ebx");  // the object only stores the function pointer
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov [eax+4], ebx");    // put the string address into the next slot
+                    assembly.AddAsm("push eax");
+
+                    _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
                 }
                 else
                 {
@@ -2532,7 +2576,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             output.Add("[bits 32]");
             output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
-            output.Add("enter_pm:");
+            output.Add("_start:");
             output.Add("    mov ax, 16");
             output.Add("    mov ds, ax");
             output.Add("    mov ss, ax");
