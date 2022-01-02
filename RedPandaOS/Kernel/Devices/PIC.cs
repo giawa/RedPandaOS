@@ -20,14 +20,14 @@ namespace Kernel.Devices
         private static IDT_Entry[] _idt_entries;
         private static CPU.IDTPointer _idt_ptr;
 
-        private static Action[] _irqHandlers;
-        private static Action[] _isrHandlers;
+        private static Action[] _irqHandlers = new Action[16];
+        private static Action[] _isrHandlers = new Action[32];
 
         public static void Init()
         {
             _idt_entries = new IDT_Entry[256];
-            _irqHandlers = new Action[16];
-            _isrHandlers = new Action[32];
+            //_irqHandlers = new Action[16];
+            //_isrHandlers = new Action[32];
 
             _idt_ptr.limit = (ushort)(Marshal.SizeOf<IDT_Entry>() * 256 - 1);
             _idt_ptr.address = Utilities.ObjectToPtr(_idt_entries) + 8; // plus 8 bytes to find start of actual array data
