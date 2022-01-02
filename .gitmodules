@@ -1,0 +1,3 @@
+[submodule "elfsharp"]
+	path = elfsharp
+	url = https://github.com/giawa/elfsharp

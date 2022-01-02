@@ -6,11 +6,16 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <Optimize>true</Optimize>
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>True</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CPUHelper\CPUHelper.csproj" />
+    <ProjectReference Include="..\elfsharp\ELFSharp\ELFSharp.csproj" />
     <ProjectReference Include="..\IL2Asm\IL2Asm.csproj" />
     <ProjectReference Include="..\PELoader\PELoader.csproj" />
   </ItemGroup>
