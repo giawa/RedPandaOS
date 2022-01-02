@@ -23,7 +23,7 @@
                     Logging.WriteLine(LogLevel.Panic, symbol);
                     s++;
                 }
-                //else Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
+                else if (_symbols == null) Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
             }
 
             while (true) ;

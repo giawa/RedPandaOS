@@ -180,7 +180,7 @@ namespace GiawaOS
             nasm.BeginOutputReadLine();
             nasm.WaitForExit();
 
-            RunLinker(outputFile, "test.bin", "0xA000");
+            //RunLinker(outputFile, "test.bin", "0xA000");
             int filePos = 0;
 
             using (StreamWriter output = new StreamWriter("symbols.txt"))
@@ -194,7 +194,7 @@ namespace GiawaOS
                         foreach (var symbol in (header as ELFSharp.ELF.Sections.ISymbolTable).Entries)
                         {
                             if (string.IsNullOrEmpty(symbol.Name)) continue;
-                            if (symbol.Name.StartsWith("IL_")) continue;
+                            if (symbol.Name.StartsWith("IL_") || symbol.Name.StartsWith("BLOB_")) continue;
 
                             if (symbol is ELFSharp.ELF.Sections.SymbolEntry<uint> entry)
                             {
