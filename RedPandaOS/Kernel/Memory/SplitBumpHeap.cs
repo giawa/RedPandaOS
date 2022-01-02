@@ -108,7 +108,7 @@ namespace Kernel.Memory
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
 
-            Logging.WriteLine(LogLevel.Trace, "[SBH] Allocating {0} bytes at 0x{1}", size, addr);
+            Logging.WriteLine(LogLevel.Trace, "[SBH] Allocating {0} bytes at 0x{1:X}", size, addr);
 
             return addr;
         }
@@ -130,7 +130,7 @@ namespace Kernel.Memory
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
 
-            Logging.WriteLine(LogLevel.Trace, "[SBH] Allocating {0} bytes at 0x{1}", size, addr);
+            Logging.WriteLine(LogLevel.Trace, "[SBH] Allocating {0} bytes at 0x{1:X}", size, addr);
 
             return addr;
         }

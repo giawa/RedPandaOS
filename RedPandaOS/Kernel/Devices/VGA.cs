@@ -31,11 +31,19 @@ namespace Kernel.Devices
 
             while (s[i] != 0)
             {
-                if (s[i] == '{' && s[i + 2] == '}')
+                if (s[i] == '{' && (s[i + 2] == '}' || s[i + 4] == '}'))
                 {
-                    if (s[i + 1] == '0') WriteHex(u1);
-                    else if (s[i + 1] == '1') WriteHex(u2);
-                    else if (s[i + 1] == '2') WriteHex(u3);
+                    uint value = 0;
+                    if (s[i + 1] == '0') value = u1;
+                    else if (s[i + 1] == '1') value = u2;
+                    else if (s[i + 1] == '2') value = u3;
+
+                    if (s[i + 2] == ':' && s[i + 3] == 'X')
+                    {
+                        WriteHex(value);
+                        i += 2;
+                    }
+                    else WriteInt(value);
 
                     i += 3;
                     continue;
@@ -67,6 +75,16 @@ namespace Kernel.Devices
 
                 divisor = divisor / 10;// Runtime.Math32.Divide(divisor, 10);
             }
+        }
+
+        public static void WriteInt(int value)
+        {
+            if (value < 0)
+            {
+                VGA.WriteChar('-');
+                WriteInt((uint)(-value));
+            }
+            else WriteInt((uint)value);
         }
 
         public static void WriteString(string s, ushort effect = 0x0f00)

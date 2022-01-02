@@ -19,11 +19,11 @@
                 
                 if (symbol != null)
                 {
-                    Logging.Write(LogLevel.Panic, "0x{0} : 0x{1} ", address, contents);
+                    Logging.Write(LogLevel.Panic, "0x{0:X} : 0x{1:X} ", address, contents);
                     Logging.WriteLine(LogLevel.Panic, symbol);
                     s++;
                 }
-                //else Logging.WriteLine(LogLevel.Panic, "0x{0} : 0x{1}", address, contents);
+                //else Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
             }
 
             while (true) ;

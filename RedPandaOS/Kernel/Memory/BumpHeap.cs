@@ -29,7 +29,7 @@ namespace Kernel.Memory
         {
             if ((_addr & 0x03) != 0)
             {
-                Logging.WriteLine(LogLevel.Trace, "Addr {0} was not word aligned", _addr);
+                Logging.WriteLine(LogLevel.Trace, "Addr 0x{0:X} was not word aligned", _addr);
                 _addr = _addr & 0xfffffffc;
                 _addr += 4;
             }
@@ -37,7 +37,7 @@ namespace Kernel.Memory
             for (uint i = _addr; i < _addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
 
-            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1}", size, _addr);
+            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1:X}", size, _addr);
 
             var addr = _addr;
             _addr += size;
@@ -49,7 +49,7 @@ namespace Kernel.Memory
         {
             if ((_addr & 0xfff) != 0)
             {
-                Logging.WriteLine(LogLevel.Trace, "Addr {0} was not page aligned", _addr);
+                Logging.WriteLine(LogLevel.Trace, "Addr 0x{0:X} was not page aligned", _addr);
                 _addr = _addr & 0xfffff000;
                 _addr += 0x1000;
             }
@@ -57,7 +57,7 @@ namespace Kernel.Memory
             for (uint i = _addr; i < _addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
 
-            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1}", size, _addr);
+            Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1:X}", size, _addr);
 
             var addr = _addr;
             _addr += size;

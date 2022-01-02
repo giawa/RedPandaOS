@@ -98,7 +98,7 @@ namespace Kernel.Memory
                 var result = AllocateFrame(page, true, true);
                 if (result == -1)
                 {
-                    Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0}", addr);
+                    Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
                     while (true) ;
                 }
                 addr += 0x1000U;
@@ -182,7 +182,7 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0}", addr);
+                Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
 
             while (true) ;
         }
