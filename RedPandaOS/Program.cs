@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using IL2Asm;
+using System.Collections.Generic;
 
 namespace GiawaOS
 {
@@ -19,6 +20,7 @@ namespace GiawaOS
             var isrHandler = FindEntryPoint(file, "PIC", "IsrHandler");
             var irqHandler = FindEntryPoint(file, "PIC", "IrqHandler");
             var malloc = FindEntryPoint(file, "KernelHeap", "Malloc");
+            var throwHandler = FindEntryPoint(file, "Exceptions", "Throw");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -49,6 +51,11 @@ namespace GiawaOS
                 var mallocMethod = new AssembledMethod(file.Metadata, mallocHeader, null);
                 assembler32.HeapAllocatorMethod = mallocMethod.ToAsmString().Replace(".", "_");
 
+                var throwHeader = new MethodHeader(file.Memory, file.Metadata, throwHandler);
+                var throwMethod = new AssembledMethod(file.Metadata, throwHeader, null);
+                throwMethod.HasStackFrame = true;
+                assembler32.ThrowExceptionMethod = throwMethod.ToAsmString().Replace(".", "_");
+
                 var methodHeader32 = new MethodHeader(file.Memory, file.Metadata, methodDef32);
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, methodHeader32, null));
                 var isrHeader = new MethodHeader(file.Memory, file.Metadata, isrHandler);
@@ -57,6 +64,7 @@ namespace GiawaOS
                 assembler32.Assemble(file, new AssembledMethod(file.Metadata, irqHeader, null));
 
                 assembler32.Assemble(file, mallocMethod);
+                assembler32.Assemble(file, throwMethod);
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
@@ -77,6 +85,7 @@ namespace GiawaOS
                 RunNASM("stage1.asm", "stage1.bin");
                 RunNASM("stage2.asm", "stage2.bin");
                 RunNASM("pm.asm", "pm.bin");
+                GenerateSymbols("pm.asm", "pm.elf");
 
                 var pmBytes = File.ReadAllBytes("pm.bin");
 
@@ -99,9 +108,12 @@ namespace GiawaOS
                             for (int i = 0; i < 512; i++) temp[i] = (byte)(stream.Length / 512);
                             stream.Write(temp);
                         }
-                        
-                        // create a 32MiB hard disk for now
-                        while (stream.Length < 32 * 1024 * 1024)
+
+                        stream.Write(File.ReadAllBytes("symbols.bin"));
+                        stream.Write(new byte[512 - (stream.Length % 512)]);
+
+                        // create a 8MiB hard disk for now
+                        while (stream.Length < 8 * 1024 * 1024)
                         {
                             Array.Clear(temp, 0, temp.Length);
                             stream.Write(temp);
@@ -141,6 +153,73 @@ namespace GiawaOS
             nasm.Start();
             nasm.BeginOutputReadLine();
             nasm.WaitForExit();
+        }
+
+        private static void GenerateSymbols(string inputFile, string outputFile)
+        {
+            var temp = File.ReadAllLines(inputFile);
+            List<string> lines = new List<string>();
+            foreach (var line in temp)
+            {
+                if (!line.Contains("[org")) lines.Add(line);
+            }
+            File.WriteAllLines(inputFile + ".tmp", lines.ToArray());
+
+            ProcessStartInfo startInfo = new ProcessStartInfo("nasm.exe", $"-fbin {inputFile}.tmp -o {outputFile} -f elf -F dwarf -g");
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+
+            Process nasm = new Process();
+            nasm.StartInfo = startInfo;
+            nasm.OutputDataReceived += (sender, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data)) Console.WriteLine(args.Data);
+            };
+
+            nasm.Start();
+            nasm.BeginOutputReadLine();
+            nasm.WaitForExit();
+
+            RunLinker(outputFile, "test.bin", "0xA000");
+            int filePos = 0;
+
+            using (StreamWriter output = new StreamWriter("symbols.txt"))
+            using (BinaryWriter binary = new BinaryWriter(File.Open("symbols.bin", FileMode.Create)))
+            {
+                var elf = ELFSharp.ELF.ELFReader.Load(outputFile);
+                foreach (var header in elf.Sections)
+                {
+                    if (header.Name.Contains("symtab"))
+                    {
+                        foreach (var symbol in (header as ELFSharp.ELF.Sections.ISymbolTable).Entries)
+                        {
+                            if (string.IsNullOrEmpty(symbol.Name)) continue;
+                            if (symbol.Name.StartsWith("IL_")) continue;
+
+                            if (symbol is ELFSharp.ELF.Sections.SymbolEntry<uint> entry)
+                            {
+                                // make sure each symbol completely falls in a sector
+                                int length = 4 + entry.Name.Length + 1;
+                                int sectorPosition = filePos % 512;//(int)binary.BaseStream.Length % 512;
+                                if (sectorPosition + length > 512)
+                                {
+                                    byte[] fill = new byte[512 - sectorPosition];
+                                    Array.Fill(fill, (byte)0xff);
+                                    binary.Write(fill);
+                                    filePos += fill.Length;
+                                }
+
+                                output.WriteLine($"{entry.Value.ToString("X")} {entry.Name}");
+                                binary.Write(entry.Value + 0xA000);
+                                for (int i = 0; i < entry.Name.Length; i++)
+                                    binary.Write((byte)entry.Name[i]);
+                                binary.Write((byte)0);
+                                filePos += length;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private static MethodDefLayout FindEntryPoint(PortableExecutableFile file, string typeName, string methodName)
