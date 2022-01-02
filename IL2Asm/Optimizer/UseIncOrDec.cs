@@ -12,16 +12,22 @@ namespace IL2Asm.Optimizer
 
                 if (l1 == "push 1")
                 {
+                    string type = "inc";
+
                     int j = i + 1;
                     if (!CompareAsm(NextLine(assembly, ref j), "mov ebx, [esp]")) continue;
                     if (!CompareAsm(NextLine(assembly, ref j), "mov eax, [esp + 4]")) continue;
-                    if (!CompareAsm(NextLine(assembly, ref j), "add eax, ebx")) continue;
+                    //if (CompareAsm(NextLine(assembly, ref j), "add eax, ebx")) type = "inc";
+                    var instruction = NextLine(assembly, ref j);
+                    if (instruction == "add eax, ebx") type = "inc";
+                    else if (instruction == "sub eax, ebx") type = "dec";
+                    else continue;
                     if (!CompareAsm(NextLine(assembly, ref j), "pop ebx")) continue;
                     if (!CompareAsm(NextLine(assembly, ref j), "mov [esp], eax")) continue;
 
                     for (int k = i; k < j - 3; k++) assembly.RemoveAt(i);
                     assembly[i] = "    pop eax";
-                    assembly[i + 1] = "    inc eax";
+                    assembly[i + 1] = $"    {type} eax";
                     assembly[i + 2] = "    push eax";
                 }
             }
