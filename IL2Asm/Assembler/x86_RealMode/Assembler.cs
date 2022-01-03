@@ -992,6 +992,30 @@ namespace IL2Asm.Assembler.x86_RealMode
             // should only do this for boot sector attribute code
             if (bootSector)
             {
+                output.Add("times 440-($-$$) db 0");
+
+                // MBR (see https://wiki.osdev.org/Partition_Table)
+                output.Add("; start of MBR with a single partition");
+                output.Add("dw 0x5052, 0x534F");  // unique disk id / signature "RPOS"
+                output.Add("dw 0");     // reserved
+
+                //output.Add("db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0");
+                //output.Add("db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0");
+                //output.Add("db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0");
+
+                output.Add("db 0x80");  // bootable
+                output.Add("db 0x00");  // head 0
+                output.Add("db 0x02");  // sector 2 (top 2 bit are 0, bits 9 and 10 of cylinder)
+                output.Add("db 0x00");  // cylinder 0
+                output.Add("db 0x7E");  // system id, picked the only empty entry (likely reserved)
+                output.Add("db 0x00");  // ends on head 0
+                output.Add("db 0x09");  // ends on sector 9 (inclusive)
+                output.Add("db 0x00");  // ends on cylinder 0
+                output.Add("dw 0, 0");  // relative sector 0
+                output.Add("dw 8, 0");
+                output.Add("; end of MBR partition 1");
+
+                // add final padding and 'valid bootsector' bytes
                 output.Add("times 510-($-$$) db 0");
                 output.Add("dw 0xaa55");
             }
