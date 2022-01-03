@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿/*using System.Collections.Generic;
 using System.Linq;
 
 namespace IL2Asm.Optimizer
@@ -125,4 +125,4 @@ namespace IL2Asm.Optimizer
             }
         }
     }
-}
+}*/

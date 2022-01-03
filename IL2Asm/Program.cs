@@ -30,7 +30,7 @@ namespace IL2Asm
                 Optimizer.RemoveUnneededLabels.ProcessAssembly(stage1);
                 Optimizer.MergePushPop.ProcessAssembly(stage1);
                 Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage1);
-                Optimizer.SimplifyMoves.ProcessAssembly(stage1);
+                Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
                 assembler16 = new Assembler.x86_RealMode.Assembler();

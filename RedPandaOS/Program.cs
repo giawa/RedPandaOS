@@ -34,7 +34,8 @@ namespace GiawaOS
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.MergePushPop.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage1);
-                IL2Asm.Optimizer.SimplifyMoves.ProcessAssembly(stage1);
+                IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage1);
+                IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
