@@ -51,9 +51,10 @@ namespace IL2Asm.Assembler.x86_RealMode
                 assembly.AddAsm("push bp");
                 assembly.AddAsm("mov bp, sp");
 
-                if (method.LocalVars != null)
+                /*if (method.LocalVars != null)
                 {
                     int localVarCount = method.LocalVars.LocalVariables.Length;
+                    
                     if (localVarCount > 0)
                     {
                         assembly.AddAsm("push cx");
@@ -66,14 +67,15 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("mov dx, 0");
                         localVarOffset = BytesPerRegister * 2;
                     }
-                }
+                }*/
             }
 
             if (method.LocalVars != null)
             {
                 int localVarCount = method.LocalVars.LocalVariables.Length;
-                for (int i = 2; i < localVarCount; i++)
-                    assembly.AddAsm($"push 0; localvar.{i}");
+                /*for (int i = 2; i < localVarCount; i++)
+                    assembly.AddAsm($"push 0; localvar.{i}");*/
+                if (localVarCount > 0) assembly.AddAsm($"sub esp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
             }
 
             for (ushort i = 0; i < code.Length;)
@@ -117,23 +119,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     // LDLOC.0
-                    case 0x06:
-                        assembly.AddAsm("push cx");
-                        break;
+                    case 0x06: LDLOC(0, assembly); break;
                     // LDLOC.1
-                    case 0x07:
-                        assembly.AddAsm("push dx");
-                        break;
+                    case 0x07: LDLOC(1, assembly); break;
                     // LDLOC.2
-                    case 0x08:
-                        assembly.AddAsm($"mov ax, [bp - {localVarOffset + BytesPerRegister}]");
-                        assembly.AddAsm("push ax");
-                        break;
+                    case 0x08: LDLOC(2, assembly); break;
                     // LDLOC.3
-                    case 0x09:
-                        assembly.AddAsm($"mov ax, [bp - {localVarOffset + 2 * BytesPerRegister}]");
-                        assembly.AddAsm("push ax");
-                        break;
+                    case 0x09: LDLOC(3, assembly); break;
 
                     // LDARG.S
                     case 0x0E:
@@ -152,67 +144,38 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     // STLOC.S
-                    case 0x13:
-                        _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("pop cx");
-                        else if (_byte == 1) assembly.AddAsm("pop dx");
-                        else
-                        {
-                            assembly.AddAsm("pop ax");
-                            assembly.AddAsm($"mov [bp - {BytesPerRegister * (_byte - 1 + localVarOffset)}], ax");
-                        }
-                        break;
-
-                    // LDC.I4.0
-                    case 0x16:
-                        assembly.AddAsm("push 0");
-                        break;
+                    case 0x13: STLOC(code[i++], assembly); break;
 
                     // STLOC.0
-                    case 0x0A:
-                        assembly.AddAsm("pop cx");
-                        break;
+                    case 0x0A: STLOC(0, assembly); break;
                     // STLOC.1
-                    case 0x0B:
-                        assembly.AddAsm("pop dx");
-                        break;
+                    case 0x0B: STLOC(1, assembly); break;
                     // STLOC.2
-                    case 0x0C:
-                        assembly.AddAsm("pop ax");
-                        assembly.AddAsm($"mov [bp - {localVarOffset + BytesPerRegister}], ax");
-                        break;
+                    case 0x0C: STLOC(2, assembly); break;
                     // STLOC.3
-                    case 0x0D:
-                        assembly.AddAsm("pop ax");
-                        assembly.AddAsm($"mov [bp - {localVarOffset + 2 * BytesPerRegister}], ax");
-                        break;
+                    case 0x0D: STLOC(3, assembly); break;
 
                     // LDLOC.S
-                    case 0x11:
-                        _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("push cx");
-                        else if (_byte == 1) assembly.AddAsm("push dx");
-                        else
-                        {
-                            assembly.AddAsm($"mov ax, [bp - {BytesPerRegister * (_byte - 1 + localVarOffset)}]");
-                            assembly.AddAsm("push ax");
-                        }
-                        break;
+                    case 0x11: LDLOC(code[i++], assembly); break;
 
                     // LDLOCA.S
                     case 0x12:
                         _byte = code[i++];
-                        if (_byte == 0) assembly.AddAsm("push 2");      // This is my made up address for CX
+                        /*if (_byte == 0) assembly.AddAsm("push 2");      // This is my made up address for CX
                         else if (_byte == 1) assembly.AddAsm("push 3"); // This is my made up address for DX
                         else
                         {
                             assembly.AddAsm("mov ax, bp");
                             assembly.AddAsm($"sub ax, {BytesPerRegister * (_byte + 1)}");
                             assembly.AddAsm("push ax");
-                        }
+                        }*/
+                        assembly.AddAsm("mov ax, bp");
+                        assembly.AddAsm($"sub ax, {BytesPerRegister * (_byte + 1)}");
+                        assembly.AddAsm("push ax");
                         break;
 
                     // LDC.I4.1
+                    case 0x16: assembly.AddAsm("push 0"); break;
                     case 0x17: assembly.AddAsm("push 1"); break;
                     case 0x18: assembly.AddAsm("push 2"); break;
                     case 0x19: assembly.AddAsm("push 3"); break;
@@ -263,10 +226,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                         if (method.LocalVars != null)
                         {
                             int localVarCount = method.LocalVars.LocalVariables.Length;
-                            for (int p = 2; p < localVarCount; p++)
+                            for (int p = 0; p < localVarCount; p++)
                                 assembly.AddAsm("pop bx; localvar that was pushed on stack");
-                            if (localVarCount > 1) assembly.AddAsm("pop dx; localvar.1");
-                            if (localVarCount > 0) assembly.AddAsm("pop cx; localvar.0");
                         }
 
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
@@ -591,6 +552,18 @@ namespace IL2Asm.Assembler.x86_RealMode
                     }
                 }
             }
+        }
+
+        private void STLOC(byte b, AssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ax");
+            assembly.AddAsm($"mov [bp - {(b + 1) * BytesPerRegister}], ax");
+        }
+
+        private void LDLOC(byte b, AssembledMethod assembly)
+        {
+            assembly.AddAsm($"mov ax, [bp - {(b + 1) * BytesPerRegister}]");
+            assembly.AddAsm("push ax");
         }
 
         private void STFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
