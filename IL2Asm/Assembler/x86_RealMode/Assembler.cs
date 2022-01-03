@@ -37,6 +37,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method, null);
+
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
 
@@ -247,7 +248,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("pop ax");
                         break;
 
-                    case 0x28: CALL(assembly, pe.Metadata, code, ref i); break;
+                    case 0x28: CALL(pe, assembly, pe.Metadata, code, ref i); break;
                     case 0x6F: CALLVIRT(assembly, pe.Metadata, code, ref i); break;
 
                     // RET
@@ -598,11 +599,22 @@ namespace IL2Asm.Assembler.x86_RealMode
             i += 4;
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
+            int size = _runtime.GetTypeSize(metadata, _runtime.GetFieldType(metadata, fieldToken));
 
             assembly.AddAsm("pop ax");
             assembly.AddAsm("pop bx");
-            if (offset == 0) assembly.AddAsm("mov [bx], ax");
-            else assembly.AddAsm($"mov [bx + {offset}], ax");
+
+            if (size == 2)
+            {
+                if (offset == 0) assembly.AddAsm("mov [bx], ax");
+                else assembly.AddAsm($"mov [bx + {offset}], ax");
+            }
+            else if (size == 1)
+            {
+                if (offset == 0) assembly.AddAsm("mov byte [bx], al");
+                else assembly.AddAsm($"mov byte [bx + {offset}], al");
+            }
+            else throw new Exception("Unsupported type");
         }
 
         private void LDSTR(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
@@ -624,10 +636,21 @@ namespace IL2Asm.Assembler.x86_RealMode
             i += 4;
 
             int offset = _runtime.GetFieldOffset(metadata, fieldToken);
+            int size = _runtime.GetTypeSize(metadata, _runtime.GetFieldType(metadata, fieldToken));
 
             assembly.AddAsm("pop bx");
-            if (offset == 0) assembly.AddAsm("mov ax, [bx]");
-            else assembly.AddAsm($"mov ax, [bx + {offset}]");
+            if (size == 2)
+            {
+                if (offset == 0) assembly.AddAsm("mov ax, [bx]");
+                else assembly.AddAsm($"mov ax, [bx + {offset}]");
+            }
+            else if (size == 1)
+            {
+                assembly.AddAsm("xor ax, ax");
+                if (offset == 0) assembly.AddAsm("mov al, [bx]");
+                else assembly.AddAsm($"mov al, [bx + {offset}]");
+            }
+            else throw new Exception("Unsupported type");
             assembly.AddAsm("push ax");
         }
 
@@ -774,10 +797,35 @@ namespace IL2Asm.Assembler.x86_RealMode
             return false;
         }
 
-        private void CALL(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void CALL(PortableExecutableFile pe, AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
             uint methodDesc = BitConverter.ToUInt32(code, i);
             i += 4;
+
+            MethodSpecLayout methodSpec = null;
+
+            if ((methodDesc & 0xff000000) == 0x2b000000)
+            {
+                methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
+                methodDesc = methodSpec.method;
+
+                // use the parent methodSpec to work out the types
+                if (assembly.MethodSpec != null)
+                {
+                    methodSpec = methodSpec.Clone();
+                    for (int j = 0; j < methodSpec.MemberSignature.Types.Length; j++)
+                    {
+                        var type = methodSpec.MemberSignature.Types[j];
+
+                        if (type.Type == ElementType.EType.MVar)
+                        {
+                            var token = methodSpec.MemberSignature.Types[j].Token;
+                            methodSpec.MemberSignature.Types[j] = assembly.MethodSpec.MemberSignature.Types[token];
+                            methodSpec.MemberSignature.TypeNames[j] = assembly.MethodSpec.MemberSignature.TypeNames[token];
+                        }
+                    }
+                }
+            }
 
             if ((methodDesc & 0xff000000) == 0x0a000000)
             {
@@ -800,24 +848,27 @@ namespace IL2Asm.Assembler.x86_RealMode
                 var methodDef = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = methodDef.ToAsmString();
 
-                bool methodAlreadyCompiled = false;
-                foreach (var method in _methods)
-                    if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
-                        methodAlreadyCompiled = true;
-
-                if (!methodAlreadyCompiled)
+                if (!CheckForPlugAndInvoke(pe.Filename, memberName, assembly))
                 {
-                    bool methodWaitingToCompile = false;
-                    foreach (var method in _methodsToCompile)
-                        if (method.ToAsmString() == methodDef.ToAsmString())
-                            methodWaitingToCompile = true;
-                    if (!methodWaitingToCompile) _methodsToCompile.Add(methodDef);
+                    bool methodAlreadyCompiled = false;
+                    foreach (var method in _methods)
+                        if (method.Method != null && method.Method.MethodDef.ToAsmString() == methodDef.ToAsmString())
+                            methodAlreadyCompiled = true;
+
+                    if (!methodAlreadyCompiled)
+                    {
+                        bool methodWaitingToCompile = false;
+                        foreach (var method in _methodsToCompile)
+                            if (method.ToAsmString() == methodDef.ToAsmString())
+                                methodWaitingToCompile = true;
+                        if (!methodWaitingToCompile) _methodsToCompile.Add(methodDef);
+                    }
+
+                    string callsite = methodDef.ToAsmString().Replace(".", "_");
+                    assembly.AddAsm($"call {callsite}");
+
+                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push ax");
                 }
-
-                string callsite = methodDef.ToAsmString().Replace(".", "_");
-                assembly.AddAsm($"call {callsite}");
-
-                if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push ax");
             }
             else throw new Exception("Unhandled CALL target");
         }
