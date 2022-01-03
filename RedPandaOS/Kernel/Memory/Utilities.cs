@@ -16,6 +16,12 @@ namespace Kernel.Memory
             assembly.AddAsm($"; PtrToObject nop");
         }
 
+        [AsmPlug("Kernel_Memory_Utilities_UnsafeCast_MVar_Object", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void UnsafeCastTAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; PtrToObject nop");
+        }
+
         [AsmMethod]
         public static T PtrToObject<T>(uint addr)
         {
@@ -28,6 +34,12 @@ namespace Kernel.Memory
             assembly.AddAsm($"; PtrToObject nop");
         }
 
+        [AsmPlug("Kernel_Memory_Utilities_PtrToObject_MVar_U4", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void PtrToObjectTAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; PtrToObject nop");
+        }
+
         [AsmMethod]
         public static uint ObjectToPtr<T>(T obj)
         {
@@ -36,6 +48,12 @@ namespace Kernel.Memory
 
         [AsmPlug("Kernel_Memory_Utilities_ObjectToPtr_U4_MVar", IL2Asm.BaseTypes.Architecture.X86)]
         private static void ObjectToPtrTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; ObjectToPtr nop");
+        }
+
+        [AsmPlug("Kernel_Memory_Utilities_ObjectToPtr_U4_MVar", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void ObjectToPtrTAsmReal(IAssembledMethod assembly)
         {
             assembly.AddAsm($"; ObjectToPtr nop");
         }

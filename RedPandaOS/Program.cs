@@ -89,6 +89,13 @@ namespace GiawaOS
                 GenerateSymbols("pm.asm", "pm.elf");
 
                 var pmBytes = File.ReadAllBytes("pm.bin");
+                var stage1Bytes = File.ReadAllBytes("stage1.bin");
+                int stage1Zeros = 0;
+                for (int i = 439; i >= 0; i--)
+                {
+                    if (stage1Bytes[i] != 0) break;
+                    stage1Zeros++;
+                }
 
                 // combine the assemblies by tacking the protected mode code on to the boot loader
                 try
@@ -99,6 +106,7 @@ namespace GiawaOS
                         stream.Write(File.ReadAllBytes("stage2.bin"));
                         stream.Write(File.ReadAllBytes("pm.bin"));
 
+                        Console.WriteLine($"Stage 1 is using {(440 - stage1Zeros) / 440.0 * 100}% of available space.");
                         Console.WriteLine($"Kernel is using {pmBytes.Length / 94720.0 * 100}% of available space.");
 
                         stream.Write(new byte[512 - (pmBytes.Length % 512)]);
@@ -201,7 +209,7 @@ namespace GiawaOS
                             {
                                 // make sure each symbol completely falls in a sector
                                 int length = 4 + entry.Name.Length + 1;
-                                int sectorPosition = filePos % 512;//(int)binary.BaseStream.Length % 512;
+                                int sectorPosition = filePos % 512;
                                 if (sectorPosition + length > 512)
                                 {
                                     byte[] fill = new byte[512 - sectorPosition];

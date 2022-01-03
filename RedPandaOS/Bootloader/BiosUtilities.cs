@@ -5,6 +5,50 @@ namespace Bootloader
 {
     static class BiosUtilities
     {
+        public class Partition
+        {
+            public byte Bootable;
+            public byte StartingHead;
+            public byte StartingSector;
+            public byte StartingCylinder;
+            public byte SystemID;
+            public byte EndingHead;
+            public byte EndingSector;
+            public byte EndingCylinder;
+            public ushort RelativeSector1, RelativeSector2;
+            public ushort TotalSectors1, TotalSectors2;
+        }
+
+        public static bool LoadDiskWithRetry(Partition partition, ushort highAddr, ushort lowAddr, byte disk, byte sectors)
+        {
+            ushort retry = 0;
+            ushort sectorsRead;
+
+            do
+            {
+                sectorsRead = Bios.LoadDisk(partition.StartingCylinder, partition.StartingHead, partition.StartingSector, highAddr, lowAddr, disk, sectors);
+                if (sectorsRead != sectors) Bios.ResetDisk();
+            } while (sectorsRead != sectors && retry++ < 5);
+
+            return sectorsRead == sectors;
+        }
+
+        public static bool LoadDiskWithRetry(ushort cylinder, byte head, byte sector, ushort highAddr, ushort lowAddr, byte disk, byte sectors)
+        {
+            int retry = 0;
+            ushort sectorsRead;
+
+            sector = (byte)((sector & 0x3f) | ((cylinder >> 2) & 0xC0));
+
+            do
+            {
+                sectorsRead = Bios.LoadDisk((byte)cylinder, head, sector, highAddr, lowAddr, disk, sectors);
+                if (sectorsRead != sectors) Bios.ResetDisk();
+            } while (sectorsRead != sectors && retry++ < 5);
+
+            return sectorsRead == sectors;
+        }
+
         public static void WriteHex(int value)
         {
             WriteHexChar(value >> 12);
