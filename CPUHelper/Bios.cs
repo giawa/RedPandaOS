@@ -22,6 +22,20 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void WriteChar(char c)
+        {
+            Console.Write(c);
+        }
+
+        [AsmPlug("CPUHelper.Bios.WriteChar_Void_Char", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        public static void WriteCharAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ax");
+            assembly.AddAsm("mov ah, 0x0e");
+            assembly.AddAsm("int 0x10");
+        }
+
+        [AsmMethod]
         public static void EnterProtectedMode(ref CPU.GDT gdt)
         {
 
@@ -59,7 +73,7 @@ namespace CPUHelper
             assembly.AddAsm("mov bp, sp");
             assembly.AddAsm("push cx");
             assembly.AddAsm("push dx");
-            assembly.AddAsm("push es");
+            assembly.AddAsm(";push es");
 
             // bp + 4 is sectors to read
             // bp + 6 is drive
@@ -86,7 +100,7 @@ namespace CPUHelper
             assembly.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
 
             assembly.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
-            assembly.AddAsm("pop es");
+            assembly.AddAsm(";pop es");
             assembly.AddAsm("pop dx");
             assembly.AddAsm("pop cx");
             assembly.AddAsm("pop bp");
