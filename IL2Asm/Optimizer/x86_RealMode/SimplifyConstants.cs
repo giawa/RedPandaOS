@@ -33,8 +33,8 @@ namespace IL2Asm.Optimizer.x86_RealMode
             registers.Add("bx", new MovInstruction());
             registers.Add("cx", new MovInstruction());
             registers.Add("dx", new MovInstruction());
-            registers.Add("es", new MovInstruction());
-            registers.Add("ed", new MovInstruction());
+            registers.Add("si", new MovInstruction());
+            registers.Add("di", new MovInstruction());
             //registers.Add("bp", new MovInstruction());
 
             for (int i = 0; i < assembly.Count; i++)
@@ -69,11 +69,12 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 if (split[0] == "pop")
                 {
                     if (split[1] == "bp") continue;
+                    if (split[1] == "es") continue;
                     registers[split[1]].Reset();
                 }
                 else
                 {
-                    if (instruction.Contains("[")) continue;    // too complex for now
+                    //if (instruction.Contains("[")) continue;    // too complex for now
 
                     bool madeChanges = false;
                     for (int j = 1; j < split.Length; j++)
@@ -90,7 +91,8 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     if (madeChanges)
                     {
                         string result = string.Format($"    {split[0]} {split[1]}");
-                        if (split.Length == 3) result += ", " + split[2] + " ; " + assembly[i];
+                        if (split[1].StartsWith("[")) result = $"    {split[0]} word {split[1]} {split[2]} {split[3]}, {split[4]}";
+                        else if (split.Length == 3) result += ", " + split[2] + " ; " + assembly[i];
                         assembly[i] = result;
                     }
                 }
