@@ -73,7 +73,7 @@ namespace CPUHelper
             assembly.AddAsm("mov bp, sp");
             assembly.AddAsm("push cx");
             assembly.AddAsm("push dx");
-            assembly.AddAsm(";push es");
+            assembly.AddAsm("push es");
 
             // bp + 4 is sectors to read
             // bp + 6 is drive
@@ -100,7 +100,7 @@ namespace CPUHelper
             assembly.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
 
             assembly.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
-            assembly.AddAsm(";pop es");
+            assembly.AddAsm("pop es");
             assembly.AddAsm("pop dx");
             assembly.AddAsm("pop cx");
             assembly.AddAsm("pop bp");
