@@ -871,12 +871,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (memberName == "System.String.get_Chars_Char_I4")
                 {
                     assembly.AddAsm("; System.String.get_Chars plug");
-                    assembly.AddAsm("pop ax");  // pop index
+                    assembly.AddAsm("pop si");  // pop index
                     assembly.AddAsm("pop bx");  // pop this
-                    assembly.AddAsm("add ax, bx");
-                    assembly.AddAsm("mov bx, ax");
+                    //assembly.AddAsm("add ax, bx");
+                    assembly.AddAsm("lea bx, [bx + si]");
+                    //assembly.AddAsm("mov bx, ax");
                     assembly.AddAsm("mov ax, [bx]");
-                    assembly.AddAsm("and ax, 255");
+                    //assembly.AddAsm("and ax, 255");
                     assembly.AddAsm("push ax");
                 }
                 else
