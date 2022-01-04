@@ -35,7 +35,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
             registers.Add("dx", new MovInstruction());
             registers.Add("es", new MovInstruction());
             registers.Add("ed", new MovInstruction());
-            registers.Add("bp", new MovInstruction());
+            //registers.Add("bp", new MovInstruction());
 
             for (int i = 0; i < assembly.Count; i++)
             {
@@ -68,10 +68,13 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 
                 if (split[0] == "pop")
                 {
+                    if (split[1] == "bp") continue;
                     registers[split[1]].Reset();
                 }
                 else
                 {
+                    if (instruction.Contains("[")) continue;    // too complex for now
+
                     bool madeChanges = false;
                     for (int j = 1; j < split.Length; j++)
                     {
