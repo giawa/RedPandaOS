@@ -42,7 +42,7 @@ namespace GiawaOS
                 assembler16.AddAssembly(file);
                 assembler16.Assemble(file, bootloader2);
 
-                var stage2 = assembler16.WriteAssembly(0x9000, 4096, false);
+                var stage2 = assembler16.WriteAssembly(0x9000, 0, false);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
                 var assembler32 = new IL2Asm.Assembler.x86.Ver2.Assembler();
@@ -104,14 +104,22 @@ namespace GiawaOS
                     using (var stream = new FileStream("boot.bin", FileMode.Append))
                     {
                         stream.Write(File.ReadAllBytes("stage2.bin"));
+                        stream.Write(new byte[512 - (stream.Length % 512)]);
+
+                        byte[] temp = new byte[512];
+                        while (stream.Length < 4096 + 512)
+                        {
+                            for (int i = 0; i < 512; i++) temp[i] = (byte)(stream.Length / 512);
+                            stream.Write(temp);
+                        }
+
                         stream.Write(File.ReadAllBytes("pm.bin"));
 
                         Console.WriteLine($"Stage 1 is using {(440 - stage1Zeros) / 440.0 * 100}% of available space.");
                         Console.WriteLine($"Kernel is using {pmBytes.Length / 94720.0 * 100}% of available space.");
 
                         stream.Write(new byte[512 - (pmBytes.Length % 512)]);
-
-                        byte[] temp = new byte[512];
+                        
                         while (stream.Length < 94720)
                         {
                             for (int i = 0; i < 512; i++) temp[i] = (byte)(stream.Length / 512);
@@ -121,13 +129,15 @@ namespace GiawaOS
                         stream.Write(File.ReadAllBytes("symbols.bin"));
                         stream.Write(new byte[512 - (stream.Length % 512)]);
 
-                        // create a 8MiB hard disk for now
-                        while (stream.Length < 8 * 1024 * 1024)
+                        // create a high density floppy disk for now
+                        while (stream.Length < 1.44 * 1024 * 1024)
                         {
                             Array.Clear(temp, 0, temp.Length);
                             stream.Write(temp);
                         }
                     }
+
+                    File.Copy("boot.bin", "boot.img", true);
 
                     // then boot qemu
                     Console.WriteLine();
