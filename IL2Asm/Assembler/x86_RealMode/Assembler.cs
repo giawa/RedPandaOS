@@ -361,6 +361,18 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
+                    // BGT
+                    case 0x3D:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
+                        assembly.AddAsm("pop ax");        // value2
+                        assembly.AddAsm("pop bx");        // value1
+                        assembly.AddAsm("cmp bx, ax");    // compare values
+                        assembly.AddAsm($"jg {_jmpLabel}");
+                        break;
+
                     // BLT
                     case 0x3F:
                         _int = BitConverter.ToInt32(code, i);
@@ -992,7 +1004,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 output.Add("times 510-($-$$) db 0");
                 output.Add("dw 0xaa55");
             }
-            else
+            else if (size != 0)
             {
                 output.Add($"times {size}-($-$$) db 0");
             }
