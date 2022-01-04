@@ -44,10 +44,10 @@ namespace IL2Asm.Assembler.x86_RealMode
             var code = method.Code;
             int localVarOffset = 0;
 
-            if (_methods.Count > 1)
+            //if (_methods.Count > 1)
             {
                 string label = methodDef.ToAsmString();
-                assembly.AddAsm($"{label}:");
+                if (_methods.Count > 1) assembly.AddAsm($"{label}:");
                 assembly.AddAsm("push bp");
                 assembly.AddAsm("mov bp, sp");
 
@@ -75,7 +75,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 int localVarCount = method.LocalVars.LocalVariables.Length;
                 /*for (int i = 2; i < localVarCount; i++)
                     assembly.AddAsm($"push 0; localvar.{i}");*/
-                if (localVarCount > 0) assembly.AddAsm($"sub esp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
+                if (localVarCount > 0) assembly.AddAsm($"sub sp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
             }
 
             for (ushort i = 0; i < code.Length;)
@@ -346,7 +346,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                         _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
-                        assembly.AddAsm("cmp bx, 0");    // compare values
+                        assembly.AddAsm("cmp ax, 0");    // compare values
                         assembly.AddAsm($"je {_jmpLabel}");
                         break;
 
@@ -357,7 +357,7 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                         _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{Runtime.GlobalMethodCounter}";
                         assembly.AddAsm("pop ax");        // value2
-                        assembly.AddAsm("cmp bx, 0");    // compare values
+                        assembly.AddAsm("cmp ax, 0");    // compare values
                         assembly.AddAsm($"jne {_jmpLabel}");
                         break;
 
