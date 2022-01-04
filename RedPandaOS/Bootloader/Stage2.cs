@@ -15,36 +15,32 @@ namespace Bootloader
             byte disk = (byte)CPU.ReadMemShort(0x500);  // the disk as reported by the bios
             BiosUtilities.Partition partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
 
-            //BiosUtilities.WriteHex(disk); BiosUtilities.WriteLine();
+            var geometry = Bios.GetGeometry(disk);
+            byte heads = (byte)((geometry >> 8) + 1);
+            byte sectorsPerTrack = (byte)(geometry & 0x3f);
+
+            // sanity check floppy drive geometry
+            if (disk <= 0x01 && heads != 2)
+            {
+                // floppy drive defaults
+                BiosUtilities.Write("Bad geometry - using floppy defaults");
+                sectorsPerTrack = 18;
+                heads = 2;
+            }
 
             // read the kernel into memory
-            if (disk == 0x00)
-            {
-                // we are reading from a floppy disk
-                AdvanceFloppySectors(partition, 8);
+            AdvanceSectors(partition, 8, heads, sectorsPerTrack);
 
-                for (ushort addr = 0x0A00; addr < 0x2000; addr += 0x20)
-                {
-                    if (!BiosUtilities.LoadDiskWithRetry(partition, addr, 0x0000, disk, 1))
-                    {
-                        BiosUtilities.Write("Failed LoadDiskWithRetry at addr 0x");
-                        BiosUtilities.WriteHex(addr);
-                        BiosUtilities.WriteLine();
-                        ShowDiskFailure();
-                    }
-                    AdvanceFloppySectors(partition, 1);
-                }
-            }
-            else
+            for (ushort addr = 0x0A00; addr < 0x2000; addr += 0x20)
             {
-                AdvanceSectors(partition, 8);
-                if (BiosUtilities.LoadDiskWithRetry(partition, 0x0A00, 0x0000, disk, 128))
+                if (!BiosUtilities.LoadDiskWithRetry(partition, addr, 0x0000, disk, 1))
                 {
-                    AdvanceSectors(partition, 128);
-
-                    if (!BiosUtilities.LoadDiskWithRetry(partition, 0x1A00, 0x0000, disk, 48)) ShowDiskFailure();
+                    BiosUtilities.Write("Failed LoadDiskWithRetry at addr 0x");
+                    BiosUtilities.WriteHex(addr);
+                    BiosUtilities.WriteLine();
+                    ShowDiskFailure();
                 }
-                else ShowDiskFailure();
+                AdvanceSectors(partition, 1, heads, sectorsPerTrack);
             }
 
             if (DetectMemory(0x500, 10) == 0)
@@ -69,7 +65,7 @@ namespace Bootloader
             while (true) ;
         }
 
-        private static void AdvanceFloppySectors(BiosUtilities.Partition partition, ushort sectors)
+        private static void AdvanceSectors(BiosUtilities.Partition partition, ushort sectors, byte heads, byte sectorsPerTrack)
         {
             ushort startSector = partition.StartingSector;
             ushort startHead = partition.StartingHead;
@@ -77,41 +73,15 @@ namespace Bootloader
 
             startSector += sectors;
 
-            while (startSector > 18)
+            while (startSector > sectorsPerTrack)
             {
-                startSector -= 18;
+                startSector -= sectorsPerTrack;
                 startHead++;
             }
 
-            while (startHead > 1)
+            while (startHead >= heads)
             {
-                startHead -= 2;
-                startCylinder++;
-            }
-
-            // sector occupies the lower 6 bits, with the top 2 bits of cylinder occupying the top 2 bits of the sector
-            partition.StartingSector = (byte)((startSector & 0x3f) | ((startCylinder >> 2) & 0xC0));
-            partition.StartingHead = (byte)startHead;
-            partition.EndingCylinder = (byte)startCylinder;
-        }
-
-        private static void AdvanceSectors(BiosUtilities.Partition partition, ushort sectors)
-        {
-            ushort startSector = partition.StartingSector;
-            ushort startHead = partition.StartingHead;
-            ushort startCylinder = partition.StartingCylinder;
-
-            startSector += sectors;
-
-            while (startSector > 63)
-            {
-                startSector -= 63;
-                startHead++;
-            }
-
-            while (startHead > 255)
-            {
-                startHead -= 256;
+                startHead -= heads;
                 startCylinder++;
             }
 
