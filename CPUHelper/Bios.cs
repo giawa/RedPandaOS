@@ -8,6 +8,23 @@ namespace CPUHelper
     public static class Bios
     {
         [AsmMethod]
+        public static ushort GetGeometry(byte disk)
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.Bios.GetGeometry_U2_U1", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        public static void GetGeometryAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov ah, 8");
+            assembly.AddAsm("pop dx");      // store the disk in dl
+            assembly.AddAsm("int 0x13");
+            assembly.AddAsm("mov ah, dh");
+            assembly.AddAsm("mov al, cl");
+            assembly.AddAsm("push ax");
+        }
+
+        [AsmMethod]
         public static void WriteByte(byte c)
         {
             Console.Write((char)c);
