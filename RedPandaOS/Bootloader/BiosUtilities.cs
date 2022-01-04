@@ -89,7 +89,7 @@ namespace Bootloader
 
             while (s[i] != 0)
             {
-                Bios.WriteByte((byte)s[i]);
+                Bios.WriteChar(s[i]);
                 i += 1;
             }
         }

@@ -35,7 +35,7 @@ namespace Bootloader
             {
                 if (!BiosUtilities.LoadDiskWithRetry(partition, addr, 0x0000, disk, 1))
                 {
-                    BiosUtilities.Write("Failed LoadDiskWithRetry at addr 0x");
+                    BiosUtilities.Write("LoadDiskWithRetry failed at addr 0x");
                     BiosUtilities.WriteHex(addr);
                     BiosUtilities.WriteLine();
                     ShowDiskFailure();
