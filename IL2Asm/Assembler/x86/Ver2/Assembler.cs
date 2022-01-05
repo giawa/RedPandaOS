@@ -1404,7 +1404,19 @@ namespace IL2Asm.Assembler.x86.Ver2
             //assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
             LeaOrMul_EBXOffset(assembly, 8, size);
             assembly.AddAsm("pop ebx");             // pop value off the stack
-            assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
+            if (sizePerElement == 1)
+            {
+                assembly.AddAsm("mov [eax], bl");    // move value into the location (+4 to skip array length)
+            }
+            else if (sizePerElement == 2)
+            {
+                assembly.AddAsm("mov [eax], bx");    // move value into the location (+4 to skip array length)
+            }
+            else if (sizePerElement == 4)
+            {
+                assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
+            }
+            else throw new Exception("Unsupported type");
             assembly.AddAsm("add esp, 8");          // clean up the stack
         }
 
