@@ -50,16 +50,18 @@ namespace Kernel.Memory
                     // byte 4->7: length of the _array
                     // byte 8->135: the actual contents of _array
                     Used = Utilities.PtrToObject<BitArray>(this.Address);   // 4 bytes (pointer to the array)
-                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 4);  // 136 bytes (4 byte size of array, 4 byte size of elements, 128 entries)
-                    CPU.WriteMemInt(this.Address + 4, 128); // put the size of the array in the first 4 bytes of the array (as if created normally)
-                    CPU.WriteMemInt(this.Address + 8, 1);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
+                    // technically there should be 4 bytes of metadata here, but we can't easily know it at runtime
+                    // without generating more objects so we just leave it uninitalized
+                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 8);  // 136 bytes (4 byte size of array, 4 byte size of elements, 128 entries)
+                    CPU.WriteMemInt(this.Address + 8, 128); // put the size of the array in the first 4 bytes of the array (as if created normally)
+                    CPU.WriteMemInt(this.Address + 12, 1);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
 
-                    for (uint i = 3; i < 35; i++)
+                    for (uint i = 4; i < 36; i++)
                         CPU.WriteMemInt(this.Address + (i << 2), 0);
                     //Array.Clear(Used._array, 0, Used._array.Length);
                     
-                    for (int i = 0; i < 140 / 4; i++) Used[i] = true;
-                    Free = 4096 - 140;
+                    for (int i = 0; i < 144 / 4; i++) Used[i] = true;
+                    Free = 4096 - 144;
                 }
 
                 var newAddr = Used.IndexOfFirstZero();
@@ -95,6 +97,13 @@ namespace Kernel.Memory
         public uint Malloc(uint size, uint init = 0)
         {
             uint addr = uint.MaxValue;
+
+            // make sure we're always allocating word aligned
+            if ((size & 0x03) != 0)
+            {
+                size &= 0xfffffffc;
+                size += 4;
+            }
 
             for (int i = 0; i < _memory.Count; i++)
             {
