@@ -2301,7 +2301,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
 
-        private bool CheckForPlugAndInvoke(string dllPath, string memberName, AssembledMethod assembly)
+        private bool CheckForPlugAndInvoke(string dllPath, string memberName, MethodRefSig methodSignature, AssembledMethod assembly)
         {
             if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\RedPandaOS.dll";
 
@@ -2332,6 +2332,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                         assembly.AddAsm($"call {name}");
                     }
 
+                    for (int i = 0; i < methodSignature.ParamCount; i++) _stack.Pop();
+                    if ((methodSignature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
+                    if (methodSignature.RetType.Type != ElementType.EType.Void)
+                    {
+                        _stack.Push(methodSignature.RetType);
+                        eaxType = methodSignature.RetType;
+                    }
                     return true;
                 }
                 else
@@ -2342,25 +2349,23 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     if (possiblePlugs.Length == 1)
                     {
+                        throw new Exception("Why did I need this?");
+
                         var fullDllPath = Path.GetFullPath(dllPath).TrimEnd('\\');
                         var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
                                 m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName).SingleOrDefault() ?? null;
 
                         var methodToCompile = QueueCompileMethod(pe, methodDef, null, null);
+                        Call(assembly, false, methodToCompile, null);
 
-                        string callsite = methodToCompile.ToAsmString();
-
-                        assembly.AddAsm($"call {callsite}");
-
-                        if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        for (int i = 0; i < methodSignature.ParamCount; i++) _stack.Pop();
+                        if ((methodSignature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
+                        if (methodSignature.RetType.Type != ElementType.EType.Void)
                         {
-                            // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
-                            var sizeOfRetType = _runtime.GetTypeSize(pe.Metadata, methodDef.MethodSignature.RetType);
-                            for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
-                                assembly.AddAsm("push eax");
+                            _stack.Push(methodSignature.RetType);
+                            eaxType = methodSignature.RetType;
                         }
-
                         return true;
                     }
                 }
@@ -2460,7 +2465,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var file = memberName.Substring(0, memberName.IndexOf('.'));
                 var path = $"{Environment.CurrentDirectory}\\{file}.dll";
 
-                if (!CheckForPlugAndInvoke(path, memberName, assembly))
+                if (!CheckForPlugAndInvoke(path, memberName, memberRef.MemberSignature, assembly))
                 {
                     if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                     {
@@ -2500,13 +2505,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         throw new Exception("Unable to handle this method");
                     }
+
+                    for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                        _stack.Pop();
+                    if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
+                        _stack.Push(memberRef.MemberSignature.RetType);
                 }
                 assembly.AddAsm("; end plug");
-
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
-                    _stack.Pop();
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
@@ -2521,29 +2526,11 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 var memberName = methodDef.ToAsmString(genericOverride.Item2);
 
-                if (!CheckForPlugAndInvoke(pe.Filename, memberName, assembly))
+                if (!CheckForPlugAndInvoke(pe.Filename, memberName, methodDef.MethodSignature, assembly))
                 {
                     var methodToCompile = QueueCompileMethod(pe, methodDef, genericOverride.Item2, methodSpec);
 
-                    string callsite = methodToCompile.ToAsmString(genericOverride.Item2);
-
-                    if (ldftn)
-                    {
-                        assembly.AddAsm($"push {callsite}");
-                        _stack.Push(new ElementType(ElementType.EType.MethodSignature));
-                    }
-                    else
-                    {
-                        assembly.AddAsm($"call {callsite}");
-
-                        if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                        {
-                            // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
-                            var sizeOfRetType = _runtime.GetTypeSize(metadata, methodDef.MethodSignature.RetType);
-                            for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
-                                assembly.AddAsm("push eax");
-                        }
-                    }
+                    Call(assembly, ldftn, methodToCompile, genericOverride.Item2);
                 }
 
                 if (!ldftn)
@@ -2567,10 +2554,69 @@ namespace IL2Asm.Assembler.x86.Ver2
             else throw new Exception("Unhandled CALL target");
         }
 
-        private AssembledMethod QueueCompileMethod(PELoader.PortableExecutableFile pe, MethodDefLayout methodDef, GenericInstSig genericSig, MethodSpecLayout methodSpec = null)
+        private void Call(AssembledMethod assembly, bool ldftn, List<AssembledMethod> methodToCompile, GenericInstSig genericSig)
         {
-            var memberName = methodDef.ToAsmString(genericSig);
+            if (methodToCompile.Count == 1)
+            {
+                string callsite = methodToCompile[0].ToAsmString(genericSig);
+                var methodDef = methodToCompile[0].Method.MethodDef;
 
+                if (ldftn)
+                {
+                    assembly.AddAsm($"push {callsite}");
+                    _stack.Push(new ElementType(ElementType.EType.MethodSignature));
+                }
+                else
+                {
+                    assembly.AddAsm($"call {callsite}");
+
+                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                    {
+                        // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
+                        var sizeOfRetType = _runtime.GetTypeSize(assembly.Metadata, methodDef.MethodSignature.RetType);
+                        for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
+                            assembly.AddAsm("push eax");
+                    }
+                }
+            }
+            else
+            {
+                throw new Exception("Incomplete interface support");
+            }
+        }
+
+        private List<AssembledMethod> QueueCompileMethod(PELoader.PortableExecutableFile pe, MethodDefLayout methodDef, GenericInstSig genericSig, MethodSpecLayout methodSpec = null)
+        {
+            var assembledMethods = new List<AssembledMethod>();
+
+            if (methodDef.RVA == 0)
+            {
+                // this is likely an interface method, which has no code contents
+                // we need to find all objects the implement this interface and queue their methods
+                // because we do not know which one will be attached at runtime
+                var parent = methodDef.Parent;
+
+                // the quick hack is to only load types that implement the interface in this PE
+                var types = pe.Metadata.TypeDefs.Where(t => t.Implements.Contains(parent.Token)).ToArray();
+                var endOfName = methodDef.Name.Substring(methodDef.Name.LastIndexOf('.') + 1);
+
+                List<MethodDefLayout> methods = new List<MethodDefLayout>();
+                foreach (var t in types)
+                {
+                    var method = t.Methods.Where(m => m.Name.EndsWith(endOfName) && m.MethodSignature.IsEquivalent(methodDef.MethodSignature)).FirstOrDefault();
+                    if (method != null) methods.Add(method);
+                    else throw new Exception("Method was not implemented as expected");
+                }
+
+                foreach (var method in methods)
+                {
+                    assembledMethods.AddRange(QueueCompileMethod(pe, method, genericSig, methodSpec));
+                }
+
+                return assembledMethods;
+            }
+
+            var memberName = methodDef.ToAsmString(genericSig);
             bool methodAlreadyCompiled = false;
             foreach (var method in _methods)
                 if (method.Method != null && method.Method.MethodDef.ToAsmString(method.GenericInstSig) == memberName)
@@ -2578,6 +2624,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             var methodHeaderToCompile = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var methodToCompile = new AssembledMethod(pe.Metadata, methodHeaderToCompile, methodSpec, genericSig);
+            assembledMethods.Add(methodToCompile);
 
             if (!methodAlreadyCompiled)
             {
@@ -2591,7 +2638,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     _methodsToCompile.Add(methodToCompile);
             }
 
-            return methodToCompile;
+            return assembledMethods;
         }
 
         public List<string> WriteAssembly(uint offset = 0xA000, uint size = 512)
