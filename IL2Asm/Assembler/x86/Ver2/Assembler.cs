@@ -2475,32 +2475,6 @@ namespace IL2Asm.Assembler.x86.Ver2
                         int size = _runtime.GetTypeSize(metadata, type);
                         assembly.AddAsm($"push {size}");
                     }
-                    else if (memberName == "System.String.get_Chars_Char_I4")
-                    {
-                        assembly.AddAsm("pop eax");  // pop index
-                        assembly.AddAsm("pop ebx");  // pop this
-                        /*assembly.AddAsm("add eax, ebx");
-                        assembly.AddAsm("mov ebx, eax");*/
-                        assembly.AddAsm("lea ebx, [eax + ebx]");
-                        assembly.AddAsm("mov eax, [ebx]");
-                        assembly.AddAsm("and eax, 255");
-                        assembly.AddAsm("push eax");
-
-                        _stack.Pop();
-                        _stack.Pop();
-                        _stack.Push(new ElementType(ElementType.EType.Char));
-                    }
-                    else if (memberName == "System.Object..ctor_Void")
-                    {
-                        assembly.AddAsm("pop eax");
-                        eaxType = _stack.Pop();
-                    }
-                    else if (memberName == "System.Action.Invoke_Void")
-                    {
-                        assembly.AddAsm("pop eax");
-                        assembly.AddAsm("call [eax]");
-                        eaxType = _stack.Pop();
-                    }
                     else
                     {
                         throw new Exception("Unable to handle this method");

@@ -5,6 +5,30 @@ namespace Plugs
 {
     public static class SystemPlugs
     {
+        [AsmPlug("System.String.get_Chars_Char_I4", Architecture.X86)]
+        private static void StringGetCharsAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");  // pop index
+            assembly.AddAsm("pop ebx");  // pop this
+            assembly.AddAsm("lea ebx, [eax + ebx]");
+            assembly.AddAsm("mov eax, [ebx]");
+            assembly.AddAsm("and eax, 255");
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmPlug("System.Object..ctor_Void", Architecture.X86)]
+        private static void ObjectConstructorAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+        }
+
+        [AsmPlug("System.Action.Invoke_Void", Architecture.X86)]
+        private static void ActionInvokeAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("call [eax]");
+        }
+
         [CSharpPlug("System.Threading.Thread.Sleep_Void_I4")]
         private static void ThreadingThreadSleep(int milliseconds)
         {
