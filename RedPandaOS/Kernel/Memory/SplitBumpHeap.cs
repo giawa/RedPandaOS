@@ -24,8 +24,7 @@ namespace Kernel.Memory
 
             public uint Malloc(uint size)
             {
-                if (size > 4096) return uint.MaxValue;
-                if (size > Free) return uint.MaxValue - 1;
+                if (size > 4096) throw new Exception("Object allocation was larger than available.");
 
                 // if a full page then just return this whole thing
                 if (size == 4096)
@@ -63,6 +62,8 @@ namespace Kernel.Memory
                     for (int i = 0; i < 144 / 4; i++) Used[i] = true;
                     Free = 4096 - 144;
                 }
+
+                if (size > Free) throw new Exception("Object allocation was larger than available.");
 
                 var newAddr = Used.IndexOfFirstZero();
                 for (int i = newAddr; i < newAddr + (int)size / 4; i++)
@@ -113,6 +114,8 @@ namespace Kernel.Memory
                     break;
                 }
             }
+
+            if (addr == uint.MaxValue) throw new Exception("Could not find free section of memory");
 
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
