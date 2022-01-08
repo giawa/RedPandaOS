@@ -27,11 +27,10 @@ namespace Kernel.Devices
 
         public static void WriteFormattedString(string s, uint u1, uint u2, uint u3, ushort effect = 0x0f00)
         {
-            int i = 0;
-
-            while (s[i] != 0)
+            for (int i = 0; i < s.Length; i++)
             {
-                if (s[i] == '{' && (s[i + 2] == '}' || s[i + 4] == '}'))
+                var c = s[i];
+                if (c == '{' && (s[i + 2] == '}' || s[i + 4] == '}'))
                 {
                     uint value = 0;
                     if (s[i + 1] == '0') value = u1;
@@ -45,12 +44,12 @@ namespace Kernel.Devices
                     }
                     else WriteInt(value);
 
-                    i += 3;
+                    i += 2;
                     continue;
                 }
 
-                CPU.WriteMemory((int)offset, (ushort)(s[i] | effect));
-                i++;
+                if (c > 255) c = '?';
+                CPU.WriteMemory((int)offset, (ushort)(c | effect));
                 offset += 2;
             }
 
@@ -89,12 +88,11 @@ namespace Kernel.Devices
 
         public static void WriteString(string s, ushort effect = 0x0f00)
         {
-            int i = 0;
-
-            while (s[i] != 0)
+            for (int i = 0; i < s.Length; i++)
             {
-                CPU.WriteMemory((int)offset, (ushort)(s[i] | effect));
-                i++;
+                var c = s[i];
+                if (c > 255) c = '?';
+                CPU.WriteMemory((int)offset, (ushort)(c | effect));
                 offset += 2;
             }
 
@@ -123,7 +121,7 @@ namespace Kernel.Devices
             for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
                 WriteVideoMemoryChar(' ');
             offset = VIDEO_MEMORY;*/
-            for (int i = (int)VIDEO_MEMORY; i < (int)VIDEO_MEMORY + VGA_WIDTH * VGA_HEIGHT * 2; i+=2)
+            for (int i = (int)VIDEO_MEMORY; i < (int)VIDEO_MEMORY + VGA_WIDTH * VGA_HEIGHT * 2; i += 2)
             {
                 CPU.WriteMemory(i, ' ');
             }

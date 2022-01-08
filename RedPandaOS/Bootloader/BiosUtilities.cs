@@ -85,6 +85,7 @@ namespace Bootloader
 
         public static void Write(string s)
         {
+            // do not refactor this to use s.Length as the real mode assembler does not support it
             int i = 0;
 
             while (s[i] != 0)
