@@ -8,6 +8,14 @@
             Logging.WriteLine(LogLevel.Panic, exception.Message);
 
             // try printing the stack trace
+            PrintStackTrace();
+
+            while (true) ;
+        }
+
+        public static void PrintStackTrace()
+        {
+            // try printing the stack trace
             uint ebp = CPUHelper.CPU.ReadEBP();
             for (uint i = 0, s = 0; i < 40 && s < 10; i++)   // explore the stack up to a depth of 40 dwords
             {
@@ -16,7 +24,7 @@
 
                 var contents = CPUHelper.CPU.ReadMemInt(ebp + (i << 2));
                 var symbol = GetSymbolName(contents);
-                
+
                 if (symbol != null)
                 {
                     Logging.Write(LogLevel.Panic, "0x{0:X} : 0x{1:X} ", address, contents);
@@ -25,8 +33,6 @@
                 }
                 else if (_symbols == null) Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
             }
-
-            while (true) ;
         }
 
         private static string GetSymbolName(uint addr)
