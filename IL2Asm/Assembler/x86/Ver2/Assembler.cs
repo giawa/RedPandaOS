@@ -2175,7 +2175,6 @@ namespace IL2Asm.Assembler.x86.Ver2
                     //if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
                     objSize += fSize;
                 }
-                objSize += 4;   // add a bit at the end to store the metadata for this object
 
                 if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
 
@@ -2188,9 +2187,6 @@ namespace IL2Asm.Assembler.x86.Ver2
                 // (once to use for the constructor THIS, and a second to recover the address)
                 assembly.AddAsm("push eax");
                 assembly.AddAsm("push eax");
-
-                // add the metadata token to the back of the object
-                assembly.AddAsm($"mov dword [eax + {objSize - 4}], 0x{parent.Token.ToString("X")}");
 
                 _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
                 _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
@@ -2208,7 +2204,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     if ((argSize % 4) != 0) throw new Exception("Unsupported type");
                     for (int j = 0; j < argSize / 4; j++)
                     {
-                        assembly.AddAsm($"mov ebx, [esp + {argSize + 4}]");
+                        assembly.AddAsm($"mov ebx, [esp+{argSize + 4}]");
                         assembly.AddAsm("push ebx");
                     }
                 }
