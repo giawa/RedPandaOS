@@ -10,9 +10,9 @@ namespace Plugs
         {
             assembly.AddAsm("pop eax");  // pop index
             assembly.AddAsm("pop ebx");  // pop this
-            assembly.AddAsm("lea ebx, [eax + ebx]");
+            assembly.AddAsm("lea ebx, [2 * eax + ebx + 8]");
             assembly.AddAsm("mov eax, [ebx]");
-            assembly.AddAsm("and eax, 255");
+            assembly.AddAsm("and eax, 65535");
             assembly.AddAsm("push eax");
         }
 

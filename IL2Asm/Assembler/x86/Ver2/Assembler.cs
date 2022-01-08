@@ -1406,15 +1406,15 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.AddAsm("pop ebx");             // pop value off the stack
             if (sizePerElement == 1)
             {
-                assembly.AddAsm("mov [eax], bl");    // move value into the location (+4 to skip array length)
+                assembly.AddAsm("mov [eax], bl");
             }
             else if (sizePerElement == 2)
             {
-                assembly.AddAsm("mov [eax], bx");    // move value into the location (+4 to skip array length)
+                assembly.AddAsm("mov [eax], bx");
             }
             else if (sizePerElement == 4)
             {
-                assembly.AddAsm("mov [eax], ebx");    // move value into the location (+4 to skip array length)
+                assembly.AddAsm("mov [eax], ebx");
             }
             else throw new Exception("Unsupported type");
             assembly.AddAsm("add esp, 8");          // clean up the stack
@@ -1498,7 +1498,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
             //assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
             LeaOrMul_EBXOffset(assembly, 8, size);
-            assembly.AddAsm("mov ebx, [eax]");    // bring value from memory to register (+4 to skip array length)
+            assembly.AddAsm("mov ebx, [eax]");    // bring value from memory to register (+8 to skip array length and stride)
 
             if (sizePerElement == 2) assembly.AddAsm("and ebx, 65535");
             else if (sizePerElement == 1) assembly.AddAsm("and ebx, 255");
@@ -2107,13 +2107,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                 eaxType = null;
                 ebxType = null;
 
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
-                    _stack.Pop();
-
                 assembly.AddAsm($"; start {memberName} plug");
 
                 if (memberName == "System.Action..ctor_Void_Object_IntPtr")
                 {
+                    _stack.Pop();
+                    _stack.Pop();
+
                     if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
 
                     assembly.AddAsm("push 4");
@@ -2132,6 +2132,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
                 else if (memberName == "System.Exception..ctor_Void_String")
                 {
+                    _stack.Pop();
+
                     if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
 
                     assembly.AddAsm("push 8");
@@ -2146,6 +2148,14 @@ namespace IL2Asm.Assembler.x86.Ver2
                     assembly.AddAsm("push eax");
 
                     _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
+                }
+                else if (memberName == "System.String..ctor_Void_SzArray")
+                {
+                    var type = _stack.Pop();
+                    if (type.NestedType == null || type.NestedType.Type != ElementType.EType.Char)
+                        throw new Exception("Unsupported type");
+                    assembly.AddAsm("; do nothing");
+                    _stack.Push(new ElementType(ElementType.EType.String));
                 }
                 else
                 {
@@ -2339,14 +2349,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
                 else
                 {
+                    // this is for a possible C# plug
                     possiblePlugs = _loadedAssemblies[dllPath].GetTypes().
                         SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
                         Where(m => m.GetCustomAttribute<BaseTypes.CSharpPlugAttribute>()?.AsmMethodName == memberName).ToArray();
 
                     if (possiblePlugs.Length == 1)
                     {
-                        throw new Exception("Why did I need this?");
-
                         var fullDllPath = Path.GetFullPath(dllPath).TrimEnd('\\');
                         var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
@@ -2658,11 +2667,12 @@ namespace IL2Asm.Assembler.x86.Ver2
                     if (data.Value.Type.Type == ElementType.EType.String)
                     {
                         var s = (string)data.Value.Data;
-                        if (s.Contains("'")) s = s.Replace("'", "', 39, '");    // triggers end of string literal in nasm, so needs to be escaped
-                        if (s.Contains(";")) s = s.Replace(";", "', 59, '");    // triggers a comment in nasm, so needs to be escaped
-                        if (s.Contains("'', ")) s = s.Replace("'', ", "");      // can happen when ' is next to ; and they both got escaped
                         output.Add($"{data.Key}:");
-                        output.Add($"    db '{s}', 0");  // 0 for null termination after the string
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < s.Length; i++) sb.Append($"{(int)s[i]}, ");
+
+                        output.Add($"    dd {s.Length + 1}, 2");        // length of array and stride of 2 bytes
+                        output.Add($"    dw {sb.ToString()} 0 ; {s}");  // 0 for null termination after the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I4)
                     {
