@@ -37,8 +37,10 @@
             {
                 if (addr >= _symbols[i].Address && addr < _symbols[i + 1].Address)
                 {
-                    var arrayPtr = Memory.Utilities.ObjectToPtr(_symbols[i].Name) + 8;
-                    return Memory.Utilities.UnsafeCast<string>(arrayPtr);
+                    int length = _symbols[i].Name.Length;
+                    char[] array = new char[length];
+                    for (int j = 0; j < length; j++) array[j] = (char)_symbols[i].Name[j];
+                    return new string(array);
                 }
             }
 
