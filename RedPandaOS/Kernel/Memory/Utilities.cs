@@ -57,5 +57,18 @@ namespace Kernel.Memory
         {
             assembly.AddAsm($"; ObjectToPtr nop");
         }
+
+        [AsmMethod]
+        public static uint StructToPtr<T>(ref T s) where T : struct
+        {
+            return 0;
+        }
+
+        [AsmPlug("Kernel_Memory_Utilities_StructToPtr_U4_ByRef", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void StructToPtrTAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; StructToPtr nop");
+        }
+
     }
 }
