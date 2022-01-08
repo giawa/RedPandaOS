@@ -2130,7 +2130,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     //assembly.AddAsm("pop eax"); // function pointer
                     //assembly.AddAsm("pop ebx"); // this (which is always null)
                 }
-                else if (memberName == "System.Exception..ctor_Void_String")
+                else if (memberName.EndsWith("Exception..ctor_Void_String"))
                 {
                     _stack.Pop();
 
@@ -2359,7 +2359,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                         var fullDllPath = Path.GetFullPath(dllPath).TrimEnd('\\');
                         var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
-                                m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName).SingleOrDefault() ?? null;
+                                m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName &&
+                                m.MethodSignature.ParamCount == possiblePlugs[0].GetParameters().Length).SingleOrDefault() ?? null;
 
                         var methodToCompile = QueueCompileMethod(pe, methodDef, null, null);
                         Call(assembly, false, methodToCompile, null);
