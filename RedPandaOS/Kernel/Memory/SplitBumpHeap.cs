@@ -14,12 +14,36 @@ namespace Kernel.Memory
 
             public BitArray Used { get; private set; }
 
-            public uint Free { get; private set; }
+            public uint Available { get; private set; }
 
             public PageAlignedHeap(uint address)
             {
                 Address = address;
-                Free = 4096;
+                Available = 4096;
+            }
+
+            public void Free(uint offset, uint size)
+            {
+                if (size == 4096)
+                {
+                    Used = null;
+                    Available = 4096;
+                }
+                else
+                {
+                    // make sure we're always allocating word aligned
+                    if ((size & 0x03) != 0)
+                    {
+                        size &= 0xfffffffc;
+                        size += 4;
+                    }
+
+                    uint loopTo = (offset >> 2) + (size >> 2);
+                    for (uint i = (offset >> 2); i < loopTo; i++)
+                        Used[(int)i] = false;
+
+                    Available += size;
+                }
             }
 
             public uint Malloc(uint size)
@@ -29,7 +53,7 @@ namespace Kernel.Memory
                 // if a full page then just return this whole thing
                 if (size == 4096)
                 {
-                    Free = 0;
+                    Available = 0;
                     return Address;
                 }
 
@@ -58,16 +82,16 @@ namespace Kernel.Memory
                     //Array.Clear(Used._array, 0, Used._array.Length);
                     
                     for (int i = 0; i < 140 / 4; i++) Used[i] = true;
-                    Free = 4096 - 140;
+                    Available = 4096 - 140;
                 }
 
-                if (size > Free) throw new Exception("Object allocation was larger than available.");
+                if (size > Available) throw new Exception("Object allocation was larger than available.");
 
                 var newAddr = Used.IndexOfFirstZero();
                 for (int i = newAddr; i < newAddr + (int)size / 4; i++)
                     Used[i] = true;
 
-                Free -= size;
+                Available -= size;
 
                 return (uint)newAddr * 4 + Address;
             }
@@ -86,10 +110,12 @@ namespace Kernel.Memory
 
         private List<PageAlignedHeap> _memory;
 
+        private uint _startAddress = 0x21000;
+
         private SplitBumpHeap()
         {
             _memory = new List<PageAlignedHeap>(95);
-            for (uint i = 0; i < 95; i++) _memory.Add(new PageAlignedHeap(0x21000 + i * 4096));
+            for (uint i = 0; i < 95; i++) _memory.Add(new PageAlignedHeap(_startAddress + i * 4096));
         }
 
         [Allocator]
@@ -106,7 +132,7 @@ namespace Kernel.Memory
 
             for (int i = 0; i < _memory.Count; i++)
             {
-                if (_memory[i].Free >= size)
+                if (_memory[i].Available >= size)
                 {
                     addr = _memory[i].Malloc(size);
                     break;
@@ -130,7 +156,7 @@ namespace Kernel.Memory
 
             for (int i = 0; i < _memory.Count; i++)
             {
-                if (_memory[i].Free >= 4096)
+                if (_memory[i].Available >= 4096)
                 {
                     addr = _memory[i].Malloc(size);
                     break;
@@ -145,9 +171,46 @@ namespace Kernel.Memory
             return addr;
         }
 
-        public void Free(uint addr)
+        public void Free(uint addr, uint size)
         {
-            // nop for now
+            var internalAddress = (addr - _startAddress) >> 12;
+            if (internalAddress >= (uint)_memory.Count) throw new ArgumentOutOfRangeException("Invalid address");
+
+            // make sure we're always allocating word aligned
+            if ((size & 0x03) != 0)
+            {
+                size &= 0xfffffffc;
+                size += 4;
+            }
+
+            if (size > 4096) throw new ArgumentOutOfRangeException("Invalid size");
+
+            var page = _memory[(int)internalAddress];
+            var offset = addr & 0xfff;
+
+            page.Free(offset, size);
+
+            Logging.WriteLine(LogLevel.Trace, "[SBH] Freeing {0} bytes at 0x{1:X}", size, addr);
+        }
+
+        public void Free(string s)
+        {
+            var baseAddr = Utilities.ObjectToPtr(s);
+            var size = CPU.ReadMemInt(baseAddr);
+            Free(baseAddr, size * 2 + 8);
+        }
+
+        public uint UsedBytes
+        {
+            get
+            {
+                uint used = 0;
+                for (int i = 0; i < _memory.Count; i++)
+                {
+                    used += (4096 - _memory[i].Available);
+                }
+                return used;
+            }
         }
 
         public T Malloc<T>()
