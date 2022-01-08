@@ -5,6 +5,26 @@ namespace Plugs
 {
     public static class StringPlugs
     {
+        [CSharpPlug("System.String.Substring_String_I4_I4")]
+        private static string StringSubstring(string s, int start, int length)
+        {
+            if (start + length > s.Length || start < 0) throw new ArgumentOutOfRangeException("Invalid startIndex or length");
+
+            char[] array = new char[length + 1];
+            for (int i = 0; i < array.Length - 1; i++) array[i] = s[i + start];
+            return new string(array);
+        }
+
+        [CSharpPlug("System.String.Substring_String_I4")]
+        private static string StringSubstring(string s, int start)
+        {
+            if (start > s.Length || start < 0) throw new ArgumentOutOfRangeException("Invalid startIndex");
+
+            char[] array = new char[s.Length - start + 1];
+            for (int i = 0; i < array.Length - 1; i++) array[i] = s[i + start];
+            return new string(array);
+        }
+
         [CSharpPlug("System.String.IndexOf_I4_String")]
         private static int StringIndexOfString(string s, string match)
         {
