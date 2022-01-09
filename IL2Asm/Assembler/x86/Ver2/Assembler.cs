@@ -1768,6 +1768,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             eaxType = _stack.Pop();
             if (!IsEquivalentType(metadata, labelType, eaxType))
             {
+                // looks like .net is okay with an implicit cast from i4 to boolean ... weird
                 if (labelType.Type == ElementType.EType.Boolean && eaxType.Type == ElementType.EType.I4)
                 {
                     assembly.AddAsm("pop eax");
@@ -1777,8 +1778,21 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             else
             {
-                assembly.AddAsm($"pop eax");
-                assembly.AddAsm($"mov [{label}], eax");
+                if (labelType.Type == ElementType.EType.U1 || labelType.Type == ElementType.EType.I1 || labelType.Type == ElementType.EType.Boolean)
+                {
+                    assembly.AddAsm($"pop eax");
+                    assembly.AddAsm($"mov [{label}], al");
+                }
+                else if (labelType.Type == ElementType.EType.U2 || labelType.Type == ElementType.EType.I2 || labelType.Type == ElementType.EType.Char)
+                {
+                    assembly.AddAsm($"pop eax");
+                    assembly.AddAsm($"mov [{label}], ax");
+                }
+                else
+                {
+                    assembly.AddAsm($"pop eax");
+                    assembly.AddAsm($"mov [{label}], eax");
+                }
             }
         }
 
@@ -2109,20 +2123,22 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 assembly.AddAsm($"; start {memberName} plug");
 
-                if (memberName == "System.Action..ctor_Void_Object_IntPtr")
+                if (memberName == "System.Action..ctor_Void_Object_IntPtr" || memberName == "System.Action`1..ctor_Void_Object_IntPtr")
                 {
                     _stack.Pop();
                     _stack.Pop();
 
                     if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
 
-                    assembly.AddAsm("push 4");
+                    assembly.AddAsm("push 8");
                     assembly.AddAsm("push 0");
                     assembly.AddAsm($"call {HeapAllocatorMethod}");
 
                     assembly.AddAsm("pop ebx");         // the function ptr
-                    assembly.AddAsm($"add esp, {BytesPerRegister}");    // the object ptr (normally null, we don't use this yet)
+                    //assembly.AddAsm($"add esp, {BytesPerRegister}");    // the object ptr (normally null, we don't use this yet)
                     assembly.AddAsm("mov [eax], ebx");  // the object only stores the function pointer
+                    assembly.AddAsm("pop ebx");
+                    assembly.AddAsm("mov [eax + 4], ebx");  // store the object ptr
                     assembly.AddAsm("push eax");
 
                     _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
