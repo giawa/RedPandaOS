@@ -5,6 +5,25 @@ namespace Plugs
 {
     public static class StringPlugs
     {
+        [CSharpPlug("System.String.op_Equality_Boolean_String_String")]
+        private static bool StringEquality(string s1, string s2)
+        {
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
+            if (s1.Length != s2.Length) return false;
+
+            for (int i = 0; i < s1.Length; i++)
+                if (s1[i] != s2[i]) return false;
+
+            return true;
+        }
+
+        [AsmPlug("System.String.ToCharArray_SzArray", Architecture.X86)]
+        private static void StringToCharArrayAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("; nop");
+        }
+
         [CSharpPlug("System.String.Substring_String_I4_I4")]
         private static string StringSubstring(string s, int start, int length)
         {
