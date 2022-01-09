@@ -8,7 +8,7 @@ namespace Kernel.Memory
 
         public uint MallocPageAligned(uint size, uint init = 0);
 
-        public void Free(uint addr);
+        public void Free(uint addr, uint size);
 
         public T Malloc<T>();
 

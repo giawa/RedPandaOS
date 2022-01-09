@@ -61,5 +61,24 @@
 
             return -1;
         }
+
+        public int IndexOfNextZero(int startIndex)
+        {
+            for (int i = (startIndex >> 5); i < _array.Length; i++)
+            {
+                var t = _array[i];
+                if (t == 0xffffffff) continue;
+
+                int j = (i == (startIndex >> 5) ? startIndex & 0x1f : 0);
+
+                for (; j < 32; j++)
+                {
+                    if ((t & (1U << j)) == 0) return (i * 32 + j);
+                }
+
+            }
+
+            return -1;
+        }
     }
 }

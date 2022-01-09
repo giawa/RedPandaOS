@@ -39,6 +39,7 @@ namespace Kernel.Memory
                     }
 
                     uint loopTo = (offset >> 2) + (size >> 2);
+
                     for (uint i = (offset >> 2); i < loopTo; i++)
                         Used[(int)i] = false;
 
@@ -87,13 +88,39 @@ namespace Kernel.Memory
 
                 if (size > Available) throw new Exception("Object allocation was larger than available.");
 
-                var newAddr = Used.IndexOfFirstZero();
-                for (int i = newAddr; i < newAddr + (int)size / 4; i++)
-                    Used[i] = true;
+                int newAddr = 0;
 
-                Available -= size;
+                while (newAddr < 1024)
+                {
+                    newAddr = Used.IndexOfNextZero(newAddr);
 
-                return (uint)newAddr * 4 + Address;
+                    if (newAddr == -1) break;
+
+                    // make sure we actually have enough consecutive free words
+                    bool works = true;
+                    for (int i = newAddr; i < newAddr + (int)(size >> 2); i++)
+                    {
+                        if (Used[i])
+                        {
+                            works = false;
+                            newAddr = i;
+                            break;
+                        }
+                    }
+
+                    // if not enough consecutive words then keep searching
+                    if (!works) continue;
+
+                    // otherwise we found a contiguous memory region, so mark it as in use
+                    for (int i = newAddr; i < newAddr + (int)size / 4; i++)
+                        Used[i] = true;
+
+                    Available -= size;
+
+                    return (uint)newAddr * 4 + Address;
+                }
+
+                return 0;
             }
         }
 
@@ -135,6 +162,7 @@ namespace Kernel.Memory
                 if (_memory[i].Available >= size)
                 {
                     addr = _memory[i].Malloc(size);
+                    if (addr == 0) continue;    // if we failed to allocate then try the next page
                     break;
                 }
             }
@@ -191,6 +219,15 @@ namespace Kernel.Memory
             page.Free(offset, size);
 
             Logging.WriteLine(LogLevel.Trace, "[SBH] Freeing {0} bytes at 0x{1:X}", size, addr);
+        }
+
+        public void Free<T>(T[] array)
+        {
+            var baseAddr = Utilities.ObjectToPtr(array);
+            var size = CPU.ReadMemInt(baseAddr);
+            var elementSize = CPU.ReadMemInt(baseAddr + 4);
+            Logging.WriteLine(LogLevel.Trace, "[SBH] Got size {0} elementSize {1}", size, elementSize);
+            Free(baseAddr, size * elementSize + 8);
         }
 
         public void Free(string s)

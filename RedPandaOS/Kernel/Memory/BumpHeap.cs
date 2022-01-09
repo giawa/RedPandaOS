@@ -64,7 +64,7 @@ namespace Kernel.Memory
             return addr;
         }
 
-        public void Free(uint addr)
+        public void Free(uint addr, uint size)
         {
             // nop for now
         }
