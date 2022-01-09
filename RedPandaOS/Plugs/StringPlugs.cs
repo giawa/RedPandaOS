@@ -82,8 +82,20 @@ namespace Plugs
             return false;
         }
 
+        [CSharpPlug("System.String.Concat_String_String_String_String")]
+        private static string StringConcat3(string s1, string s2, string s3)
+        {
+            char[] concat = new char[s1.Length + s2.Length + s3.Length + 1];
+            for (int i = 0; i < s1.Length; i++) concat[i] = s1[i];
+            for (int i = 0; i < s2.Length; i++) concat[i + s1.Length] = s2[i];
+            for (int i = 0; i < s3.Length; i++) concat[i + s1.Length + s2.Length] = s3[i];
+
+            // the actual string data starts at concat + 8 (skip over the array length and size per element)
+            return new string(concat);
+        }
+
         [CSharpPlug("System.String.Concat_String_String_String")]
-        private static string StringConcat(string s1, string s2)
+        private static string StringConcat2(string s1, string s2)
         {
             char[] concat = new char[s1.Length + s2.Length + 1];
             for (int i = 0; i < s1.Length; i++) concat[i] = s1[i];

@@ -11,6 +11,17 @@ namespace Plugs
             assembly.AddAsm("pop eax");
         }
 
+        [AsmPlug("System.Action`1.Invoke_Void_Var", Architecture.X86)]
+        private static void ActionInvoke1Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop edi"); // pop the arg
+            assembly.AddAsm("pop eax"); // pop the action
+            assembly.AddAsm("mov ebx, [eax + 4]");  // grab the object we're calling this on
+            assembly.AddAsm("push ebx");    // push the object
+            assembly.AddAsm("push edi");    // push the arg again
+            assembly.AddAsm("call [eax]");
+        }
+
         [AsmPlug("System.Action.Invoke_Void", Architecture.X86)]
         private static void ActionInvokeAsm(IAssembledMethod assembly)
         {
