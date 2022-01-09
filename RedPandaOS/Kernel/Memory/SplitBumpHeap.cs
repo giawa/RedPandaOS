@@ -74,9 +74,9 @@ namespace Kernel.Memory
                     // byte 4->7: length of the _array
                     // byte 8->135: the actual contents of _array
                     Used = Utilities.PtrToObject<BitArray>(this.Address);   // 4 bytes (pointer to the array)
-                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 4);  // 136 bytes (4 byte size of array, 4 byte size of elements, 128 entries)
-                    CPU.WriteMemInt(this.Address + 4, 128); // put the size of the array in the first 4 bytes of the array (as if created normally)
-                    CPU.WriteMemInt(this.Address + 8, 1);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
+                    Used._array = Utilities.PtrToObject<uint[]>(this.Address + 4);  // 136 bytes (4 byte size of array, 4 byte size of elements, 32 entries)
+                    CPU.WriteMemInt(this.Address + 4, 32);  // put the size of the array in the first 4 bytes of the array (as if created normally)
+                    CPU.WriteMemInt(this.Address + 8, 4);   // put the size of each array element in the next 4 bytes of the array (as if created normally)
 
                     for (uint i = 3; i < 35; i++)
                         CPU.WriteMemInt(this.Address + (i << 2), 0);
@@ -167,7 +167,7 @@ namespace Kernel.Memory
                 }
             }
 
-            if (addr == uint.MaxValue) throw new Exception("Could not find free section of memory");
+            if (addr == uint.MaxValue) throw new OutOfMemoryException("Could not find free section of memory");
 
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
@@ -190,6 +190,8 @@ namespace Kernel.Memory
                     break;
                 }
             }
+
+            if (addr == uint.MaxValue) throw new OutOfMemoryException("Could not find free section of memory");
 
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
