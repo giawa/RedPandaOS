@@ -116,15 +116,40 @@ namespace Kernel.Devices
             DevAddress = 0x0D,
         }
 
-        //private static Channel[] _channels;
         private static Runtime.Collections.List<Channel> _channels = new Runtime.Collections.List<Channel>();
-
-        private const byte ATA_REG_CONTROL = 0x0C;
 
         private static int _irqInvoked = 0;
         private static uint[] _buffer = new uint[2048 / 4];
-        //private Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>(4);
         private static Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>();
+        private static char diskletter = 'a';
+
+        public static void AttachDriver()
+        {
+            var root = IO.Filesystem.Root;
+            IO.Directory devices = null;
+            for (int i = 0; i < root.Directories.Count; i++)
+                if (root.Directories[i].Name == "dev") devices = root.Directories[i];
+
+            if (devices == null) throw new Exception("/dev did not exist");
+
+            for (int i = 0; i < PCI.Devices.Count; i++)
+            {
+                var device = PCI.Devices[i];
+                if (device.ClassCode == PCI.ClassCode.MassStorageController && (device.SubClass == 1 || device.SubClass == 5))
+                {
+                    if (PATA.InitDevice(device))
+                    {
+                        IO.File harddisk = new IO.File("hd" + diskletter, devices);
+                        devices.Contents.Add(harddisk);
+
+                        if (diskletter == 'a')
+                            Exceptions.ReadSymbols(0);
+
+                        diskletter++;
+                    }
+                }
+            }
+        }
 
         public static bool InitDevice(PCI.PCIDevice device)
         {
@@ -241,36 +266,6 @@ namespace Kernel.Devices
                     VGA.WriteLine();
                 }
             }
-
-            /*uint[] temp = new uint[128];
-            uint[] write = new uint[128];
-            var err = Access(0, 0, 0x7e00 / 512, 1, 0, temp);
-
-            Logging.WriteLine(LogLevel.Trace, "Read 1 Access returned {0}", err);
-            for (int i = 0; i < 4; i++) Logging.WriteLine(LogLevel.Trace, "{0}", temp[i]);
-
-            for (int i = 0; i < write.Length; i++) write[i] = (uint)i;
-
-            err = Access(1, 0, 0x7e00 / 512, 1, 0, write);
-            Logging.WriteLine(LogLevel.Trace, "Write Access returned {0}", err);
-
-            err = Access(0, 0, 0x7e00 / 512, 1, 0, temp);
-
-            Logging.WriteLine(LogLevel.Trace, "Read 2 Access returned {0}", err);
-            for (int i = 0; i < 4; i++) Logging.WriteLine(LogLevel.Trace, "{0}", temp[i]);*/
-            
-            uint symbolsOffset = 0x17200U;
-            uint[] sector = new uint[128];
-
-            Logging.WriteLine(LogLevel.Trace, "Reading symbols...");
-            while (symbolsOffset < 0x1A000)
-            {
-                Access(0, 0, symbolsOffset / 512, 1, 0, sector);
-                if (sector[127] == 0) break;
-                Exceptions.AddSymbols(sector);
-                symbolsOffset += 512;
-            }
-            Logging.WriteLine(LogLevel.Warning, "Done reading {0} symbols...", (uint)Exceptions.SymbolCount);
 
             return true;
         }

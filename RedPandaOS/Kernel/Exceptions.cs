@@ -53,6 +53,22 @@
             return null;
         }
 
+        public static void ReadSymbols(byte drive)
+        {
+            uint symbolsOffset = 0x17200U;
+            uint[] sector = new uint[128];
+
+            Logging.WriteLine(LogLevel.Trace, "Reading symbols...");
+            while (symbolsOffset < 0x1A000)
+            {
+                Devices.PATA.Access(0, 0, symbolsOffset / 512, 1, 0, sector);
+                if (sector[127] == 0) break;
+                AddSymbols(sector);
+                symbolsOffset += 512;
+            }
+            Logging.WriteLine(LogLevel.Warning, "Done reading {0} symbols...", (uint)Exceptions.SymbolCount);
+        }
+
         public class SymbolEntry
         {
             public uint Address;

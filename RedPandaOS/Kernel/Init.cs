@@ -2,6 +2,7 @@
 using Kernel.Devices;
 using Runtime;
 using Runtime.Collections;
+using System;
 using System.Runtime.InteropServices;
 
 namespace Kernel
@@ -24,188 +25,42 @@ namespace Kernel
         private static SMAP_entry _entry;
         private static CPU.CPUIDValue cpuId;
 
-        public struct Vector2i
+        static void EmptyIrq()
         {
-            public uint x;
-            public uint y;
-        }
 
-        /*static Vector2i Modify(Vector2i v)
-        {
-            v.x++;
-            v.y++;
-            return v;
-        }*/
-
-        static void Modify(Vector2i v, Vector2i v2)
-        {
-            v.x = 3;
-            v.y = 4;
-
-            v2.x += 2;
-            v2.y += 2;
-
-            CPU.WriteMemory(0xb8000 + 6, (ushort)((v.x + 48) | 0x0f00));
-            CPU.WriteMemory(0xb8000 + 8, (ushort)((v.y + 48) | 0x0f00));
-
-            CPU.WriteMemory(0xb8000 + 12, (ushort)((v2.x + 48) | 0x0f00));
-            CPU.WriteMemory(0xb8000 + 14, (ushort)((v2.y + 48) | 0x0f00));
-        }
-
-        private static Vector2i original, next;
-
-        //private static Runtime.SimpleList test;
-
-        public class KeyPress
-        {
-            public char KeyCode;
-            public byte Modifiers;
-            public byte Reserved;
         }
 
         static void Start()
         {
-            Logging.LoggingLevel = LogLevel.Trace;
+            Logging.LoggingLevel = LogLevel.Warning;
 
-            PIC.Init();
             PIC.SetIrqCallback(0, PIT.Tick);
             PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
-            PIT.Init(50);
+            PIC.SetIrqCallback(12, EmptyIrq);   // ps-2 mouse
+            PIC.Init();
+            PIT.Init(100);
 
-            /*VGA.Clear();
-            VGA.WriteString(_welcomeMessage, 0x0700);
-            VGA.WriteLine();*/
+            //PIC.SetIrqCallback(14, EmptyIrq);
+            //PIC.SetIrqCallback(15, EmptyIrq);
+
+            //VGA.Clear();
+            //VGA.WriteString(_welcomeMessage, 0x0700);
+            //VGA.WriteLine();
 
             Memory.Paging.InitializePaging(256);    // loads the entire kernel + heap into paging
 
+            IO.Filesystem.Init();
             PCI.ScanBus();
+            PATA.AttachDriver();
 
-            VGA.WriteHex(CPU.ReadMemInt(0xA0A000));
+            //Logging.WriteLine(LogLevel.Warning, "Using {0} bytes of memory", Memory.SplitBumpHeap.Instance.UsedBytes);
+            //Logging.WriteLine(LogLevel.Warning, "Found {0} PCI devices", (uint)PCI.Devices.Count);
+            
 
-            FixedArray<uint> array = new FixedArray<uint>(10, 0);
-
-            /*array[0] = 12;
-            array[1] = 24;
-            array[2] = 36;
-
-            Logging.WriteLine(LogLevel.Trace, "array[0] = {0}", array[0]);
-            Logging.WriteLine(LogLevel.Trace, "array[1] = {0}", array[1]);
-            Logging.WriteLine(LogLevel.Trace, "array[2] = {0}", array[2]);
-            Logging.WriteLine(LogLevel.Trace, "array[3] = {0}", array[3]);*/
-
-            /*for (uint i = 0; i < 8; i++)
-            {
-                Logging.WriteLine(LogLevel.Trace, "{0} : {1}", 0x25000 + i * 4, CPU.ReadMemInt(0x25000 + i * 4));
-            }*/
-
-            /*ObjectPool<KeyPress> pool = new ObjectPool<KeyPress>(10);
-
-            if (pool.TryAlloc(out var item))
-            {
-                item.KeyCode = 'c';
-
-                if (pool.TryAlloc(out var anotherItem))
-                {
-                    anotherItem.KeyCode = 'd';
-                }
-
-                VGA.WriteVideoMemoryString("Found char ");
-                VGA.WriteVideoMemoryChar(item.KeyCode);
-                VGA.WriteLine();
-
-                pool.Free(item);
-
-                for (int i = 0; i < 16; i++)
-                {
-                    VGA.WriteHex(0x20000 + i * 4);
-                    VGA.WriteVideoMemoryString(" : ");
-                    VGA.WriteHex(CPU.ReadMemInt((uint)(0x20000 + i * 4)));
-                    VGA.WriteLine();
-                }
-            }
-            else VGA.WriteVideoMemoryString("Could not allocate item");*/
-
-            /*VGA.WriteLine();
-
-            // make sure we're in 32 bit mode and have an FPU
-            if ((CPU.ReadCR0() & 0x00000011) != 0x00000011)
-            {
-                VGA.WriteVideoMemoryString("Failed to boot (invalid CR0 support)");
-                while (true) ;
-            }
-
-            // check for SSE, long mode and SAHF/LAHF support
-            if (VerifyCompatibleCPU() != MissingCPUFeature.None)
-            {
-                VGA.WriteVideoMemoryString("Failed to boot (incompatible CPU) error 0x");
-                VGA.WriteHex((byte)VerifyCompatibleCPU());
-                while (true) ;
-            }*/
-
-            /*CPU.ReadCPUID(CPU.CPUIDLeaf.VirtualAndPhysicalAddressSizes, ref cpuId);
-            VGA.WriteVideoMemoryString("Found ");
-            PrintInt((int)(cpuId.ecx & 0xff) + 1);
-            VGA.WriteVideoMemoryString(" cpu cores!");
-            VGA.WriteLine();
-            VGA.WriteLine();*/
-
-            //VerifyA20();
-            //PCI.ScanBus();
-
-            /*int entries = CPU.ReadMemShort(0x500);
-            VGA.WriteLine();
-
-            VGA.WriteString("Memory Regions as given by BIOS:");
-            VGA.WriteLine();
-
-            for (int i = 0; i < entries; i++)
-            {
-                CopyTo((uint)(0x502 + 24 * i), ref _entry, 24);
-                if ((_entry.Type & 1) != 1) continue;
-                VGA.WriteString("Memory Region ");
-                VGA.WriteChar(48 + i);
-                VGA.WriteChar(' ');
-                VGA.WriteHex(_entry.BaseH); VGA.WriteHex(_entry.BaseL); VGA.WriteChar(' ');
-                VGA.WriteHex(_entry.LengthH); VGA.WriteHex(_entry.LengthL); VGA.WriteLine();
-            }*/
-
-            // verify memory looks correct
-            /*int j = 0;
-            for (uint i = 0xA000; i < 0x20000; i += 512)
-            {
-                var b = CPU.ReadMemInt(i);
-                VGA.WriteHex((byte)b);
-                VGA.WriteVideoMemoryChar(' ');
-                if (Math32.Modulo(j + 10, 16) == 0) VGA.WriteLine();
-                j++;
-            }
-            VGA.WriteLine();*/
-
-            /*VGA.WriteLine();
-
-            for (int i = 0; i < 255; i++)
-            {
-                VGA.WriteVideoMemoryChar(Math32.Modulo(i, 10) + 48, (ushort)(i << 8));
-            }
-
-            VGA.WriteLine();*/
-
-            /*VGA.WriteLine();
-            VGA.WriteVideoMemoryString("CR0: 0x");
-            VGA.WriteHex((int)CPU.ReadCR0());
-            VGA.WriteLine();*/
-
-
-
-
+            Applications.terminal terminal = new Applications.terminal();
+            terminal.Run(IO.Filesystem.Root.Directories[0]);
 
             while (true) ;
-        }
-
-        private static void Something()
-        {
-            VGA.WriteString("Testing actions!");
-            VGA.WriteLine();
         }
 
         private enum MissingCPUFeature : byte
@@ -306,20 +161,6 @@ namespace Kernel
 
                 divisor = Math32.Divide(divisor, 10);
             }
-        }
-    }
-
-    public class TestClass
-    {
-        public byte Value { get; set; }
-        public float Part2 { get; set; }
-
-        public void Print()
-        {
-            VGA.WriteHex(Value);
-            VGA.WriteChar('.');
-            Init.PrintFloat(Part2);
-            VGA.WriteChar(' ');
         }
     }
 }
