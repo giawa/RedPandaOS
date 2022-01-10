@@ -2,7 +2,7 @@
 
 namespace Kernel.Devices
 {
-    public class PATA
+    public static class PATA
     {
         public class Channel
         {
@@ -116,30 +116,41 @@ namespace Kernel.Devices
             DevAddress = 0x0D,
         }
 
-        private Channel[] _channels;
+        //private static Channel[] _channels;
+        private static Runtime.Collections.List<Channel> _channels = new Runtime.Collections.List<Channel>();
 
         private const byte ATA_REG_CONTROL = 0x0C;
 
-        private int _irqInvoked = 0;
-        private uint[] _buffer;
-        private Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>(4);
+        private static int _irqInvoked = 0;
+        private static uint[] _buffer = new uint[2048 / 4];
+        //private Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>(4);
+        private static Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>();
 
-        public PATA(PCI.PCIDevice device)
+        public static bool InitDevice(PCI.PCIDevice device)
         {
-            _buffer = new uint[2048 / 4];
-            _channels = new Channel[2];
-            _channels[0] = new Channel();
-            _channels[1] = new Channel();
+            Logging.WriteLine(LogLevel.Warning, "[PATA] Initializing {0} {1}", device.Device, device.Function);
 
-            _channels[0].Base = (ushort)(device.BAR0 == 0 ? 0x1F0 : (device.BAR0 & 0xFFFFFFFC));
-            _channels[0].Control = (ushort)(device.BAR1 == 0 ? 0x3F6 : (device.BAR1 & 0xFFFFFFFC));
-            _channels[0].BusMasterIDE = (ushort)((device.BAR4 & 0xFFFFFFFC) + 0);
-            _channels[0].DisableInterrupts = 0x02;  // disable irq
+            Channel channel0 = new Channel();
+            Channel channel1 = new Channel();
 
-            _channels[1].Base = (ushort)(device.BAR2 == 0 ? 0x170 : (device.BAR2 & 0xFFFFFFFC));
-            _channels[1].Control = (ushort)(device.BAR3 == 0 ? 0x376 : (device.BAR3 & 0xFFFFFFFC));
-            _channels[1].BusMasterIDE = (ushort)((device.BAR4 & 0xFFFFFFFC) + 8);
-            _channels[1].DisableInterrupts = 0x02;  // disable irq
+            channel0.Base = (ushort)(device.BAR0 == 0 ? 0x1F0 : (device.BAR0 & 0xFFFFFFFC));
+            channel0.Control = (ushort)(device.BAR1 == 0 ? 0x3F6 : (device.BAR1 & 0xFFFFFFFC));
+            channel0.BusMasterIDE = (ushort)((device.BAR4 & 0xFFFFFFFC) + 0);
+            channel0.DisableInterrupts = 0x02;  // disable irq
+
+            channel1.Base = (ushort)(device.BAR2 == 0 ? 0x170 : (device.BAR2 & 0xFFFFFFFC));
+            channel1.Control = (ushort)(device.BAR3 == 0 ? 0x376 : (device.BAR3 & 0xFFFFFFFC));
+            channel1.BusMasterIDE = (ushort)((device.BAR4 & 0xFFFFFFFC) + 8);
+            channel1.DisableInterrupts = 0x02;  // disable irq
+
+            // check if this device has already been added
+            for (int i = 0; i < _channels.Count; i++)
+            {
+                if (_channels[i].Base == channel0.Base || _channels[i].Base == channel1.Base) return false;
+            }
+
+            _channels.Add(channel0);
+            _channels.Add(channel1);
 
             WriteRegister(0x00, Register.Control, 2);
             WriteRegister(0x01, Register.Control, 2);
@@ -230,9 +241,41 @@ namespace Kernel.Devices
                     VGA.WriteLine();
                 }
             }
+
+            /*uint[] temp = new uint[128];
+            uint[] write = new uint[128];
+            var err = Access(0, 0, 0x7e00 / 512, 1, 0, temp);
+
+            Logging.WriteLine(LogLevel.Trace, "Read 1 Access returned {0}", err);
+            for (int i = 0; i < 4; i++) Logging.WriteLine(LogLevel.Trace, "{0}", temp[i]);
+
+            for (int i = 0; i < write.Length; i++) write[i] = (uint)i;
+
+            err = Access(1, 0, 0x7e00 / 512, 1, 0, write);
+            Logging.WriteLine(LogLevel.Trace, "Write Access returned {0}", err);
+
+            err = Access(0, 0, 0x7e00 / 512, 1, 0, temp);
+
+            Logging.WriteLine(LogLevel.Trace, "Read 2 Access returned {0}", err);
+            for (int i = 0; i < 4; i++) Logging.WriteLine(LogLevel.Trace, "{0}", temp[i]);*/
+            
+            uint symbolsOffset = 0x17200U;
+            uint[] sector = new uint[128];
+
+            Logging.WriteLine(LogLevel.Trace, "Reading symbols...");
+            while (symbolsOffset < 0x1A000)
+            {
+                Access(0, 0, symbolsOffset / 512, 1, 0, sector);
+                if (sector[127] == 0) break;
+                Exceptions.AddSymbols(sector);
+                symbolsOffset += 512;
+            }
+            Logging.WriteLine(LogLevel.Warning, "Done reading {0} symbols...", (uint)Exceptions.SymbolCount);
+
+            return true;
         }
 
-        public byte ReadRegister(byte channel, Register register)
+        private static byte ReadRegister(byte channel, Register register)
         {
             uint result = 0;
             byte reg = (byte)register;
@@ -255,7 +298,7 @@ namespace Kernel.Devices
             return (byte)result;
         }
 
-        public void WriteRegister(byte channel, Register register, byte data)
+        private static void WriteRegister(byte channel, Register register, byte data)
         {
             byte reg = (byte)register;
 
@@ -275,7 +318,7 @@ namespace Kernel.Devices
                 WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
         }
 
-        public void ReadBuffer(byte channel, Register register, int size)
+        private static void ReadBuffer(byte channel, Register register, int size)
         {
             var reg = (byte)register;
 
@@ -300,7 +343,7 @@ namespace Kernel.Devices
                 WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
         }
 
-        public byte Poll(byte channel, int advancedCheck)
+        private static byte Poll(byte channel, int advancedCheck)
         {
             // delay 400ns
             for (int i = 0; i < 4; i++)
@@ -324,9 +367,9 @@ namespace Kernel.Devices
             return 0;
         }
 
-        private byte[] lbaIo = new byte[6];
+        private static byte[] lbaIo = new byte[6];
 
-        public byte Access(byte direction, byte drive, uint lba, byte numSectors, ushort selector, uint[] data)
+        public static byte Access(byte direction, byte drive, uint lba, byte numSectors, ushort selector, uint[] data)
         {
             byte lbaMode;
             byte channel = _devices[drive].Channel;
@@ -451,7 +494,7 @@ namespace Kernel.Devices
             return err;
         }
 
-        private Command GetAccessCommand(byte lbaMode, byte dma, byte direction)
+        private static Command GetAccessCommand(byte lbaMode, byte dma, byte direction)
         {
             if (lbaMode == 0 && dma == 0 && direction == 0) return Command.Read_PIO;
             if (lbaMode == 1 && dma == 0 && direction == 0) return Command.Read_PIO;

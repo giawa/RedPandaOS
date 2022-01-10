@@ -1774,6 +1774,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                     assembly.AddAsm("pop eax");
                     assembly.AddAsm($"mov byte [{label}], al");
                 }
+                else if (labelType.Type == ElementType.EType.Char && (eaxType.Type == ElementType.EType.U2 || eaxType.Type == ElementType.EType.I4))
+                {
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm($"mov word [{label}], ax");
+                }
                 else throw new Exception("Unsupported type");
             }
             else
@@ -1959,6 +1964,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var field = metadata.Fields[(addr & 0x00ffffff) - 1];
 
                 if (field.Type.Type == ElementType.EType.ValueType) _stack.Push(new ElementType(ElementType.EType.ByRefValueType));
+                else if (field.Type.Is32BitCapable(metadata)) _stack.Push(field.Type);
                 else throw new Exception("Unsupported type (likely ByRef)");
 
                 if ((field.flags & FieldLayout.FieldLayoutFlags.Static) == FieldLayout.FieldLayoutFlags.Static)
@@ -1992,6 +1998,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 case ElementType.EType.I1: _initializedData.Add(label, new DataType(type, (sbyte)0)); break;
                 case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
+                case ElementType.EType.Char: _initializedData.Add(label, new DataType(type, (char)0)); break;
                 case ElementType.EType.U4: _initializedData.Add(label, new DataType(type, (uint)0)); break;
                 case ElementType.EType.I4: _initializedData.Add(label, new DataType(type, (int)0)); break;
                 case ElementType.EType.Class:
@@ -2713,6 +2720,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         output.Add($"{data.Key}:");
                         output.Add($"    dw {(ushort)data.Value.Data}");
+                    }
+                    else if (data.Value.Type.Type == ElementType.EType.Char)
+                    {
+                        output.Add($"{data.Key}:");
+                        output.Add($"    dw {(ushort)(char)data.Value.Data}");
                     }
                     else if (data.Value.Type.Type == ElementType.EType.U1 || data.Value.Type.Type == ElementType.EType.Boolean)
                     {
