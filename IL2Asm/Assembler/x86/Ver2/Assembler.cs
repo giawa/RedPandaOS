@@ -2325,6 +2325,9 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private bool CheckForPlugAndInvoke(string dllPath, string memberName, MethodRefSig methodSignature, AssembledMethod assembly)
         {
+            assembly.HeapAllocatorMethod = HeapAllocatorMethod;
+            assembly.ThrowExceptionMethod = ThrowExceptionMethod;
+
             if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\RedPandaOS.dll";
 
             if (File.Exists(dllPath))

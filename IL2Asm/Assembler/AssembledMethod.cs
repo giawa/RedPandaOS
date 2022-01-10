@@ -12,6 +12,8 @@ namespace IL2Asm
         public GenericInstSig GenericInstSig { get; private set; }
         public int MethodCounter { get; set; }
         public bool HasStackFrame { get; set; } = false;
+        public string HeapAllocatorMethod { get; set; }
+        public string ThrowExceptionMethod { get; set; }
 
         public List<string> Assembly { get; private set; } = new List<string>();
 

@@ -10,5 +10,8 @@ namespace IL2Asm.BaseTypes
         public void AddAsm(string asm);
 
         public string GetUniqueLabel(string name);
+
+        public string HeapAllocatorMethod { get; }
+        public string ThrowExceptionMethod { get; }
     }
 }
