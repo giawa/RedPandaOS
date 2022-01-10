@@ -2,7 +2,7 @@
 {
     public static class PCI
     {
-        public struct PCIDevice
+        public class PCIDevice
         {
             public byte Bus;
             public byte Device;
@@ -25,60 +25,64 @@
             public uint BAR3Size;
             public uint BAR4Size;
             public uint BAR5Size;
+
+            public ClassCode ClassCode
+            {
+                get
+                {
+                    return (ClassCode)((reg2 >> 24) & 0xff);
+                }
+            }
+
+            public byte SubClass
+            {
+                get
+                {
+                    return (byte)(reg2 >> 16);
+                }
+            }
         }
 
-        private static void InitializeStorageDevice(byte bus, byte device, byte function, uint reg0, uint reg2)
+        public static Runtime.Collections.List<PCIDevice> Devices;
+
+        private static void AddDevice(byte bus, byte device, byte function, uint reg0, uint reg2)
         {
-            //storageDevice = Memory.BumpHeap.Malloc<PCIDevice>();
+            PCIDevice pciDevice = new PCIDevice();
 
-            storageDevice.Bus = bus;
-            storageDevice.Device = device;
-            storageDevice.Function = function;
+            pciDevice.Bus = bus;
+            pciDevice.Device = device;
+            pciDevice.Function = function;
 
-            storageDevice.reg0 = reg0;
-            storageDevice.reg2 = reg2;
+            pciDevice.reg0 = reg0;
+            pciDevice.reg2 = reg2;
 
             var reg3 = ReadDword(bus, device, function, 0x0C);
             var headerType = (reg3 >> 16) & 0xff;
 
-            storageDevice.BAR0 = ReadDword(bus, device, function, 0x10);
-            storageDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x10, storageDevice.BAR0);
-            storageDevice.BAR1 = ReadDword(bus, device, function, 0x14);
-            storageDevice.BAR1Size = ProbeMemorySize(bus, device, function, 0x14, storageDevice.BAR1);
+            pciDevice.BAR0 = ReadDword(bus, device, function, 0x10);
+            pciDevice.BAR0Size = ProbeMemorySize(bus, device, function, 0x10, pciDevice.BAR0);
+            pciDevice.BAR1 = ReadDword(bus, device, function, 0x14);
+            pciDevice.BAR1Size = ProbeMemorySize(bus, device, function, 0x14, pciDevice.BAR1);
 
             if (headerType == 0)
             {
-                storageDevice.BAR2 = ReadDword(bus, device, function, 0x18);
-                storageDevice.BAR2Size = ProbeMemorySize(bus, device, function, 0x18, storageDevice.BAR2);
-                storageDevice.BAR3 = ReadDword(bus, device, function, 0x1C);
-                storageDevice.BAR3Size = ProbeMemorySize(bus, device, function, 0x1C, storageDevice.BAR3);
-                storageDevice.BAR4 = ReadDword(bus, device, function, 0x20);
-                storageDevice.BAR4Size = ProbeMemorySize(bus, device, function, 0x20, storageDevice.BAR4);
-                storageDevice.BAR5 = ReadDword(bus, device, function, 0x24);
-                storageDevice.BAR5Size = ProbeMemorySize(bus, device, function, 0x24, storageDevice.BAR5);
+                pciDevice.BAR2 = ReadDword(bus, device, function, 0x18);
+                pciDevice.BAR2Size = ProbeMemorySize(bus, device, function, 0x18, pciDevice.BAR2);
+                pciDevice.BAR3 = ReadDword(bus, device, function, 0x1C);
+                pciDevice.BAR3Size = ProbeMemorySize(bus, device, function, 0x1C, pciDevice.BAR3);
+                pciDevice.BAR4 = ReadDword(bus, device, function, 0x20);
+                pciDevice.BAR4Size = ProbeMemorySize(bus, device, function, 0x20, pciDevice.BAR4);
+                pciDevice.BAR5 = ReadDword(bus, device, function, 0x24);
+                pciDevice.BAR5Size = ProbeMemorySize(bus, device, function, 0x24, pciDevice.BAR5);
             }
 
-            //VGA.WriteHex(storageDevice.Bus); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Device); VGA.WriteVideoMemoryChar(' '); VGA.WriteHex(storageDevice.Function); VGA.WriteLine();
-            Logging.WriteLine(LogLevel.Trace, "BAR0: {0} {1}", storageDevice.BAR0, storageDevice.BAR0Size);
-            Logging.WriteLine(LogLevel.Trace, "BAR1: {0} {1}", storageDevice.BAR1, storageDevice.BAR1Size);
-
-            if (headerType == 0)
-            {
-                Logging.WriteLine(LogLevel.Trace, "BAR2: {0} {1}", storageDevice.BAR2, storageDevice.BAR2Size);
-                Logging.WriteLine(LogLevel.Trace, "BAR3: {0} {1}", storageDevice.BAR3, storageDevice.BAR3Size);
-                Logging.WriteLine(LogLevel.Trace, "BAR4: {0} {1}", storageDevice.BAR4, storageDevice.BAR4Size);
-                Logging.WriteLine(LogLevel.Trace, "BAR5: {0} {1}", storageDevice.BAR5, storageDevice.BAR5Size);
-            }
+            Devices.Add(pciDevice);
         }
 
         private static uint ProbeMemorySize(byte bus, byte device, byte function, byte offset, uint initialValue)
         {
             WriteDword(bus, device, function, offset, 0xffffffff);
             var newValue = ReadDword(bus, device, function, offset);
-
-            //VGA.WriteVideoMemoryString("ProbeMemorySize returned ");
-            //VGA.WriteHex(newValue & 0xfffffff0);
-            //VGA.WriteLine();
 
             // write the original value back
             WriteDword(bus, device, function, offset, initialValue);
@@ -89,10 +93,9 @@
             return ~newValue + 1;
         }
 
-        private static PCIDevice storageDevice;
-
         public static void ScanBus()
         {
+            Devices = new Runtime.Collections.List<PCIDevice>();
             Logging.WriteLine(LogLevel.Trace, "Enumerating PCI bus:");
 
             // there are up to 256 PCI busses, so check each one
@@ -105,7 +108,7 @@
 
                 PrintPCIDevice(reg0, reg2, (byte)i);
 
-                //InitializeStorageDevice((byte)i, 0, 0, reg0, reg2);
+                AddDevice((byte)i, 0, 0, reg0, reg2);
 
                 // in each PCI bus there can be up to 32 devices
                 // we already checked (and printed) device 0, so check the other 31
@@ -118,7 +121,7 @@
 
                     PrintPCIDevice(reg0, reg2, (byte)j, true);
 
-                    //InitializeStorageDevice((byte)i, (byte)j, 0, reg0, reg2);
+                    AddDevice((byte)i, (byte)j, 0, reg0, reg2);
 
                     var reg3 = ReadDword((byte)i, (byte)j, 0, 0x0C);
                     var headerType = (reg3 >> 16) & 255;
@@ -135,11 +138,7 @@
 
                             PrintPCIDevice(reg0, reg2, (byte)f, true, true);
 
-                            ClassCode code = (ClassCode)((reg2 >> 24) & 0xff);
-                            //if (code == ClassCode.MassStorageController)
-                            {
-                                //InitializeStorageDevice((byte)i, (byte)j, (byte)f, reg0, reg2);
-                            }
+                            AddDevice((byte)i, (byte)j, (byte)f, reg0, reg2);
                         }
                     }
                 }
@@ -198,6 +197,7 @@
                             case 0x8F: VGA.WriteString(" (PCI Native 4)"); break;
                         }
                         //if (progif == 0x80) VGA.WriteVideoMemoryString(" (ISA Compatibility 3)");
+                        //Logging.WriteLine(LogLevel.Trace, "IDE prog if = 0x{0}", progif);
                     }
                     break;
                 case ClassCode.NetworkController: VGA.WriteString("Network Controller"); break;
