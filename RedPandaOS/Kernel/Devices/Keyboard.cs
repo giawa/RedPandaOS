@@ -1,7 +1,11 @@
-﻿namespace Kernel.Devices
+﻿using Runtime.Collections;
+
+namespace Kernel.Devices
 {
     public static class Keyboard
     {
+        public static Queue<char> KeyQueue = new Queue<char>(10);
+
         public static void OnKeyPress()
         {
             var status = CPUHelper.CPU.InDxByte(0x64);
@@ -20,14 +24,9 @@
                 {
                     if (keycode == 0x2a) _lshift = true;
                     else if (keycode == 0x36) _rshift = true;
-                    else if (keycode == 0x0e)
-                    {
-                        VGA.Delete();
-                        VGA.WriteChar(' ');
-                        VGA.Delete();
-                    }
-                    else if (keycode == 0x1c) VGA.WriteLine();
-                    else VGA.WriteChar(ScanCodeToASCII(keycode));
+                    else if (keycode == 0x0e) KeyQueue.TryEnqueue((char)0x08);  // backspace
+                    else if (keycode == 0x1c) KeyQueue.TryEnqueue((char)0x0d);  // carriage return
+                    else KeyQueue.TryEnqueue(ScanCodeToASCII(keycode));         // ascii character
                 }
             }
             else
