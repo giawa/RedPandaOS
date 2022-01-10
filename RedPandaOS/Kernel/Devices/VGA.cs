@@ -20,6 +20,13 @@ namespace Kernel.Devices
             offset = VIDEO_MEMORY;
         }
 
+        public static void SetPosition(uint x, uint y)
+        {
+            offset = VIDEO_MEMORY + ((y * VGA_WIDTH + x) << 1);
+        }
+
+        public static bool EnableScrolling { get; set; }
+
         public static void WriteFormattedString(string s, uint u1, ushort effect = 0x0f00)
         {
             WriteFormattedString(s, u1, 0, effect);
@@ -91,6 +98,7 @@ namespace Kernel.Devices
             for (int i = 0; i < s.Length; i++)
             {
                 var c = s[i];
+                if (c == 0) break;
                 if (c > 255) c = '?';
                 CPU.WriteMemory((int)offset, (ushort)(c | effect));
                 offset += 2;
@@ -213,6 +221,8 @@ namespace Kernel.Devices
 
         public static void Scroll()
         {
+            if (!EnableScrolling) return;
+
             if (offset >= VIDEO_MEMORY + 25 * VGA_WIDTH * 2)
             {
                 for (int i = 0; i < (VGA_HEIGHT - 1) * VGA_WIDTH * 2; i += 4)
