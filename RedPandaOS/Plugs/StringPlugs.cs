@@ -5,6 +5,12 @@ namespace Plugs
 {
     public static class StringPlugs
     {
+        [CSharpPlug("System.String.op_Inequality_Boolean_String_String")]
+        private static bool StringInequality(string s1, string s2)
+        {
+            return !StringEquality(s1, s2);
+        }
+
         [CSharpPlug("System.String.op_Equality_Boolean_String_String")]
         private static bool StringEquality(string s1, string s2)
         {
