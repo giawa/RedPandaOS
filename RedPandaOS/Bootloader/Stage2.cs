@@ -33,7 +33,7 @@ namespace Bootloader
 
             for (ushort addr = 0x0A00; addr < 0x2000; addr += 0x20)
             {
-                if (!BiosUtilities.LoadDiskWithRetry(partition, addr, 0x0000, disk, 1))
+                if (!BiosUtilities.LoadDiskWithRetry(partition, addr/*, 0x0000*/, disk, 1))
                 {
                     BiosUtilities.Write("LoadDiskWithRetry failed at addr 0x");
                     BiosUtilities.WriteHex(addr);

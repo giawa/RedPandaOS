@@ -19,14 +19,14 @@ namespace Bootloader
             public ushort TotalSectors1, TotalSectors2;
         }
 
-        public static bool LoadDiskWithRetry(Partition partition, ushort highAddr, ushort lowAddr, byte disk, byte sectors)
+        public static bool LoadDiskWithRetry(Partition partition, ushort highAddr, /*ushort lowAddr,*/ byte disk, byte sectors)
         {
             ushort retry = 0;
             ushort sectorsRead;
 
             do
             {
-                sectorsRead = Bios.LoadDisk(partition.StartingCylinder, partition.StartingHead, partition.StartingSector, highAddr, lowAddr, disk, sectors);
+                sectorsRead = Bios.LoadDisk(partition.StartingCylinder, partition.StartingHead, partition.StartingSector, highAddr, 0, disk, sectors);
                 if (sectorsRead != sectors) Bios.ResetDisk();
             } while (sectorsRead != sectors && retry++ < 5);
 

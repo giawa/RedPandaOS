@@ -28,7 +28,7 @@ namespace Bootloader
             if ((partition.Bootable & 0x80) == 0x80)
             {
                 // if we found a bootable partition then try to load the stage 2 bootloader
-                if (BiosUtilities.LoadDiskWithRetry(partition, 0x0900, 0x0000, disk, 8))
+                if (BiosUtilities.LoadDiskWithRetry(partition, 0x0900/*, 0x0000*/, disk, 8))
                 {
                     CPU.Jump(0x9000);
                 }
