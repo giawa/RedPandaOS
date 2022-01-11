@@ -13,16 +13,16 @@ namespace IL2Asm.Optimizer.x86_RealMode
         public class MovInstruction
         {
             public int Line;
-            public int Constant;
+            public string Constant;
 
             public MovInstruction()
             {
-                Constant = int.MaxValue;
+                Constant = null;
             }
 
             public void Reset()
             {
-                Constant = int.MaxValue;
+                Constant = null;
             }
         }
 
@@ -57,7 +57,14 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     {
                         if (int.TryParse(split[2], out int constant))
                         {
-                            registers[split[1]].Constant = constant;
+                            registers[split[1]].Constant = split[2];
+                            registers[split[1]].Line = i;
+
+                            continue;
+                        }
+                        else if (split[2] == "cx" || split[2] == "dx" || split[2] == "di" || split[2] == "si")
+                        {
+                            registers[split[1]].Constant = split[2];
                             registers[split[1]].Line = i;
 
                             continue;
@@ -77,11 +84,12 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     //if (instruction.Contains("[")) continue;    // too complex for now
 
                     bool madeChanges = false;
-                    for (int j = 1; j < split.Length; j++)
+                    for (int j = 2; j < split.Length; j++)
                     {
-                        if (registers.TryGetValue(split[j], out var reg) && reg.Constant != int.MaxValue)
+                        if (registers.TryGetValue(split[j], out var reg) && reg.Constant != null)
                         {
                             split[j] = reg.Constant.ToString();
+                            reg.Reset();
                             madeChanges = true;
 
                             assembly[reg.Line] = "; " + assembly[reg.Line];
@@ -91,7 +99,8 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     if (madeChanges)
                     {
                         string result = string.Format($"    {split[0]} {split[1]}");
-                        if (split[1].StartsWith("[")) result = $"    {split[0]} word {split[1]} {split[2]} {split[3]}, {split[4]}";
+                        if (split[1].StartsWith("[") && (split[2] == "-" || split[2] == "+")) 
+                            result = $"    {split[0]} word {split[1]} {split[2]} {split[3]}, {split[4]}";
                         else if (split.Length == 3) result += ", " + split[2] + " ; " + assembly[i];
                         assembly[i] = result;
                     }
