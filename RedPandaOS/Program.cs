@@ -35,6 +35,8 @@ namespace GiawaOS
                 IL2Asm.Optimizer.MergePushPop.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage1);
+                IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage1);
+                IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
@@ -115,7 +117,7 @@ namespace GiawaOS
 
                         stream.Write(File.ReadAllBytes("pm.bin"));
 
-                        Console.WriteLine($"Stage 1 is using {(440 - stage1Zeros) / 440.0 * 100}% of available space.");
+                        Console.WriteLine($"Stage 1 is using {(440 - stage1Zeros) / 390.0 * 100}% of available space.");
                         Console.WriteLine($"Kernel is using {pmBytes.Length / 94720.0 * 100}% of available space.");
 
                         stream.Write(new byte[512 - (pmBytes.Length % 512)]);
