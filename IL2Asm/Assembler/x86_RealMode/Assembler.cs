@@ -37,45 +37,49 @@ namespace IL2Asm.Assembler.x86_RealMode
 
             var method = new MethodHeader(pe.Memory, pe.Metadata, methodDef);
             var assembly = new AssembledMethod(pe.Metadata, method, null);
+            List<string> localVarNames = new List<string>();
 
             _methods.Add(assembly);
             Runtime.GlobalMethodCounter++;
 
             var code = method.Code;
-            int localVarOffset = 0;
 
             //if (_methods.Count > 1)
             {
                 string label = methodDef.ToAsmString();
-                if (_methods.Count > 1) assembly.AddAsm($"{label}:");
-                assembly.AddAsm("push bp");
-                assembly.AddAsm("mov bp, sp");
+                if (_methods.Count > 1)
+                {
+                    assembly.AddAsm($"{label}:");
+                    assembly.AddAsm("push bp");
+                    assembly.AddAsm("mov bp, sp");
+                }
 
-                /*if (method.LocalVars != null)
+                if (method.LocalVars != null)
                 {
                     int localVarCount = method.LocalVars.LocalVariables.Length;
                     
                     if (localVarCount > 0)
                     {
-                        assembly.AddAsm("push cx");
-                        assembly.AddAsm("mov cx, 0");
-                        localVarOffset = BytesPerRegister;
+                        localVarNames.Add("cx");
+                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[0]}");
                     }
                     if (localVarCount > 1)
                     {
-                        assembly.AddAsm("push dx");
-                        assembly.AddAsm("mov dx, 0");
-                        localVarOffset = BytesPerRegister * 2;
+                        localVarNames.Add("dx");
+                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[1]}");
                     }
-                }*/
+                    if (localVarCount > 2)
+                    {
+                        localVarNames.Add("di");
+                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[2]}");
+                    }
+                }
             }
 
             if (method.LocalVars != null)
             {
                 int localVarCount = method.LocalVars.LocalVariables.Length;
-                /*for (int i = 2; i < localVarCount; i++)
-                    assembly.AddAsm($"push 0; localvar.{i}");*/
-                if (localVarCount > 0) assembly.AddAsm($"sub sp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
+                if (localVarCount > localVarNames.Count) assembly.AddAsm($"sub sp, {BytesPerRegister * (localVarCount - localVarNames.Count)} ; {localVarCount} localvars");
             }
 
             for (ushort i = 0; i < code.Length;)
@@ -119,13 +123,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     // LDLOC.0
-                    case 0x06: LDLOC(0, assembly); break;
+                    case 0x06: LDLOC(0, assembly, localVarNames); break;
                     // LDLOC.1
-                    case 0x07: LDLOC(1, assembly); break;
+                    case 0x07: LDLOC(1, assembly, localVarNames); break;
                     // LDLOC.2
-                    case 0x08: LDLOC(2, assembly); break;
+                    case 0x08: LDLOC(2, assembly, localVarNames); break;
                     // LDLOC.3
-                    case 0x09: LDLOC(3, assembly); break;
+                    case 0x09: LDLOC(3, assembly, localVarNames); break;
 
                     // LDARG.S
                     case 0x0E:
@@ -144,19 +148,19 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     // STLOC.S
-                    case 0x13: STLOC(code[i++], assembly); break;
+                    case 0x13: STLOC(code[i++], assembly, localVarNames); break;
 
                     // STLOC.0
-                    case 0x0A: STLOC(0, assembly); break;
+                    case 0x0A: STLOC(0, assembly, localVarNames); break;
                     // STLOC.1
-                    case 0x0B: STLOC(1, assembly); break;
+                    case 0x0B: STLOC(1, assembly, localVarNames); break;
                     // STLOC.2
-                    case 0x0C: STLOC(2, assembly); break;
+                    case 0x0C: STLOC(2, assembly, localVarNames); break;
                     // STLOC.3
-                    case 0x0D: STLOC(3, assembly); break;
+                    case 0x0D: STLOC(3, assembly, localVarNames); break;
 
                     // LDLOC.S
-                    case 0x11: LDLOC(code[i++], assembly); break;
+                    case 0x11: LDLOC(code[i++], assembly, localVarNames); break;
 
                     // LDLOCA.S
                     case 0x12:
@@ -212,7 +216,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         break;
 
                     case 0x28: CALL(pe, assembly, pe.Metadata, code, ref i); break;
-                    case 0x6F: CALLVIRT(assembly, pe.Metadata, code, ref i); break;
+                    case 0x6F: CALLVIRT(assembly, pe.Metadata, code, ref i, localVarNames); break;
 
                     // RET
                     case 0x2A:
@@ -226,8 +230,10 @@ namespace IL2Asm.Assembler.x86_RealMode
                         if (method.LocalVars != null)
                         {
                             int localVarCount = method.LocalVars.LocalVariables.Length;
-                            for (int p = 0; p < localVarCount; p++)
+                            for (int p = localVarNames.Count; p < localVarCount; p++)
                                 assembly.AddAsm("pop bx; localvar that was pushed on stack");
+                            for (int p = localVarNames.Count - 1; p >= 0; p--)
+                                assembly.AddAsm($"pop {localVarNames[p]}");
                         }
 
                         int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
@@ -566,15 +572,17 @@ namespace IL2Asm.Assembler.x86_RealMode
             }
         }
 
-        private void STLOC(byte b, AssembledMethod assembly)
+        private void STLOC(byte b, AssembledMethod assembly, List<string> localVarNames)
         {
             assembly.AddAsm("pop ax");
-            assembly.AddAsm($"mov [bp - {(b + 1) * BytesPerRegister}], ax");
+            if (b < localVarNames.Count) assembly.AddAsm($"mov {localVarNames[b]}, ax");
+            else assembly.AddAsm($"mov [bp - {(b + 1) * BytesPerRegister}], ax");
         }
 
-        private void LDLOC(byte b, AssembledMethod assembly)
+        private void LDLOC(byte b, AssembledMethod assembly, List<string> localVarNames)
         {
-            assembly.AddAsm($"mov ax, [bp - {(b + 1) * BytesPerRegister}]");
+            if (b < localVarNames.Count) assembly.AddAsm($"mov ax, {localVarNames[b]}");
+            else assembly.AddAsm($"mov ax, [bp - {(b + 1) * BytesPerRegister}]");
             assembly.AddAsm("push ax");
         }
 
@@ -858,7 +866,7 @@ namespace IL2Asm.Assembler.x86_RealMode
             else throw new Exception("Unhandled CALL target");
         }
 
-        private void CALLVIRT(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
+        private void CALLVIRT(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i, List<string> localVarNames)
         {
             uint methodDesc = BitConverter.ToUInt32(code, i);
             i += 4;
@@ -871,11 +879,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (memberName == "System.String.get_Chars_Char_I4")
                 {
                     assembly.AddAsm("; System.String.get_Chars plug");
+                    if (localVarNames.Contains("si")) assembly.AddAsm("mov ax, si");
                     assembly.AddAsm("pop si");  // pop index
                     assembly.AddAsm("pop bx");  // pop this
                     //assembly.AddAsm("add ax, bx");
                     assembly.AddAsm("lea bx, [bx + si]");
                     //assembly.AddAsm("mov bx, ax");
+                    if (localVarNames.Contains("si")) assembly.AddAsm("mov si, ax");  // recover si
                     assembly.AddAsm("mov ax, [bx]");
                     //assembly.AddAsm("and ax, 255");
                     assembly.AddAsm("push ax");
