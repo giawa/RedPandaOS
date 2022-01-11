@@ -17,10 +17,14 @@ namespace CPUHelper
         public static void GetGeometryAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("mov ah, 8");
+            assembly.AddAsm("mov bx, dx");  // store dx to recover later
             assembly.AddAsm("pop dx");      // store the disk in dl
+            assembly.AddAsm("push cx");     // store cx to recover later
             assembly.AddAsm("int 0x13");
             assembly.AddAsm("mov ah, dh");
             assembly.AddAsm("mov al, cl");
+            assembly.AddAsm("pop cx");      // recover cx
+            assembly.AddAsm("mov dx, bx");  // recover dx
             assembly.AddAsm("push ax");
         }
 
