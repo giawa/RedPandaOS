@@ -11,7 +11,7 @@ namespace Bootloader
             public byte StartingHead;
             public byte StartingSector;
             public byte StartingCylinder;
-            public byte SystemID;
+            public byte PartitionType;
             public byte EndingHead;
             public byte EndingSector;
             public byte EndingCylinder;

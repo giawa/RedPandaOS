@@ -49,6 +49,13 @@ namespace GiawaOS
                 assembler16.Assemble(file, bootloader2);
 
                 var stage2 = assembler16.WriteAssembly(0x9000 + 512, 0);
+                IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.MergePushPop.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage2);
+                //IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage2);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
                 var assembler32 = new IL2Asm.Assembler.x86.Ver2.Assembler();

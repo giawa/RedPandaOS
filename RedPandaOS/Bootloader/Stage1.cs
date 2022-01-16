@@ -52,7 +52,7 @@ namespace Bootloader
             }
 
             // make sure the partition is bootable and FAT32 before trying to load it
-            if (partition.Bootable == 0x80 && partition.SystemID == 0x0B)
+            if (partition.Bootable == 0x80 && partition.PartitionType == 0x0B)
             {
                 sector = (ushort)(sector | (ushort)((cylinder >> 2) & 0xC0));
 
@@ -60,7 +60,7 @@ namespace Bootloader
                 {
                     partitionAddress = Bios.LoadDisk(cylinder, head, sector, 0x0900, disk, 8);
                     if (partitionAddress != 8) Bios.ResetDisk();
-                    else CPU.Jump(0x9000 + 512);    // first sector is FAT32 table, so jump into second sector (+512)
+                    else CPU.Jump(0x9200);    // first sector is FAT32 volume, so jump into second sector (+512)
                 } while (retry++ < 5);
 
                 BiosUtilities.Write("Disk");

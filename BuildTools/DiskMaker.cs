@@ -80,7 +80,9 @@ namespace BuildTools
             // store the stage2 bootloader on to the reserved sectors of the fat32 file system
             var stage2Bytes = File.ReadAllBytes(stage2);
             if (stage2Bytes.Length > 512 * 7) throw new Exception("Stage 2 bootloader is too large");
-            
+
+            Console.WriteLine($"Stage 2 is using {stage2Bytes.Length / (512.0 * 7) * 100}% of available space.");
+
             int toCopy = stage2Bytes.Length;
             int offset = 0;
 
