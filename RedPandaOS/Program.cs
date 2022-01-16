@@ -52,7 +52,7 @@ namespace GiawaOS
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.MergePushPop.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage2);
-                //IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage2);

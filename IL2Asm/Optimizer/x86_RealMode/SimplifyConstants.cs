@@ -40,12 +40,19 @@ namespace IL2Asm.Optimizer.x86_RealMode
             for (int i = 0; i < assembly.Count; i++)
             {
                 var instruction = assembly[i].Trim();
+                if (instruction.StartsWith(";")) continue;
 
                 // any time we could have jumped here then reset the register state
-                if (instruction.EndsWith(":") /*|| instruction.StartsWith("j")*/ || instruction.StartsWith("call") || instruction.StartsWith("int") || instruction.StartsWith("sh"))
+                if (instruction.EndsWith(":") /*|| instruction.StartsWith("j")*/ || instruction.StartsWith("call") || instruction.StartsWith("int"))
                 {
                     foreach (var register in registers) register.Value.Reset();
                     continue;
+                }
+                // shift (sh* and sa*) instructions clobber cx
+                if (instruction.StartsWith("s"))
+                {
+                    registers["cx"].Reset();
+                    foreach (var reg in registers) if (reg.Value.Constant == "cx") reg.Value.Reset();
                 }
 
                 var split = instruction.Split(_split);
@@ -62,7 +69,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
 
                             continue;
                         }
-                        else if (split[2] == "cx" || split[2] == "dx" || split[2] == "di" || split[2] == "si")
+                        else if (split[2] == "cx" || split[2] == "dx" || split[2] == "di" || split[2] == "si" || split[2] == "bx")
                         {
                             registers[split[1]].Constant = split[2];
                             registers[split[1]].Line = i;
@@ -78,13 +85,16 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     if (split[1] == "bp") continue;
                     if (split[1] == "es") continue;
 
-                    if (split[1] == "eax") registers["ax"].Reset();
-                    else registers[split[1]].Reset();
+                    string reg = split[1];
+                    if (reg.StartsWith("e")) reg = reg.Substring(1);
+
+                    registers[reg].Reset();
+                    foreach (var register in registers)
+                        if (register.Value.Constant == reg)
+                            register.Value.Reset();
                 }
                 else
                 {
-                    //if (instruction.Contains("[")) continue;    // too complex for now
-
                     bool madeChanges = false;
                     int start = 2;
                     if (instruction.StartsWith("cmp")) 
