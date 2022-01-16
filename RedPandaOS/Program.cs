@@ -108,6 +108,10 @@ namespace GiawaOS
                 Console.WriteLine($"NASM took {stopwatch.ElapsedMilliseconds} ms");
                 stopwatch.Restart();
 
+                GenerateSymbols("stage2.asm", "stage2.elf");
+                File.Copy("symbols.txt", "stage2_symbols.txt", true);
+                File.Copy("symbols.bin", "stage2_symbols.bin", true);
+                CreateMethodSizeBreakdown("stage2_symbols.txt", File.ReadAllBytes("stage2.bin").Length, "stage2_breakdown.txt");
                 GenerateSymbols("pm.asm", "pm.elf");
 
                 stopwatch.Stop();
@@ -224,6 +228,31 @@ namespace GiawaOS
             nasm.Start();
             nasm.BeginOutputReadLine();
             nasm.WaitForExit();
+        }
+
+        private static void CreateMethodSizeBreakdown(string symbolsFile, int asmFileSize, string outputFile)
+        {
+            // process these symbols so they can be drawn in excel or similar
+            var lines = File.ReadAllLines(symbolsFile);
+            Dictionary<string, int> moduleSizes = new Dictionary<string, int>();
+            for (int i = 0; i < lines.Length - 1; i++)
+            {
+                var split = lines[i].Split(' ');
+                var nsplit = lines[i + 1].Split(' ');
+
+                if (split[1].StartsWith("DB_"))
+                {
+                    moduleSizes.Add("Constants", asmFileSize - int.Parse(split[0], System.Globalization.NumberStyles.HexNumber));
+                    break;
+                }
+
+                moduleSizes.Add(split[1], int.Parse(nsplit[0], System.Globalization.NumberStyles.HexNumber) - int.Parse(split[0], System.Globalization.NumberStyles.HexNumber));
+            }
+            using (StreamWriter breakdown = new StreamWriter(outputFile))
+            {
+                foreach (var module in moduleSizes)
+                    breakdown.WriteLine($"{module.Key}\t{module.Value}");
+            }
         }
 
         private static void GenerateSymbols(string inputFile, string outputFile)
