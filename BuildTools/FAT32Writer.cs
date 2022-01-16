@@ -31,8 +31,10 @@ namespace BuildTools
             for (uint i = 0; i < diskSizeInSectors; i++) _sectors.Add(new byte[512]);
 
             // initialize boot sector
-            var oemName = Encoding.ASCII.GetBytes("RedPanda");
-            Array.Copy(oemName, 0, _sectors[0], 0x03, oemName.Length);
+            _sectors[0][0] = 0xE9;  // jmp
+            _sectors[0][1] = 0xFD;
+            _sectors[0][2] = 0x01;  // to 0x9200
+            Encoding.ASCII.GetBytes("RedPanda").CopyTo(_sectors[0], 3);
             _sectors[0][510] = 0x55;
             _sectors[0][511] = 0xAA;
 
