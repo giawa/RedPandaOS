@@ -23,14 +23,9 @@ namespace Bootloader
         private static void EnsureFilesystem(BiosUtilities.Partition partition)
         {
             // fat volume table should be at memory region 0x9000-0x9200
-            var FA = CPU.ReadMemShort(0x9000 + 0x52);
-            var T3 = CPU.ReadMemShort(0x9000 + 0x54);
-            var _2 = CPU.ReadMemShort(0x9000 + 0x56);
-
-            if (FA != 0x4146 || T3 != 0x3354 || _2 != 0x2032 || partition.PartitionType != 0x0B)
+            if (!HasName(0x9052, "FAT32 ", 6) || partition.PartitionType != 0x0B)
             {
-                BiosUtilities.Write("Unexpected file system type");
-                while (true) ;
+                Panic("Unexpected file system type");
             }
         }
 
@@ -56,8 +51,7 @@ namespace Bootloader
             {
                 BiosUtilities.Write("LoadDiskWithRetry failed at addr 0x");
                 BiosUtilities.WriteHex(addr);
-                BiosUtilities.WriteLine();
-                ShowDiskFailure();
+                Panic(null);
             }
         }
 
@@ -74,38 +68,34 @@ namespace Bootloader
                 var attr = CPU.ReadMemByte((ushort)(offset + 0x0B));
                 if ((attr & 0xF8) == 0) // make sure this is a file
                 {
-                    // directory entry
-                    var KE = CPU.ReadMemShort(offset);
-                    var RN = CPU.ReadMemShort((ushort)(offset + 2));
-                    var EL = CPU.ReadMemShort((ushort)(offset + 4));
-                    var empty = CPU.ReadMemShort((ushort)(offset + 6));
-                    var BI = CPU.ReadMemShort((ushort)(offset + 8));
-                    var N = CPU.ReadMemByte((ushort)(offset + 10));
-
-                    // look for directory with name "BOOT" followed by empty padding
-                    if (KE == 0x656B && RN == 0x6E72 && EL == 0x6C65 && empty == 0x0000 && BI == 0x6962 && N == 0x6E)
+                    if (HasName(offset, "kernel\0\0bin", 11))
                     {
                         kernelCluster = CPU.ReadMemShort((ushort)(offset + 0x1A));
                         var kernelFileSize1 = CPU.ReadMemShort((ushort)(offset + 0x1C));
                         var kernelFileSize2 = CPU.ReadMemShort((ushort)(offset + 0x1E));
-                        BiosUtilities.WriteLine(); BiosUtilities.WriteHex(kernelFileSize1);
-                        BiosUtilities.WriteLine(); BiosUtilities.WriteHex(kernelFileSize2);
                         kernelSectorCount = (ushort)((kernelFileSize1 >> 9) | (kernelFileSize2 << 7));
                         if ((kernelFileSize1 & 0x1ff) > 0) kernelSectorCount++;
-                        BiosUtilities.WriteLine(); BiosUtilities.WriteHex(kernelSectorCount);
-                        BiosUtilities.WriteLine(); BiosUtilities.WriteHex(kernelCluster);
                         break;
                     }
                 }
 
                 if (i == 15)
                 {
-                    BiosUtilities.Write("Could not find kernel.bin");
-                    while (true) ;
+                    Panic("Missing kernel.bin");
                 }
             }
 
             return kernelCluster;
+        }
+
+        private static bool HasName(ushort offset, string name, ushort length)
+        {
+            for (ushort i = 0; i < length; i++)
+            {
+                var cpuByte = CPU.ReadMemByte((ushort)(offset + i));
+                if (cpuByte != name[i]) return false;
+            }
+            return true;
         }
 
         private static void CopyFile(byte disk, byte heads, byte sectorsPerTrack, ushort sectorsPerCluster, ushort clusterBeginLba, ushort fileCluster, ushort fileSectorCount, ushort highAddr)
@@ -113,10 +103,6 @@ namespace Bootloader
             ushort sectorInCluster = 0;
 
             // assume fat is in 0x9000-0x9200 and has all the entries we need
-
-            BiosUtilities.WriteLine();
-            BiosUtilities.Write("Starting at cluster ");
-            BiosUtilities.WriteHex(fileCluster); BiosUtilities.WriteLine();
 
             while (fileSectorCount > 0)
             {
@@ -138,17 +124,11 @@ namespace Bootloader
 
                     if (clusterHigh > 0)
                     {
-                        BiosUtilities.Write("Next cluster was in the wrong place, or file ended prematurely");
-                        BiosUtilities.WriteHex(fileSectorCount);
-                        while (true) ;
+                        Panic("Invalid next cluster");
                     }
 
                     sectorInCluster = 0;
                     fileCluster = clusterLow;
-
-                    BiosUtilities.Write("Moving to cluster ");
-                    BiosUtilities.WriteHex(fileCluster);
-                    //BiosUtilities.WriteLine();
                 }
             }
         }
@@ -161,15 +141,10 @@ namespace Bootloader
             for (short i = 0; i < 16; i++)
             {
                 var offset = (ushort)(0x9000 + (i << 5));
-                if (CPU.ReadMemByte((ushort)(offset + 0x0B)) == 0x10)
+                if (CPU.ReadMemByte((ushort)(offset + 0x0B)) == 0x10)   // make sure this is a subdirectory
                 {
-                    // directory entry
-                    var BO = CPU.ReadMemShort(offset);
-                    var OT = CPU.ReadMemShort((ushort)(offset + 2));
-                    var empty = CPU.ReadMemShort((ushort)(offset + 6));
-
                     // look for directory with name "BOOT" followed by empty padding
-                    if (BO == 0x6F62 && OT == 0x746F && empty == 0x0000)
+                    if (HasName(offset, "boot\0", 6))
                     {
                         bootCluster = CPU.ReadMemShort((ushort)(offset + 0x1A));
                         break;
@@ -178,8 +153,7 @@ namespace Bootloader
 
                 if (i == 15)
                 {
-                    BiosUtilities.Write("Could not find /BOOT");
-                    while (true) ;
+                    Panic("Missing /boot");
                 }
             }
 
@@ -201,6 +175,7 @@ namespace Bootloader
                 heads = 2;
             }
 
+            // make sure this is a fat32 file system
             EnsureFilesystem(partition);
 
             const ushort volumeOffset = 0x9000;
@@ -211,25 +186,23 @@ namespace Bootloader
             var sectorsPerFat2 = CPU.ReadMemShort(volumeOffset + 0x26);
             if (sectorsPerFat2 > 0 || sectorsPerFat1 > 32768 - reservedSectors - partition.RelativeSector1)
             {
-                BiosUtilities.Write("Invalid FAT32 partition - too many sectors per FAT");
-                while (true) ;
+                Panic("FAT32: Too many sectors per FAT");
             }
             var rootDirectory1 = CPU.ReadMemShort(volumeOffset + 0x2C);
             var rootDirectory2 = CPU.ReadMemShort(volumeOffset + 0x2E);
             if (rootDirectory2 > 0)
             {
-                BiosUtilities.Write("Invalid FAT32 partition - invalid root directory");
-                while (true) ;
+                Panic("FAT32: Invalid root directory");
             }
 
             // load the root directory into 0x9000-0x9200
             ushort fatBeginLba = (ushort)(partition.RelativeSector1 + reservedSectors);
             ushort clusterBeginLba = (ushort)(fatBeginLba + numberOfFats * sectorsPerFat1 + (rootDirectory1 - 2) * sectorsPerCluster);
-
             LoadLba(disk, heads, sectorsPerTrack, clusterBeginLba, 0x0900);
 
             var bootCluster = FindBootDirectory();
 
+            // load the boot directory into 0x9000-0x9200
             bootCluster = (ushort)(clusterBeginLba + (bootCluster - 2) * sectorsPerCluster);
             LoadLba(disk, heads, sectorsPerTrack, bootCluster, 0x0900);
 
@@ -246,8 +219,7 @@ namespace Bootloader
         {
             if (DetectMemory(0x500, 10) == 0)
             {
-                BiosUtilities.Write("Failed to get memory map");
-                while (true) ;
+                Panic("Failed to get memory map");
             }
 
             Bios.EnableA20();
@@ -261,14 +233,14 @@ namespace Bootloader
             _gdt.KernelDataSegment.flags2 = 0xCF;
 
             Bios.EnterProtectedMode(ref _gdt);
-            BiosUtilities.Write("Failed to enter protected mode");
 
-            while (true) ;
+            // code should never get here since EnterProtectedMode jumps to 0xA000
+            Panic("Failed to enter protected mode");
         }
 
-        private static void ShowDiskFailure()
+        private static void Panic(string s)
         {
-            BiosUtilities.Write("Failed to load kernel from disk");
+            if (s != null) BiosUtilities.Write(s);
 
             while (true) ;
         }
