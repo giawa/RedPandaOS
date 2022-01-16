@@ -182,7 +182,11 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("push ax");
                         break;
 
+                    // LDNULL
+                    case 0x14: assembly.AddAsm("push 0"); break;
+
                     // LDC.I4.1
+                    case 0x15: assembly.AddAsm("push -1"); break;
                     case 0x16: assembly.AddAsm("push 0"); break;
                     case 0x17: assembly.AddAsm("push 1"); break;
                     case 0x18: assembly.AddAsm("push 2"); break;
@@ -973,8 +977,12 @@ namespace IL2Asm.Assembler.x86_RealMode
                 {
                     if (data.Value.Type.Type == ElementType.EType.String)
                     {
+                        var s = (string)data.Value.Data;
                         output.Add($"{data.Key}:");
-                        output.Add($"    db '{data.Value.Data}', 0");  // 0 for null termination after the string
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < s.Length; i++) sb.Append($"{(int)s[i]}, ");
+
+                        output.Add($"    db {sb.ToString()} 0 ; {s}");  // 0 for null termination after the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I2)
                     {
