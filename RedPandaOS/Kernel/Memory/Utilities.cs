@@ -13,13 +13,13 @@ namespace Kernel.Memory
         [AsmPlug("Kernel_Memory_Utilities_UnsafeCast_MVar_Object", IL2Asm.BaseTypes.Architecture.X86)]
         private static void UnsafeCastTAsm(IAssembledMethod assembly)
         {
-            assembly.AddAsm($"; PtrToObject nop");
+            assembly.AddAsm($"; UnsafeCast nop");
         }
 
         [AsmPlug("Kernel_Memory_Utilities_UnsafeCast_MVar_Object", IL2Asm.BaseTypes.Architecture.X86_Real)]
         private static void UnsafeCastTAsmReal(IAssembledMethod assembly)
         {
-            assembly.AddAsm($"; PtrToObject nop");
+            assembly.AddAsm($"; UnsafeCast nop");
         }
 
         [AsmMethod]
