@@ -29,7 +29,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     {
                         assembly[i] = ";" + assembly[i];
                         string rightSide = nextInstruction.Substring(nextInstruction.IndexOf(',') + 1);
-                        assembly[j - 1] = $"    cmp {instruction.Substring(instruction.Length - 2)}, {rightSide}";
+                        assembly[j - 1] = $"    cmp {instruction.Substring(instruction.Length - 2)}, {rightSide.Trim()}";
                     }
                 }
             }

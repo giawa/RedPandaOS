@@ -42,6 +42,7 @@ namespace GiawaOS
                 IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage1);
+                IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
@@ -56,6 +57,8 @@ namespace GiawaOS
                 IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(stage2);
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage2);
+                IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(stage2);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
                 var assembler32 = new IL2Asm.Assembler.x86.Ver2.Assembler();
