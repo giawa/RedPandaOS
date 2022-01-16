@@ -100,6 +100,7 @@ namespace BuildTools
             // find kernel.bin
             var kernelBytes = File.ReadAllBytes(filename);
             FATFile kernelFile = new FATFile("kernel.bin", _handler, kernelBytes);
+            kernelFile.DirEntry[0x0B] = 0x05;   // system and read only flags
             var bootSector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (bootCluster - 2) * _sectorsPerCluster)];
             kernelFile.DirEntry.CopyTo(bootSector, 0);
         }

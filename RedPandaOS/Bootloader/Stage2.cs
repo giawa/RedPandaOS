@@ -72,7 +72,7 @@ namespace Bootloader
             {
                 var offset = (ushort)(0x9000 + (i << 5));
                 var attr = CPU.ReadMemByte((ushort)(offset + 0x0B));
-                if (attr == 0x00 || attr == 0x04)
+                if ((attr & 0xF8) == 0) // make sure this is a file
                 {
                     // directory entry
                     var KE = CPU.ReadMemShort(offset);
