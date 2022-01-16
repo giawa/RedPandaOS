@@ -61,17 +61,17 @@ namespace IL2Asm.Assembler.x86_RealMode
                     if (localVarCount > 0)
                     {
                         localVarNames.Add("cx");
-                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[0]}");
+                        if (_methods.Count > 1) assembly.AddAsm($"push {localVarNames[0]}");
                     }
                     if (localVarCount > 1)
                     {
                         localVarNames.Add("dx");
-                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[1]}");
+                        if (_methods.Count > 1) assembly.AddAsm($"push {localVarNames[1]}");
                     }
                     if (localVarCount > 2)
                     {
                         localVarNames.Add("di");
-                        if (_methods.Count > 1 || localVarCount > 3) assembly.AddAsm($"push {localVarNames[2]}");
+                        if (_methods.Count > 1) assembly.AddAsm($"push {localVarNames[2]}");
                     }
                 }
             }
@@ -79,7 +79,11 @@ namespace IL2Asm.Assembler.x86_RealMode
             if (method.LocalVars != null)
             {
                 int localVarCount = method.LocalVars.LocalVariables.Length;
-                if (localVarCount > localVarNames.Count) assembly.AddAsm($"sub sp, {BytesPerRegister * (localVarCount - localVarNames.Count)} ; {localVarCount} localvars");
+                if (localVarCount > localVarNames.Count)
+                {
+                    if (_methods.Count > 1) assembly.AddAsm($"sub sp, {BytesPerRegister * (localVarCount - localVarNames.Count)} ; {localVarCount} localvars");
+                    else assembly.AddAsm($"sub sp, {BytesPerRegister * localVarCount} ; {localVarCount} localvars");
+                }
             }
 
             for (ushort i = 0; i < code.Length;)
@@ -886,7 +890,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("lea bx, [bx + si]");
                     //assembly.AddAsm("mov bx, ax");
                     if (localVarNames.Contains("si")) assembly.AddAsm("mov si, ax");  // recover si
-                    assembly.AddAsm("mov ax, [bx]");
+                    assembly.AddAsm("xor ax, ax");
+                    assembly.AddAsm("mov al, [bx]");
                     //assembly.AddAsm("and ax, 255");
                     assembly.AddAsm("push ax");
                 }

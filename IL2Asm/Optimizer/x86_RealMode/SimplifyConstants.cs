@@ -42,7 +42,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 var instruction = assembly[i].Trim();
 
                 // any time we could have jumped here then reset the register state
-                if (instruction.EndsWith(":") /*|| instruction.StartsWith("j")*/ || instruction.StartsWith("call"))
+                if (instruction.EndsWith(":") /*|| instruction.StartsWith("j")*/ || instruction.StartsWith("call") || instruction.StartsWith("int") || instruction.StartsWith("sh"))
                 {
                     foreach (var register in registers) register.Value.Reset();
                     continue;
@@ -72,7 +72,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                         else registers[split[1]].Reset();
                     }
                 }
-                
+
                 if (split[0] == "pop")
                 {
                     if (split[1] == "bp") continue;
@@ -84,7 +84,10 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     //if (instruction.Contains("[")) continue;    // too complex for now
 
                     bool madeChanges = false;
-                    for (int j = 2; j < split.Length; j++)
+                    int start = 2;
+                    if (instruction.StartsWith("cmp")) 
+                        start = 1;
+                    for (int j = start; j < split.Length; j++)
                     {
                         if (registers.TryGetValue(split[j], out var reg) && reg.Constant != null)
                         {
@@ -92,15 +95,17 @@ namespace IL2Asm.Optimizer.x86_RealMode
                             reg.Reset();
                             madeChanges = true;
 
-                            assembly[reg.Line] = "; " + assembly[reg.Line];
+                            assembly[reg.Line] = ";" + assembly[reg.Line];
                         }
                     }
-                    
+
                     if (madeChanges)
                     {
                         string result = string.Format($"    {split[0]} {split[1]}");
-                        if (split[1].StartsWith("[") && (split[2] == "-" || split[2] == "+")) 
+                        if (split[1].StartsWith("[") && (split[2] == "-" || split[2] == "+"))
                             result = $"    {split[0]} word {split[1]} {split[2]} {split[3]}, {split[4]}";
+                        else if (split[1].StartsWith("[") && !split[2].EndsWith("x"))
+                            result = $"    {split[0]} word {split[1]}, {split[2]}";
                         else if (split.Length == 3) result += ", " + split[2] + " ; " + assembly[i];
                         assembly[i] = result;
                     }
