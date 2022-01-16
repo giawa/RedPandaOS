@@ -55,6 +55,10 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     foreach (var reg in registers) if (reg.Value.Constant == "cx") reg.Value.Reset();
                 }
 
+                // remove any commented out portion
+                if (instruction.Contains(";")) 
+                    instruction = instruction.Substring(0, instruction.IndexOf(';'));
+
                 var split = instruction.Split(_split);
                 for (int j = 0; j < split.Length; j++) split[j] = split[j].Trim(',');
 
@@ -80,7 +84,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                     }
                 }
 
-                if (split[0] == "pop")
+                if (split[0] == "pop" || split[0] == "inc" || split[0] == "dec")
                 {
                     if (split[1] == "bp") continue;
                     if (split[1] == "es") continue;
