@@ -26,18 +26,19 @@ namespace IL2Asm
                 assembler16.AddAssembly(file);
                 assembler16.Assemble(file, bootloader1);
 
-                var stage1 = assembler16.WriteAssembly(0x7C00, 512, true);
+                var stage1 = assembler16.WriteAssembly(0x7C00, 512);
                 Optimizer.RemoveUnneededLabels.ProcessAssembly(stage1);
                 Optimizer.MergePushPop.ProcessAssembly(stage1);
                 Optimizer.MergePushPopAcrossMov.ProcessAssembly(stage1);
                 Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(stage1);
+                Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
                 assembler16 = new Assembler.x86_RealMode.Assembler();
                 assembler16.AddAssembly(file);
                 assembler16.Assemble(file, bootloader2);
 
-                var stage2 = assembler16.WriteAssembly(0x9000, 4096, false);
+                var stage2 = assembler16.WriteAssembly(0x9000, 4096);
                 File.WriteAllLines("stage2.asm", stage2.ToArray());
 
                 Assembler.x86.Ver1.Assembler assembler32 = new Assembler.x86.Ver1.Assembler();
