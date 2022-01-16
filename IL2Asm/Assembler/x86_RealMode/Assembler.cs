@@ -57,7 +57,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (method.LocalVars != null)
                 {
                     int localVarCount = method.LocalVars.LocalVariables.Length;
-                    
+
                     if (localVarCount > 0)
                     {
                         localVarNames.Add("cx");
@@ -395,6 +395,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm($"jl {_jmpLabel}");
                         break;
 
+                    // BNE.UN
+                    case 0x40:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+                        Branch(i + _int, assembly, pe.Metadata, "jne", "jne");
+                        break;
+
                     // ADD
                     case 0x58:
                         assembly.AddAsm("pop bx");
@@ -434,6 +441,16 @@ namespace IL2Asm.Assembler.x86_RealMode
                         assembly.AddAsm("pop bx");
                         assembly.AddAsm("pop ax");
                         assembly.AddAsm("or ax, bx");
+                        assembly.AddAsm("push ax");
+                        break;
+
+                    // SHL
+                    case 0x62:
+                        assembly.AddAsm("mov bx, cx");  // cx is needed to access cl for variable shift, so store is in bx temporarily
+                        assembly.AddAsm("pop cx");      // get amount to shift
+                        assembly.AddAsm("pop ax");
+                        assembly.AddAsm("sal ax, cl");
+                        assembly.AddAsm("mov cx, bx");  // restore cx
                         assembly.AddAsm("push ax");
                         break;
 
@@ -574,6 +591,16 @@ namespace IL2Asm.Assembler.x86_RealMode
                     }
                 }
             }
+        }
+
+        private void Branch(int jmpTo, AssembledMethod assembly, CLIMetadata metadata, string asm32jmpType, string asmR4jmpType)
+        {
+            _jmpLabel = $"IL_{jmpTo.ToString("X4")}_{Runtime.GlobalMethodCounter}";
+
+            assembly.AddAsm("pop ax");        // value2
+            assembly.AddAsm("pop bx");        // value1
+            assembly.AddAsm("cmp bx, ax");    // compare values
+            assembly.AddAsm($"{asm32jmpType} {_jmpLabel}");
         }
 
         private void STLOC(byte b, AssembledMethod assembly, List<string> localVarNames)
@@ -727,7 +754,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                 case ElementType.EType.U2: _initializedData.Add(label, new DataType(type, (ushort)0)); break;
                 case ElementType.EType.I2: _initializedData.Add(label, new DataType(type, (short)0)); break;
                 case ElementType.EType.ValueType:
-                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)])); 
+                    _initializedData.Add(label, new DataType(type, new byte[_runtime.GetTypeSize(metadata, type)]));
                     break;
                 default: throw new Exception("Unsupported type");
             }

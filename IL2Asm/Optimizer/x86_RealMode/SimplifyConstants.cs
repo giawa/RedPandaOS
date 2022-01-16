@@ -77,7 +77,9 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 {
                     if (split[1] == "bp") continue;
                     if (split[1] == "es") continue;
-                    registers[split[1]].Reset();
+
+                    if (split[1] == "eax") registers["ax"].Reset();
+                    else registers[split[1]].Reset();
                 }
                 else
                 {
