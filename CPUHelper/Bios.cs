@@ -80,15 +80,15 @@ namespace CPUHelper
         }
 
         [AsmMethod]
-        public static ushort LoadDisk(byte cylinder, byte head, byte sector, ushort highAddr, ushort lowAddr, byte drive, byte sectors)
+        public static ushort LoadDisk(ushort cylinder, ushort head, ushort sector, ushort highAddr, byte drive, byte sectors)
         {
             return 0;
         }
 
-        [AsmPlug("CPUHelper.Bios.LoadDisk_U2_U1_U1_U1_U2_U2_U1_U1", IL2Asm.BaseTypes.Architecture.X86_Real, AsmFlags.None)]
+        [AsmPlug("CPUHelper.Bios.LoadDisk_U2_U2_U2_U2_U2_U1_U1", IL2Asm.BaseTypes.Architecture.X86_Real, AsmFlags.None)]
         public static void LoadDiskAsm(IAssembledMethod assembly)
         {
-            assembly.AddAsm("; Bios.LoadDisk_U2_U2_U2_U1_U1 plug");
+            assembly.AddAsm("; Bios.LoadDisk_U2_U2_U1_U1 plug");
             assembly.AddAsm("LoadDisk_U2_U2_U2_U1_U1:");
             assembly.AddAsm("push bp");
             assembly.AddAsm("mov bp, sp");
@@ -98,20 +98,20 @@ namespace CPUHelper
 
             // bp + 4 is sectors to read
             // bp + 6 is drive
-            // bp + 8 is lowAddr
-            // bp + 10 is hiAddr
-            // bp + 12 is sector
-            // bp + 14 is head
-            // bp + 16 is cylinder
-            assembly.AddAsm("mov es, [bp + 10]");
-            assembly.AddAsm("mov bx, [bp + 8]");
+            // bp + 8 is lowAddr (removed)
+            // bp + 8 is hiAddr
+            // bp + 10 is sector
+            // bp + 12 is head
+            // bp + 14 is cylinder
+            assembly.AddAsm("mov es, [bp + 8]");
+            assembly.AddAsm("xor bx, bx");// mov bx, [bp + 8]");
 
             assembly.AddAsm("mov ah, 0x02");
             assembly.AddAsm("mov al, [bp + 4]");
 
-            assembly.AddAsm("mov cl, [bp + 12]"); // starting at sector 2, sector 1 is our boot sector and already in memory
-            assembly.AddAsm("mov ch, [bp + 16]"); // first 8 bits of cylinder
-            assembly.AddAsm("mov dh, [bp + 14]"); // head
+            assembly.AddAsm("mov cl, [bp + 10]"); // starting at sector 2, sector 1 is our boot sector and already in memory
+            assembly.AddAsm("mov ch, [bp + 14]"); // first 8 bits of cylinder
+            assembly.AddAsm("mov dh, [bp + 12]"); // head
             assembly.AddAsm("mov dl, [bp + 6]");  // drive number from bios
 
             assembly.AddAsm("int 0x13");

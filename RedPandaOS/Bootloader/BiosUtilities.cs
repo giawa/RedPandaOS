@@ -26,7 +26,7 @@ namespace Bootloader
 
             do
             {
-                sectorsRead = Bios.LoadDisk(partition.StartingCylinder, partition.StartingHead, partition.StartingSector, highAddr, 0, disk, sectors);
+                sectorsRead = Bios.LoadDisk(partition.StartingCylinder, partition.StartingHead, partition.StartingSector, highAddr, disk, sectors);
                 if (sectorsRead != sectors) Bios.ResetDisk();
             } while (sectorsRead != sectors && retry++ < 5);
 
@@ -42,7 +42,7 @@ namespace Bootloader
 
             do
             {
-                sectorsRead = Bios.LoadDisk((byte)cylinder, head, sector, highAddr, lowAddr, disk, sectors);
+                sectorsRead = Bios.LoadDisk((byte)cylinder, head, sector, highAddr, disk, sectors);
                 if (sectorsRead != sectors) Bios.ResetDisk();
             } while (sectorsRead != sectors && retry++ < 5);
 

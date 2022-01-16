@@ -161,7 +161,7 @@ namespace TestIL
 
             do
             {
-                sectorsRead = Bios.LoadDisk(0, 0, 2, highAddr, lowAddr, disk, sectors);
+                sectorsRead = Bios.LoadDisk(0, 0, 2, highAddr, disk, sectors);
             } while (sectorsRead != sectors && retry++ < 3);
 
             return sectorsRead == sectors;
