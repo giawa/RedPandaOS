@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using IL2Asm;
 using System.Collections.Generic;
+using BuildTools;
 
 namespace GiawaOS
 {
@@ -11,7 +12,10 @@ namespace GiawaOS
     {
         public static void Main()
         {
+
             PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             // find the Program.Main entry point
             var bootloader1 = FindEntryPoint(file, "Stage1", "Start");
@@ -82,15 +86,50 @@ namespace GiawaOS
                     stream.Write(File.ReadAllText("pm.asm"));
                 }*/
 
+                stopwatch.Stop();
+                Console.WriteLine($"IL2Asm took {stopwatch.ElapsedMilliseconds} ms");
+                stopwatch.Restart();
+
                 // process the assembly
                 Console.WriteLine();
                 Console.WriteLine("* Assembling OS!");
                 RunNASM("stage1.asm", "stage1.bin");
                 RunNASM("stage2.asm", "stage2.bin");
                 RunNASM("pm.asm", "pm.bin");
+
+                stopwatch.Stop();
+                Console.WriteLine($"NASM took {stopwatch.ElapsedMilliseconds} ms");
+                stopwatch.Restart();
+
                 GenerateSymbols("pm.asm", "pm.elf");
 
-                var pmBytes = File.ReadAllBytes("pm.bin");
+                stopwatch.Stop();
+                Console.WriteLine($"GenerateSymbols {stopwatch.ElapsedMilliseconds} ms");
+                stopwatch.Restart();
+
+                DiskMaker.DiskInfo disk = new DiskMaker.DiskInfo();
+                DiskMaker.PartitionInfo bootablePartition = new DiskMaker.PartitionInfo()
+                {
+                    FirstSectorLBA = 2,
+                    NumberOfSectors = 32 * 1024 / 512 * 1024 - 2,   // 32MiB minus the FirstSectorLBA
+                    Bootable = true,
+                    PartitionType = 0x0B    // FAT32 CHS/LBA
+                };
+                disk.Partitions.Add(bootablePartition);
+                DiskMaker.MakeBootableDisk(disk, "disk.bin", "stage1.bin", "stage2.bin", "pm.bin");
+
+                stopwatch.Stop();
+                Console.WriteLine($"Building disk image took {stopwatch.ElapsedMilliseconds} ms");
+
+                // then boot qemu
+                Console.WriteLine();
+                Console.WriteLine("* Booting OS!");
+                //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                var qemu = Process.Start("qemu-system-x86_64", "-device piix3-ide,id=ide -drive id=disk,file=disk.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.img,if=floppy -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                qemu.WaitForExit();
+
+                /*var pmBytes = File.ReadAllBytes("pm.bin");
                 var stage1Bytes = File.ReadAllBytes("stage1.bin");
                 int stage1Zeros = 0;
                 for (int i = 439; i >= 0; i--)
@@ -141,17 +180,21 @@ namespace GiawaOS
 
                     File.Copy("boot.bin", "boot.img", true);
 
+                    stopwatch.Stop();
+                    Console.WriteLine($"Building disk image took {stopwatch.ElapsedMilliseconds} ms");
+
                     // then boot qemu
                     Console.WriteLine();
                     Console.WriteLine("* Booting OS!");
                     //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                     var qemu = Process.Start("qemu-system-x86_64", "-device piix3-ide,id=ide -drive id=disk,file=boot.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                    //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.img,if=floppy -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                     qemu.WaitForExit();
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                }
+                }*/
             }
 
             Console.WriteLine("Press key to exit...");
