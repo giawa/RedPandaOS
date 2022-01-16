@@ -125,7 +125,7 @@ namespace CPUHelper
             assembly.AddAsm("pop dx");
             assembly.AddAsm("pop cx");
             assembly.AddAsm("pop bp");
-            assembly.AddAsm("ret 14");
+            assembly.AddAsm("ret 12");
         }
 
         [AsmMethod]

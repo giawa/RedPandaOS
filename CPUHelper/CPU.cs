@@ -394,6 +394,15 @@ namespace CPUHelper
             assembly.AddAsm("push eax");
         }
 
+        [AsmPlug("CPUHelper.CPU.ReadMemByte_U1_U2", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void ReadMemByteAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop bx");
+            assembly.AddAsm("xor ax, ax");
+            assembly.AddAsm("mov al, [bx]");
+            assembly.AddAsm("push ax");
+        }
+
         [AsmMethod]
         public static byte ReadMemByte(uint addr)
         {
