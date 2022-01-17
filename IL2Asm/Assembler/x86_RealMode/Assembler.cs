@@ -981,7 +981,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                         StringBuilder sb = new StringBuilder();
                         for (int i = 0; i < s.Length; i++) sb.Append($"{(int)s[i]}, ");
 
-                        output.Add($"    db {sb.ToString()} 0 ; {s}");  // 0 for null termination after the string
+                        output.Add($"    db {sb.ToString()} 0 ; {s.Replace("\0", "")}");  // 0 for null termination after the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I2)
                     {
