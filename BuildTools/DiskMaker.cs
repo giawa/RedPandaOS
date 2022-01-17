@@ -74,7 +74,7 @@ namespace BuildTools
             byte sectorsPerCluster = 2;
             ushort reservedSectors = 8;
             FAT32Writer filesystem = new FAT32Writer(sectorsPerCluster, reservedSectors, bootablePartition.NumberOfSectors / sectorsPerCluster / 128, 2, bootablePartition.NumberOfSectors);
-            filesystem.StoreKernel("pm.bin");
+            filesystem.StoreKernel(kernel);
             filesystem.Flush();
 
             // store the stage2 bootloader on to the reserved sectors of the fat32 file system
@@ -82,6 +82,8 @@ namespace BuildTools
             if (stage2Bytes.Length > 512 * 7) throw new Exception("Stage 2 bootloader is too large");
 
             Console.WriteLine($"Stage 2 is using {stage2Bytes.Length / (512.0 * 7) * 100}% of available space.");
+            var pmBytes = File.ReadAllBytes(kernel).Length;
+            Console.WriteLine($"Kernel is using {pmBytes / 512 + 1} sectors ({(pmBytes / 90112.0) * 100}%).");
 
             int toCopy = stage2Bytes.Length;
             int offset = 0;
