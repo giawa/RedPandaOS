@@ -15,6 +15,13 @@ namespace Bootloader
             byte disk = (byte)CPU.ReadMemShort(0x500);  // the disk as reported by the bios
             BiosUtilities.Partition partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
 
+            if (DetectMemory(0x500, 10) == 0)
+            {
+                Panic("Failed to get memory map");
+            }
+
+            Bios.EnableA20();
+
             LoadKernel(disk, partition);
 
             EnterProtectedMode();
@@ -113,6 +120,7 @@ namespace Bootloader
 
                 highAddr += 0x20;
                 fileSectorCount--;
+                if (fileSectorCount == 0) break;
 
                 // advance to the next sector
                 if (sectorInCluster < sectorsPerCluster - 1) sectorInCluster++;
@@ -217,13 +225,6 @@ namespace Bootloader
 
         private static void EnterProtectedMode()
         {
-            if (DetectMemory(0x500, 10) == 0)
-            {
-                Panic("Failed to get memory map");
-            }
-
-            Bios.EnableA20();
-
             _gdt.KernelCodeSegment.segmentLength = 0xffff;
             _gdt.KernelCodeSegment.flags1 = 0x9A;
             _gdt.KernelCodeSegment.flags2 = 0xCF;
@@ -251,7 +252,7 @@ namespace Bootloader
 
             do
             {
-                if (Bios.DetectMemory((ushort)(address + entries * 24 + 2), ref _smap_ret) == 0xff) break;
+                if (Bios.DetectMemory((ushort)(address + entries * 24 + 4), ref _smap_ret) == 0xff) break;
                 entries++;
             } while ((_smap_ret.contId1 != 0 || _smap_ret.contId2 != 0) && entries < maxEntries);
 
