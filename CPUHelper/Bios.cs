@@ -20,11 +20,15 @@ namespace CPUHelper
             assembly.AddAsm("mov bx, dx");  // store dx to recover later
             assembly.AddAsm("pop dx");      // store the disk in dl
             assembly.AddAsm("push cx");     // store cx to recover later
+            assembly.AddAsm("push bx");     // push what was in dx to the stack to recover later
+            assembly.AddAsm("push di");     // store di to recover later
             assembly.AddAsm("int 0x13");
             assembly.AddAsm("mov ah, dh");
             assembly.AddAsm("mov al, cl");
+            assembly.AddAsm("pop di");      // recover di
+            assembly.AddAsm("pop dx");      // recover dx
             assembly.AddAsm("pop cx");      // recover cx
-            assembly.AddAsm("mov dx, bx");  // recover dx
+            //assembly.AddAsm("mov dx, bx");  // recover dx
             assembly.AddAsm("push ax");
         }
 
@@ -175,6 +179,7 @@ namespace CPUHelper
             assembly.AddAsm("mov edx, 0x534D4150");
             assembly.AddAsm("mov ecx, 24");
             assembly.AddAsm("mov eax, 0xE820");
+            assembly.AddAsm("mov dword [es:di + 20], 1");   // make a valid ACPI 3.X entry
             assembly.AddAsm("int 0x15");
 
             assembly.AddAsm("jc DetectMemory_U2_U2_ByRef_Error");
