@@ -97,11 +97,19 @@ namespace IL2Asm.Optimizer.x86_RealMode
                         if (register.Value.Constant == reg)
                             register.Value.Reset();
                 }
+                else if (split[0] == "mul")
+                {
+                    // mul uses ax and also overwrites dx (dx is taken care of with push/pop in IL2Asm)
+                    registers["ax"].Reset();
+                    foreach (var register in registers)
+                        if (register.Value.Constant == "ax")
+                            register.Value.Reset();
+                }
                 else
                 {
                     bool madeChanges = false;
                     int start = 2;
-                    if (instruction.StartsWith("cmp")) 
+                    if (instruction.StartsWith("cmp"))
                         start = 1;
                     for (int j = start; j < split.Length; j++)
                     {

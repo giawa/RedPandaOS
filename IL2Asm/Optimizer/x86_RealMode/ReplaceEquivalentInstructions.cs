@@ -11,6 +11,11 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 var instruction = assembly[i].Trim();
                 if (instruction.StartsWith(";")) continue;
 
+                // all of these optimizations act on specific instructions of length 3 with no hex
+                // so skip this instruction if this instruction doesn't match that pattern
+                var split = instruction.Split(' ');
+                if (split.Length < 3 || split[2].StartsWith("0x")) continue;
+
                 if (instruction.StartsWith("mov ax, 0")) assembly[i] = "    xor ax, ax ;" + assembly[i];
                 if (instruction.StartsWith("mov bx, 0")) assembly[i] = "    xor bx, bx ;" + assembly[i];
                 if (instruction.StartsWith("mov cx, 0")) assembly[i] = "    xor cx, cx ;" + assembly[i];

@@ -674,9 +674,8 @@ namespace IL2Asm.Assembler.x86_RealMode
             }
             else if (size == 1)
             {
-                assembly.AddAsm("xor ax, ax");
-                if (offset == 0) assembly.AddAsm("mov al, [bx]");
-                else assembly.AddAsm($"mov al, [bx + {offset}]");
+                if (offset == 0) assembly.AddAsm("movzx ax, byte [bx]");
+                else assembly.AddAsm($"movzx ax, byte [bx + {offset}]");
             }
             else throw new Exception("Unsupported type");
             assembly.AddAsm("push ax");
@@ -921,8 +920,8 @@ namespace IL2Asm.Assembler.x86_RealMode
                     assembly.AddAsm("lea bx, [bx + si]");
                     //assembly.AddAsm("mov bx, ax");
                     if (localVarNames.Contains("si")) assembly.AddAsm("mov si, ax");  // recover si
-                    assembly.AddAsm("xor ax, ax");
-                    assembly.AddAsm("mov al, [bx]");
+                    //assembly.AddAsm("xor ax, ax");
+                    assembly.AddAsm("movzx ax, byte [bx]");
                     //assembly.AddAsm("and ax, 255");
                     assembly.AddAsm("push ax");
                 }
