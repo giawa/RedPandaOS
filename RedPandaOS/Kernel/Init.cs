@@ -11,23 +11,31 @@ namespace Kernel
     {
         private const string _welcomeMessage = "Hello from C#!";
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SMAP_entry
-        {
-            public uint BaseL;
-            public uint BaseH;
-            public uint LengthL;
-            public uint LengthH;
-            public uint Type;
-            public uint ACPI;
-        }
-
-        private static SMAP_entry _entry;
+        //private static SMAP_entry _entry;
         private static CPU.CPUIDValue cpuId;
 
         static void EmptyIrq()
         {
 
+        }
+
+        private static void InitializePaging()
+        {
+            // mark unavailable chunks of memory as 'used' in the page allocator
+            uint entries = CPU.ReadMemShort(0x500);
+
+            List<Memory.SMAP_Entry> freeMemory = new List<Memory.SMAP_Entry>();
+
+            for (uint i = 0; i < entries; i++)
+            {
+                Memory.SMAP_Entry entry = Memory.Utilities.PtrToObject<Memory.SMAP_Entry>(0x504 + 24 * i);
+                if ((entry.Type & 1) == 1) freeMemory.Add(entry);
+            }
+
+            // when initializing page we set up how many frames we will make available (each frame must be mapped somewhere in memory)
+            // to start we'll support up to 64MiB of memory, which requires an 2kiB allocation of frames
+            int frameCount = 64 * 1024 * 1024 / 4096;
+            Memory.Paging.InitializePaging(frameCount, freeMemory);    // loads the entire kernel + heap into paging
         }
 
         static void Start()
@@ -47,7 +55,7 @@ namespace Kernel
             //VGA.WriteString(_welcomeMessage, 0x0700);
             //VGA.WriteLine();
 
-            Memory.Paging.InitializePaging(256);    // loads the entire kernel + heap into paging
+            InitializePaging();
 
             IO.Filesystem.Init();
             PCI.ScanBus();
@@ -55,7 +63,9 @@ namespace Kernel
 
             //Logging.WriteLine(LogLevel.Warning, "Using {0} bytes of memory", Memory.SplitBumpHeap.Instance.UsedBytes);
             //Logging.WriteLine(LogLevel.Warning, "Found {0} PCI devices", (uint)PCI.Devices.Count);
+
             
+
 
             Applications.terminal terminal = new Applications.terminal();
             terminal.Run(IO.Filesystem.Root.Directories[0]);
@@ -104,12 +114,6 @@ namespace Kernel
             }
 
             return true;
-        }
-
-        public static void CopyTo(uint source, ref SMAP_entry destination, int size)
-        {
-            for (int i = 0; i < size; i++)
-                CPU.CopyByte<SMAP_entry>(source, (uint)i, ref destination, (uint)i);
         }
 
         public static void PrintFloat(float f)

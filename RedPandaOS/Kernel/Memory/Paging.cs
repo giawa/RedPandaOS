@@ -76,7 +76,21 @@ namespace Kernel.Memory
         private static BitArray _frames;
         private static PageDirectory _kernelDirectory, _currentDirectory;
 
-        public static void InitializePaging(int frameCount)
+        private static void MarkFramesUnavailable(int frameCount, List<SMAP_Entry> freeMemory)
+        {
+            for (int i = 0; i < frameCount; i++)
+            {
+                bool isAvailable = false;
+                for (int j = 0; j < freeMemory.Count && !isAvailable; j++)
+                {
+                    if (freeMemory[j].ContainsFrame((uint)i)) isAvailable = true;
+                }
+
+                if (!isAvailable) _frames[i] = true;
+            }
+        }
+
+        public static void InitializePaging(int frameCount, List<SMAP_Entry> freeMemory)
         {
             if (_frames != null)
             {
@@ -92,7 +106,7 @@ namespace Kernel.Memory
 
             uint addr = 0;
 
-            while (addr < 0xFFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
+            while (addr < 0xBFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
             {
                 var page = GetPage(addr, true, _kernelDirectory);
                 var result = AllocateFrame(page, true, true);
@@ -105,6 +119,7 @@ namespace Kernel.Memory
             }
 
             SwitchPageDirectory(_kernelDirectory);
+            MarkFramesUnavailable(frameCount, freeMemory);
         }
 
         private static Page _emptyPage = new Page();
