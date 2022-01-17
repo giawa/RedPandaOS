@@ -580,6 +580,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                         Branch(i + _int, assembly, pe.Metadata, "jne", "jne");
                         break;
 
+                    // BLT.UN
+                    case 0x44:
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+                        Branch(i + _int, assembly, pe.Metadata, "jnge", "jnge");
+                        break;
+
                     // SWITCH
                     case 0x45:
                         var defaultLabel = $"IL_{(i - 1).ToString("X4")}_{assembly.MethodCounter}_Default";
