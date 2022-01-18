@@ -15,6 +15,7 @@ namespace Bootloader
             byte disk = (byte)CPU.ReadMemShort(0x500);  // the disk as reported by the bios
             BiosUtilities.Partition partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
 
+            CPU.WriteMemory(0x500, 0);
             if (DetectMemory(0x500, 10) == 0)
             {
                 Panic("Failed to get memory map");

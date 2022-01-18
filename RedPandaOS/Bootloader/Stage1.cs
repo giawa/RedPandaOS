@@ -3,6 +3,35 @@ using IL2Asm.BaseTypes;
 
 namespace Bootloader
 {
+    static class FATStage1
+    {
+        [BootSector]
+        [RealMode(0x7C00)]
+        public static void Start()
+        {
+            // BIOS stores the disk in dl, the lowest 8 bits of dx
+            byte disk = (byte)CPU.ReadDX();
+            ushort retry = 0;
+
+            BiosUtilities.Write("Stage 1");
+
+            // store the disk and bootable partition somewhere the second stage bootloader can get to
+            CPU.WriteMemory(0x500, disk);
+            CPU.WriteMemory(0x502, 0x7DE0);
+
+            do
+            {
+                var sectorsRead = Bios.LoadDisk(0, 0, 1, 0x0900, disk, 8);
+                if (sectorsRead != 8) Bios.ResetDisk();
+                else CPU.Jump(0x9200);    // jump to first (non boot sector) reserved sector of the file system we copied over
+            } while (retry++ < 5);
+
+            BiosUtilities.Write("Disk Fail");
+
+            while (true) ;
+        }
+    }
+
     static class Stage1
     {
         // saves a few bytes by allocating them statically instead of on the stack
@@ -59,7 +88,7 @@ namespace Bootloader
                 {
                     commonVariable = Bios.LoadDisk(cylinder, head, sector, 0x0900, disk, 8);
                     if (commonVariable != 8) Bios.ResetDisk();
-                    else CPU.Jump(0x9000);    // jump to first reserved sector of the file system we copied over
+                    else CPU.Jump(0x9200);    // jump to first (non boot sector) reserved sector of the file system we copied over
                 } while (retry++ < 5);
 
                 BiosUtilities.Write("Disk");
