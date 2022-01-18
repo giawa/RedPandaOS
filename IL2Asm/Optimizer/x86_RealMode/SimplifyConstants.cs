@@ -43,7 +43,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 if (instruction.StartsWith(";")) continue;
 
                 // any time we could have jumped here then reset the register state
-                if (instruction.EndsWith(":") /*|| instruction.StartsWith("j")*/ || instruction.StartsWith("call") || instruction.StartsWith("int"))
+                if (instruction.EndsWith(":") || instruction.StartsWith("j") || instruction.StartsWith("call") || instruction.StartsWith("int"))
                 {
                     foreach (var register in registers) register.Value.Reset();
                     continue;

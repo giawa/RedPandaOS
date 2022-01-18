@@ -4,13 +4,13 @@ namespace IL2Asm.Optimizer.x86_RealMode
 {
     public class RemoveRedundantMoves
     {
-        private static char[] _split = new char[] { ' ', ';' };
-
         public static void ProcessAssembly(List<string> assembly)
         {
             for (int i = 0; i < assembly.Count - 1; i++)
             {
                 var instruction = assembly[i].Trim();
+                if (instruction.StartsWith(";")) continue;
+                if (instruction.Contains(";")) instruction = instruction.Substring(0, instruction.IndexOf(";")).Trim();
                 int j = i + 1;
                 var nextInstruction = assembly[j++].Trim();
                 while (nextInstruction.StartsWith(";")) nextInstruction = assembly[j++].Trim();
@@ -25,7 +25,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                 }
                 else if (nextInstruction.StartsWith("cmp bx,"))
                 {
-                    if (instruction.StartsWith("mov bx,") && instruction.EndsWith("x"))
+                    if (instruction.StartsWith("mov bx,") && (instruction.EndsWith("x") || instruction.EndsWith("di")))
                     {
                         assembly[i] = ";" + assembly[i];
                         string rightSide = nextInstruction.Substring(nextInstruction.IndexOf(',') + 1);
