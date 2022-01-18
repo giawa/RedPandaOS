@@ -99,6 +99,7 @@ namespace CPUHelper
             assembly.AddAsm("push cx");
             assembly.AddAsm("push dx");
             assembly.AddAsm("push es");
+            assembly.AddAsm("push di"); // di gets manipulated on some BIOS implementations
 
             // bp + 4 is sectors to read
             // bp + 6 is drive
@@ -125,6 +126,7 @@ namespace CPUHelper
             assembly.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
 
             assembly.AddAsm("LoadDisk_U2_U2_U2_U1_U1_Cleanup:");
+            assembly.AddAsm("pop di");
             assembly.AddAsm("pop es");
             assembly.AddAsm("pop dx");
             assembly.AddAsm("pop cx");
@@ -141,7 +143,8 @@ namespace CPUHelper
         [AsmPlug("CPUHelper.Bios.ResetDisk_Void", IL2Asm.BaseTypes.Architecture.X86_Real)]
         public static void ResetDisk(IAssembledMethod assembly)
         {
-            assembly.AddAsm("mov ah, 0x00; reset disk drive");
+            //assembly.AddAsm("mov ah, 0x00; reset disk drive");
+            assembly.AddAsm("xor ax, ax");  // the lower bits of ax are important on some BIOS implementations
             assembly.AddAsm("int 0x13");
         }
 
@@ -167,8 +170,7 @@ namespace CPUHelper
             assembly.AddAsm("DetectMemory_U2_U2_ByRef:");
             assembly.AddAsm("push bp");
             assembly.AddAsm("mov bp, sp");
-            assembly.AddAsm("push cx");
-            assembly.AddAsm("push dx");
+            assembly.AddAsm("pusha");
 
             // bp + 4 is SMAP_ret
             // bp + 6 is address
@@ -195,8 +197,7 @@ namespace CPUHelper
             assembly.AddAsm("mov [bx], eax");    // now we have the continuation as well
 
             assembly.AddAsm("DetectMemory_U2_U2_ByRef_Cleanup:");
-            assembly.AddAsm("pop dx");
-            assembly.AddAsm("pop cx");
+            assembly.AddAsm("popa");
             assembly.AddAsm("pop bp");
             assembly.AddAsm("ret 4");
 
@@ -215,6 +216,7 @@ namespace CPUHelper
         public static void EnableA20Asm(IAssembledMethod assembly)
         {
             // from https://wiki.osdev.org/A20_Line
+            assembly.AddAsm("pusha");
             assembly.AddAsm("mov ax, 0x2403");
             assembly.AddAsm("int 0x15");
             assembly.AddAsm("jb bios_a20_failed");
@@ -237,10 +239,12 @@ namespace CPUHelper
             assembly.AddAsm("jnz bios_a20_failed");
 
             assembly.AddAsm("bios_a20_activated:");
+            assembly.AddAsm("popa");
             assembly.AddAsm("push 1");
             assembly.AddAsm("jmp bios_a20_complete");
 
             assembly.AddAsm("bios_a20_failed:");
+            assembly.AddAsm("popa");
             assembly.AddAsm("push 0");
 
             assembly.AddAsm("bios_a20_complete:");
