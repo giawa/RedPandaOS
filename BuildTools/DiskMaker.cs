@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define MBR
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
@@ -101,15 +103,29 @@ namespace BuildTools
             using (BinaryWriter writer = new BinaryWriter(File.Open(filename, FileMode.OpenOrCreate)))
             {
                 List<byte[]> sectors = new List<byte[]>();
+
+#if MBR
                 sectors.Add(bootSector);
+#endif
 
                 while (lastDiskSector-- > 0) sectors.Add(new byte[512]);
 
                 // put the fat32 file system on to the bootable partition
                 for (int i = 0; i < filesystem.Sectors.Count; i++)
                 {
+#if MBR
                     sectors[(int)bootablePartition.FirstSectorLBA + i] = filesystem.Sectors[i];
+#else
+                    sectors[i] = filesystem.Sectors[i];
+#endif
                 }
+
+#if !MBR
+                File.ReadAllBytes("fatstage1.bin").CopyTo(sectors[0], 0x60);
+                // drop a partition entry at offset 0x1E0
+                var partition = new byte[] { 0x80, 0x00, 0x00, 0x00, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E, 0x0B, 0x00, 0x00 };
+                partition.CopyTo(sectors[0], 0x1E0);
+#endif
 
                 foreach (var sector in sectors) writer.Write(sector);
             }

@@ -19,6 +19,7 @@ namespace GiawaOS
 
             // find the Program.Main entry point
             var bootloader1 = FindEntryPoint(file, "Stage1", "Start");
+            var fatbootloader1 = FindEntryPoint(file, "FATStage1", "Start");
             var bootloader2 = FindEntryPoint(file, "Stage2", "Start");
             var methodDef32 = FindEntryPoint(file, "Init", "Start");
             var isrHandler = FindEntryPoint(file, "PIC", "IsrHandler");
@@ -44,6 +45,24 @@ namespace GiawaOS
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
+
+
+
+                assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
+                assembler16.AddAssembly(file);
+                assembler16.Assemble(file, fatbootloader1);
+
+                var fatstage1 = assembler16.WriteAssembly(0x7C60, 0);
+                IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.MergePushPop.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.x86_RealMode.SimplifyConstants.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.x86_RealMode.RemoveRedundantMoves.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(fatstage1);
+                IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(fatstage1);
+                File.WriteAllLines("fatstage1.asm", fatstage1.ToArray());
+
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
                 assembler16.AddAssembly(file);
@@ -104,6 +123,7 @@ namespace GiawaOS
                 Console.WriteLine();
                 Console.WriteLine("* Assembling OS!");
                 RunNASM("stage1.asm", "stage1.bin");
+                RunNASM("fatstage1.asm", "fatstage1.bin");
                 RunNASM("stage2.asm", "stage2.bin");
                 RunNASM("pm.asm", "pm.bin");
 
@@ -125,12 +145,14 @@ namespace GiawaOS
                 DiskMaker.PartitionInfo bootablePartition = new DiskMaker.PartitionInfo()
                 {
                     FirstSectorLBA = 2,
-                    NumberOfSectors = 32 * 1024 / 512 * 1024 - 2,   // 32MiB minus the FirstSectorLBA
+                    //NumberOfSectors = 32 * 1024 / 512 * 1024 - 2,   // 32MiB minus the FirstSectorLBA
+                    NumberOfSectors = 2878,
                     Bootable = true,
                     PartitionType = 0x0B    // FAT32 CHS/LBA
                 };
                 disk.Partitions.Add(bootablePartition);
                 DiskMaker.MakeBootableDisk(disk, "disk.bin", "stage1.bin", "stage2.bin", "pm.bin");
+                File.Copy("disk.bin", "boot.img", true);
 
                 stopwatch.Stop();
                 Console.WriteLine($"Building disk image took {stopwatch.ElapsedMilliseconds} ms");
@@ -139,7 +161,7 @@ namespace GiawaOS
                 Console.WriteLine();
                 Console.WriteLine("* Booting OS!");
                 //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
-                var qemu = Process.Start("qemu-system-x86_64", "-device piix3-ide,id=ide -drive id=disk,file=disk.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                var qemu = Process.Start("qemu-system-x86_64", "-m 48M -device piix3-ide,id=ide -drive id=disk,file=disk.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                 //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.img,if=floppy -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                 qemu.WaitForExit();
 

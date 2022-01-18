@@ -32,8 +32,11 @@ namespace BuildTools
 
             // initialize boot sector
             _sectors[0][0] = 0xE9;  // jmp
-            _sectors[0][1] = 0xFD;
-            _sectors[0][2] = 0x01;  // to 0x9200
+            _sectors[0][1] = 0x5D;  // to 0x7C60 
+            _sectors[0][2] = 0x00;  // (FAT32 boot code)
+            //_sectors[0][0] = 0xE9;  // jmp
+            //_sectors[0][1] = 0xFD;
+            //_sectors[0][2] = 0x01;  // to 0x9200
             Encoding.ASCII.GetBytes("RedPanda").CopyTo(_sectors[0], 3);
             _sectors[0][510] = 0x55;
             _sectors[0][511] = 0xAA;
