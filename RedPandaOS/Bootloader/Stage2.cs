@@ -76,7 +76,7 @@ namespace Bootloader
                 var attr = CPU.ReadMemByte((ushort)(offset + 0x0B));
                 if ((attr & 0xF8) == 0) // make sure this is a file
                 {
-                    if (HasName(offset, "kernel\0\0bin", 11))
+                    if (HasName(offset, "KERNEL  BIN", 11))
                     {
                         kernelCluster = CPU.ReadMemShort((ushort)(offset + 0x1A));
                         var kernelFileSize1 = CPU.ReadMemShort((ushort)(offset + 0x1C));
@@ -153,7 +153,7 @@ namespace Bootloader
                 if (CPU.ReadMemByte((ushort)(offset + 0x0B)) == 0x10)   // make sure this is a subdirectory
                 {
                     // look for directory with name "BOOT" followed by empty padding
-                    if (HasName(offset, "boot\0", 6))
+                    if (HasName(offset, "BOOT       ", 11))
                     {
                         bootCluster = CPU.ReadMemShort((ushort)(offset + 0x1A));
                         break;

@@ -94,18 +94,20 @@ namespace BuildTools
             var shouldBeRoot = _handler.ReserveEmptyCluster();
             var rootSector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (shouldBeRoot - 2) * _sectorsPerCluster)];
             // then populate the volume label
-            Encoding.ASCII.GetBytes("FAT32VOLUME").CopyTo(rootSector, 0);
+            Encoding.ASCII.GetBytes("PANDAVOLUME").CopyTo(rootSector, 0);
             rootSector[0x0B] = 0x08;    // volume label
 
             // create a "boot" directory in the root directory
             var bootCluster = _handler.ReserveEmptyCluster();
-            FATDirectory bootDirectory = new FATDirectory("boot", bootCluster);
+            FATDirectory bootDirectory = new FATDirectory("BOOT", bootCluster);
+            bootDirectory.DirEntry[0x0C] = 0x08;    // mark as lowercase
             bootDirectory.DirEntry.CopyTo(rootSector, 32);
 
             // find kernel.bin
             var kernelBytes = File.ReadAllBytes(filename);
-            FATFile kernelFile = new FATFile("kernel.bin", _handler, kernelBytes);
-            kernelFile.DirEntry[0x0B] = 0x05;   // system and read only flags
+            FATFile kernelFile = new FATFile("KERNEL.BIN", _handler, kernelBytes);
+            kernelFile.DirEntry[0x0B] = 0x05;       // system and read only flags
+            kernelFile.DirEntry[0x0C] = 0x18;    // mark as lowercase
             var bootSector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (bootCluster - 2) * _sectorsPerCluster)];
             kernelFile.DirEntry.CopyTo(bootSector, 0);
         }
@@ -164,13 +166,11 @@ namespace BuildTools
         {
             DirEntry = new byte[32];
 
-            string[] split = name.Split('.');
-            if (split.Length > 2) throw new Exception("Invalid filename");
-            if (split[0].Length > 8) throw new Exception("Invalid filename");
-            if (split.Length > 1 && split[1].Length > 3) throw new Exception("Invalid filename");
+            if (name.Contains(".") || name.Length > 11) throw new Exception("Invalid directory name");
 
-            Encoding.ASCII.GetBytes(split[0]).CopyTo(DirEntry, 0);
-            if (split.Length > 1) Encoding.ASCII.GetBytes(split[1]).CopyTo(DirEntry, 8);
+            name = name.PadRight(11, ' ');
+
+            Encoding.ASCII.GetBytes(name).CopyTo(DirEntry, 0);
 
             DirEntry[0x0B] = 0x10;
 
@@ -254,6 +254,9 @@ namespace BuildTools
             if (split.Length > 2) throw new Exception("Invalid filename");
             if (split[0].Length > 8) throw new Exception("Invalid filename");
             if (split.Length > 1 && split[1].Length > 3) throw new Exception("Invalid filename");
+
+            split[0] = split[0].PadRight(8, ' ');
+            split[1] = split[1].PadRight(3, ' ');
 
             Encoding.ASCII.GetBytes(split[0]).CopyTo(DirEntry, 0);
             if (split.Length > 1) Encoding.ASCII.GetBytes(split[1]).CopyTo(DirEntry, 8);
