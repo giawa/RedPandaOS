@@ -153,7 +153,7 @@ namespace Kernel.Devices
 
         public static bool InitDevice(PCI.PCIDevice device)
         {
-            Logging.WriteLine(LogLevel.Warning, "[PATA] Initializing {0} {1}", device.Device, device.Function);
+            Logging.WriteLine(LogLevel.Trace, "[PATA] Initializing {0} {1}", device.Device, device.Function);
 
             Channel channel0 = new Channel();
             Channel channel1 = new Channel();
@@ -261,9 +261,9 @@ namespace Kernel.Devices
                         ideDevice.Model[k + 1] = byteAccessibleBuffer[54 + k];
                     }
 
-                    VGA.WriteString("Model Name: ");
+                    /*VGA.WriteString("Model Name: ");
                     foreach (var c in ideDevice.Model) VGA.WriteChar(c);
-                    VGA.WriteLine();
+                    VGA.WriteLine();*/
                 }
             }
 

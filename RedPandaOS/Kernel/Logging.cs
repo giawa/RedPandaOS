@@ -16,7 +16,7 @@ namespace Kernel
 
         static Logging()
         {
-            LoggingLevel = LogLevel.Trace;
+            LoggingLevel = LogLevel.Warning;
         }
 
         public static void WriteLine(LogLevel level, string s, uint u1, uint u2 = 0, uint u3 = 0)

@@ -147,7 +147,13 @@
 
         private static void PrintPCIDevice(uint reg0, uint reg2, byte address, bool isSlot = false, bool isFunc = false)
         {
-            if (isFunc) VGA.WriteString(" |-> func 0x");
+            string format = "PCI bus 0x{0:X} {1:X}";
+            if (isFunc) format = " |->func 0x{0:X} {1:X}";
+            else if (isSlot) format = "|-> slot 0x{0:X} {1:X}";
+
+            Logging.WriteLine(LogLevel.Trace, format, address, reg2);
+
+            /*if (isFunc) VGA.WriteString(" |-> func 0x");
             else if (isSlot) VGA.WriteString("|-> slot 0x");
             else VGA.WriteString("PCI bus 0x");
 
@@ -156,7 +162,7 @@
             //VGA.WriteHex(reg0);
             //VGA.WriteVideoMemoryChar(' ');
             PrintClass(reg2);
-            VGA.WriteLine();
+            VGA.WriteLine();*/
         }
 
         private static void PrintClass(uint reg2)

@@ -20,7 +20,8 @@
             for (uint i = 0, s = 0; i < 40 && s < 10; i++)   // explore the stack up to a depth of 40 dwords
             {
                 var address = ebp + (i << 2);
-                if (address >= 0x9000) break;
+                if ((address & 0xfff) == 0) break;
+                //if (address >= 0x9000) break;
 
                 var contents = CPUHelper.CPU.ReadMemInt(ebp + (i << 2));
                 var symbol = GetSymbolName(contents);
@@ -66,7 +67,7 @@
                 AddSymbols(sector);
                 symbolsOffset += 512;
             }
-            Logging.WriteLine(LogLevel.Warning, "Done reading {0} symbols...", (uint)Exceptions.SymbolCount);
+            Logging.WriteLine(LogLevel.Trace, "Done reading {0} symbols...", (uint)Exceptions.SymbolCount);
         }
 
         public class SymbolEntry
