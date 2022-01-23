@@ -2364,10 +2364,18 @@ namespace IL2Asm.Assembler.x86.Ver2
                     else
                     {
                         var name = memberName.Replace(".", "_").Replace("<", "_").Replace(">", "_");
-                        AssembledMethod plugMethod = new AssembledMethod(assembly.Metadata, null);
-                        plugMethod.AddAsm($"{name}:");
-                        possiblePlugs[0].Invoke(null, new object[] { plugMethod });
-                        _methods.Add(plugMethod);
+                        bool methodAlreadyCompiled = false;
+                        foreach (var method in _methods)
+                            if (!string.IsNullOrEmpty(method.AsmName) && method.AsmName == name)
+                                methodAlreadyCompiled = true;
+
+                        if (!methodAlreadyCompiled)
+                        {
+                            AssembledMethod plugMethod = new AssembledMethod(assembly.Metadata, name);
+                            plugMethod.AddAsm($"{name}:");
+                            possiblePlugs[0].Invoke(null, new object[] { plugMethod });
+                            _methods.Add(plugMethod);
+                        }
                         assembly.AddAsm($"call {name}");
                     }
 
@@ -2544,25 +2552,25 @@ namespace IL2Asm.Assembler.x86.Ver2
                     var methodToCompile = QueueCompileMethod(pe, methodDef, genericOverride.Item2, methodSpec);
 
                     Call(assembly, ldftn, methodToCompile, genericOverride.Item2);
-                }
 
-                if (!ldftn)
-                {
-                    for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
-                        _stack.Pop();
-
-                    if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                    if (!ldftn)
                     {
-                        _stack.Pop();   // pop the object reference from the stack
+                        for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
+                            _stack.Pop();
+
+                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                        {
+                            _stack.Pop();   // pop the object reference from the stack
+                        }
+
+                        if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                            _stack.Push(methodDef.MethodSignature.RetType);
                     }
-
-                    if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                        _stack.Push(methodDef.MethodSignature.RetType);
-
-                    // eax and ebx may have been clobbered
-                    eaxType = null;
-                    ebxType = null;
                 }
+
+                // eax and ebx may have been clobbered
+                eaxType = null;
+                ebxType = null;
             }
             else throw new Exception("Unhandled CALL target");
         }

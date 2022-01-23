@@ -14,6 +14,7 @@ namespace IL2Asm
         public bool HasStackFrame { get; set; } = false;
         public string HeapAllocatorMethod { get; set; }
         public string ThrowExceptionMethod { get; set; }
+        public string AsmName { get; set; }
 
         public List<string> Assembly { get; private set; } = new List<string>();
 
@@ -23,6 +24,13 @@ namespace IL2Asm
             Metadata = metadata;
             MethodSpec = methodSpec;
             GenericInstSig = genericSig;
+            AsmName = method.MethodDef.ToAsmString(genericSig);
+        }
+
+        public AssembledMethod(CLIMetadata metadata, string name)
+        {
+            Metadata = metadata;
+            AsmName = name;
         }
 
         public void AddAsm(string asm)

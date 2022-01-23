@@ -18,7 +18,7 @@ namespace IL2Asm.Assembler.x86
 
             if ((!_addedISRMethods && !irqStub) || (!_addedIRQMethods && irqStub))
             {
-                AssembledMethod isrMethods = new AssembledMethod(null, null, null);
+                AssembledMethod isrMethods = new AssembledMethod(null, "ISR_STUB");
 
                 isrMethods.AddAsm($"{stubName}:");
                 isrMethods.AddAsm("pusha");
