@@ -95,7 +95,10 @@ namespace Applications
                 while (true)
                 {
                     // wait for enter key
-                    while (Keyboard.KeyQueue.Count == 0) ;
+                    while (Keyboard.KeyQueue.Count == 0)
+                    {
+                        Kernel.Scheduler.Yield();
+                    }
 
                     var key = Keyboard.KeyQueue.Dequeue();
 

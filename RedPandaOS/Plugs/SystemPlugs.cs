@@ -52,7 +52,11 @@ namespace Plugs
             uint end = start + Kernel.Devices.PIT.Frequency * (uint)milliseconds / 1000;
             if (start == end) end++;    // delay was less than the accuracy of the timer, so always wait at least 1 tick
 
-            while (Kernel.Devices.PIT.TickCount < end) ;
+            while (Kernel.Devices.PIT.TickCount < end)
+            {
+                if (Kernel.Devices.PIT.TickCount < end - 1)
+                    Kernel.Scheduler.Yield();   // since we're not doing any work yield to a different thread
+            }
         }
 
         [AsmPlug("System.Array.Clear_Void_Class_I4_I4", Architecture.X86, AsmFlags.None)]

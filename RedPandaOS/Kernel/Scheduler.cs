@@ -55,8 +55,9 @@ namespace Kernel
                 task.esp = CPUHelper.CPU.ReadESP();
                 task.ebp = CPUHelper.CPU.ReadEBP();
                 task.eip = eip;
-                CPUHelper.CPU.Sti();
+
                 Tasks.Add(task);
+                CPUHelper.CPU.Sti();
 
                 return task.Id;
             }
@@ -69,25 +70,33 @@ namespace Kernel
             }
         }
 
-        public static void Tick()//uint eip, uint esp, uint ebp)
+        public static void Yield()
         {
-            //if (Tasks == null || Tasks.Count <= 1) return;
-            if (Tasks == null) return;
+            Tick();
+        }
 
-            uint esp = CPUHelper.CPU.ReadESP();
-            uint ebp = CPUHelper.CPU.ReadEBP();
+        public static void Tick()
+        {
+            if (Tasks == null || Tasks.Count <= 1) return;
 
-            uint eip = CPUHelper.CPU.ReadEIP();
-
-            // check if we've just switched back to this task
-            if (eip == 0xdeadc0de)
+            // CurrentTask could be null if a task killed itself
+            if (CurrentTask != null)
             {
-                return;
-            }
+                uint esp = CPUHelper.CPU.ReadESP();
+                uint ebp = CPUHelper.CPU.ReadEBP();
 
-            CurrentTask.esp = esp;
-            CurrentTask.ebp = ebp;
-            CurrentTask.eip = eip;
+                uint eip = CPUHelper.CPU.ReadEIP();
+
+                // check if we've just switched back to this task
+                if (eip == 0xdeadc0de)
+                {
+                    return;
+                }
+
+                CurrentTask.esp = esp;
+                CurrentTask.ebp = ebp;
+                CurrentTask.eip = eip;
+            }
 
             // grab the next task
             LastTask = (LastTask + 1) % Tasks.Count;
