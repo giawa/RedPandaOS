@@ -44,6 +44,25 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void FastCopyDWords(uint src, uint dest, uint length)
+        {
+            for (uint i = 0; i < length; i++)
+            {
+                var data = ReadMemInt(src + (i << 2));
+                WriteMemInt(dest + (i << 2), data);
+            }
+        }
+
+        [AsmPlug("CPUHelper.CPU.FastCopyDWords_Void_U4_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void FastCopyDWordsAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop edi");
+            assembly.AddAsm("pop esi");
+            assembly.AddAsm("rep movsd");
+        }
+
+        [AsmMethod]
         public static void DisableInterrupts()
         {
 
@@ -231,6 +250,30 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static uint ReadEAX()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadEAX_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadEAXAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmMethod]
+        public static uint ReadEBX()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadEBX_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadEBXAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push ebx");
+        }
+
+        [AsmMethod]
         public static uint ReadESI()
         {
             return 0;
@@ -244,15 +287,75 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void WriteESP(uint value)
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteESP_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteESPAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop esp");
+        }
+
+        [AsmMethod]
+        public static uint ReadESP()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadESP_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void ReadESPAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push esp");
+        }
+
+        [AsmMethod]
+        public static void WriteEBP(uint value)
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteEBP_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteEBPAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ebp");
+        }
+
+        [AsmMethod]
         public static uint ReadEBP()
         {
             return 0;
+        }
+
+        [AsmMethod]
+        public static void Pop()
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.Pop_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void PopAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
         }
 
         [AsmPlug("CPUHelper.CPU.ReadEBP_U4", IL2Asm.BaseTypes.Architecture.X86)]
         private static void ReadEBPAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("push ebp");
+        }
+
+        [AsmMethod]
+        public static uint ReadEIP()
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.ReadEIP_U4", IL2Asm.BaseTypes.Architecture.X86, AsmFlags.None)]
+        private static void ReadEIPAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // EIP was the first thing on the stack in prep for ret, so pop it
+            assembly.AddAsm("push eax");// push EIP back on the stack so ret will work
+            assembly.AddAsm("push eax");// and push EIP on the stack as the return call of this method
+            assembly.AddAsm("ret");
         }
 
         [AsmMethod]
@@ -504,6 +607,18 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void Cli()
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.Cli_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void CliAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("cli");
+        }
+
+        [AsmMethod]
         public static void Sti()
         {
 
@@ -529,6 +644,19 @@ namespace CPUHelper
             assembly.AddAsm("mov eax, cr0");    // load cr0
             assembly.AddAsm("or eax, 0x80000000");  // enable page bit
             assembly.AddAsm("mov cr0, eax");    // load cr0 with the page bit now set
+        }
+
+        [AsmMethod]
+        public static void SetPageDirectoryFast(uint physicalAddresses)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.SetPageDirectoryFast_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void SetPageDirectoryFastAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");         // pop address of uint[]
+            assembly.AddAsm("mov cr3, eax");    // move address of the start of the uint[] into cr3
         }
 
         [AsmMethod]
