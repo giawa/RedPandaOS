@@ -288,7 +288,8 @@ namespace IL2Asm
 
                     foreach (var field in typeDef.Fields)
                     {
-                        size += GetTypeSize(metadata, field.Type);
+                        if (field.Type.Type == ElementType.EType.Class) size += _bytesPerRegister;
+                        else size += GetTypeSize(metadata, field.Type);
                     }
 
                     _typeSizes.Add(typeDef.FullName, size);

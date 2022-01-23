@@ -1786,6 +1786,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                     assembly.AddAsm("pop eax");
                     assembly.AddAsm($"mov word [{label}], ax");
                 }
+                else if (labelType.Type == ElementType.EType.Class)
+                {
+                    assembly.AddAsm("pop eax");
+                    assembly.AddAsm($"mov [{label}], eax");
+                }
                 else throw new Exception("Unsupported type");
             }
             else
@@ -2519,6 +2524,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                         var type = methodSpec.MemberSignature.Types[0];
                         if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
                             type = assembly.GenericInstSig.Params[0];
+                        if (type.Type == ElementType.EType.Class)
+                        {
+                            type = new ElementType(ElementType.EType.ValueType, type.Token);
+                        }
                         int size = _runtime.GetTypeSize(metadata, type);
                         assembly.AddAsm($"push {size}");
                     }
