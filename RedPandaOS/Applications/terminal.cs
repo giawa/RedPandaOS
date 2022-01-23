@@ -112,7 +112,21 @@ namespace Applications
                             cd(command);
                         else if (CompareCommand(command, "uname"))
                             uname();
-                        else VGA.WriteString("Unknown command");
+                        else if (CompareCommand(command, "stack"))
+                        {
+                            var esp = CPUHelper.CPU.ReadESP();
+                            do
+                            {
+                                VGA.WriteFormattedString("{0:X} : {1:X}", esp, CPUHelper.CPU.ReadMemInt(esp), 0);
+                                VGA.WriteLine();
+                                esp += 4;
+                            } while ((esp & 0xfff) != 0);
+                        }
+                        else
+                        {
+                            VGA.WriteString("Unknown command");
+                            VGA.WriteLine();
+                        }
                         break;
                     }
                     else if (key >= 32 && key <= 126)
