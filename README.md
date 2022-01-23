@@ -9,22 +9,22 @@ This is a place to toy around with what might be necessary to build an operating
   - ✔️ Building a few simple programs and assembling them with NASM or similar
   - ✔️ Emit asm from C# and automate the assembler process
   - ~~Modify IL interpreter to emit asm and run that instead~~
-  - (Skipped) ~~Eventually this IL interpreter should be able to self-host (even if it is way slower when done this way)~~
+  - ✔️ (Skipped) ~~Eventually this IL interpreter should be able to self-host (even if it is way slower when done this way)~~
 - Boot
-  - (Decided to go with C# only) ~~Write a simple OS in asm/C first and set up linker/etc scripts so that it can run~~
+  - ✔️ (Decided to go with C# only) ~~Write a simple OS in asm/C first and set up linker/etc scripts so that it can run~~
   - ✔️ Create C# attributes or other tech to enable C# and the modified interpreter to emit asm that can be assembled into a bootable image
-  - (We're C# and asm all the way) ~~Utilize C where necessary, but target rewriting in C#~~
+  - ✔️ (We're C# and asm all the way) ~~Utilize C where necessary, but target rewriting in C#~~
 - Basic
   - ✔️ Interrupts
   - ✔️ Paging
-  - Multitasking
+  - ✔️ Multitasking
 - Drivers
   - ✔️ Keyboard
   - Mouse
   - ✔️ Text mode
   - VGA
   - Network
-  - ✔️ Storage (PATA, ATAPI, SATA)
+  - ✔️ Storage (✔️ PATA, ATAPI, SATA, NVMe)
   - File system (exFAT, FAT32?)
   - USB
 
