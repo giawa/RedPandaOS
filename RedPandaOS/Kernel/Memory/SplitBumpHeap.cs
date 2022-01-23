@@ -145,6 +145,40 @@ namespace Kernel.Memory
             for (uint i = 0; i < 95; i++) _memory.Add(new PageAlignedHeap(_startAddress + i * 4096));
         }
 
+        private uint MallocLarge(uint size, uint init = 0)
+        {
+            uint subsequentPages = (size >> 12) + 1;
+
+            for (int i = 0; i < _memory.Count; i++)
+            {
+                // we only do large allocations across full pages
+                if (_memory[i].Available == 4096)
+                {
+                    uint consecutive = 1;
+
+                    for (int j = i + 1; j < _memory.Count && consecutive < subsequentPages; j++)
+                    {
+                        if (_memory[j].Available != 4096) break;
+
+                        consecutive++;
+                    }
+
+                    // if we found a large enough contiguous region then mark all of those pages as taken
+                    if (consecutive >= subsequentPages)
+                    {
+                        var addr = _memory[i].Malloc(4096);
+                        for (int j = 1; j < (int)subsequentPages; j++)
+                        {
+                            _memory[i + j].Malloc(4096);
+                        }
+                        return addr;
+                    }
+                }
+            }
+
+            return uint.MaxValue;
+        }
+
         [Allocator]
         public uint Malloc(uint size, uint init = 0)
         {
@@ -156,6 +190,8 @@ namespace Kernel.Memory
                 size &= 0xfffffffc;
                 size += 4;
             }
+
+            if (size > 4096) return MallocLarge(size, init);
 
             for (int i = 0; i < _memory.Count; i++)
             {
