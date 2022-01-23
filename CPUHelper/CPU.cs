@@ -219,6 +219,17 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void Halt()
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.Halt_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void HaltAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("hlt");
+        }
+
+        [AsmMethod]
         public static ushort ReadDX()
         {
             return 0;

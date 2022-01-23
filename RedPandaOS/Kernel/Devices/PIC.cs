@@ -119,6 +119,11 @@ namespace Kernel.Devices
 
                 while (true) ;
             }
+
+            if (int_no == 32)
+            {
+                Scheduler.Tick();
+            }
         }
 
 #pragma warning disable CS0649
