@@ -8,41 +8,41 @@ namespace Kernel.Memory
     {
         public uint Layout;
 
-        public bool Present 
-        { 
-            get { return (Layout & 0x01) != 0; } 
+        public bool Present
+        {
+            get { return (Layout & 0x01) != 0; }
             set { Layout = (Layout & ~0x01U) | (value ? 0x01U : 0x00U); }
         }
 
-        public bool ReadWrite 
-        { 
+        public bool ReadWrite
+        {
             get { return (Layout & 0x02) != 0; }
             set { Layout = (Layout & ~0x02U) | (value ? 0x02U : 0x00U); }
         }
 
-        public bool User 
-        { 
+        public bool User
+        {
             get { return (Layout & 0x04) != 0; }
             set { Layout = (Layout & ~0x04U) | (value ? 0x04U : 0x00U); }
         }
 
-        public bool Accessed 
-        { 
+        public bool Accessed
+        {
             get { return (Layout & 0x08) != 0; }
             set { Layout = (Layout & ~0x08U) | (value ? 0x08U : 0x00U); }
         }
 
-        public bool Dirty 
-        { 
+        public bool Dirty
+        {
             get { return (Layout & 0x10) != 0; }
             set { Layout = (Layout & ~0x10U) | (value ? 0x10U : 0x00U); }
         }
 
         public byte Unused { get { return (byte)((Layout >> 5) & 0x7f); } }
 
-        public uint Frame 
-        { 
-            get { return Layout >> 12; } 
+        public uint Frame
+        {
+            get { return Layout >> 12; }
             set { Layout = (Layout & 0x00000fffU) | (value << 12); }
         }
     }
@@ -220,6 +220,11 @@ namespace Kernel.Memory
             MarkFramesUnavailable(frameCount, freeMemory);
         }
 
+        public static void Draw()
+        {
+            _frames.Draw();
+        }
+
         private static Page _emptyPage = new Page();
 
         public static Page GetPage(uint address, bool make, PageDirectory dir)
@@ -302,9 +307,29 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-                Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
+            //Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
 
-            while (true) ;
+            if (addr >= 0xA00000 && addr <= 0xAFFFFF)
+            {
+                addr = 0;
+                while (addr < 0xFFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
+                {
+                    var page = GetPage(0xA00000U | addr, true, _kernelDirectory);
+                    var result = AllocateFrame(page, (addr >> 12), true, true);
+                    if (result == -1)
+                    {
+                        Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
+                        while (true) ;
+                    }
+                    addr += 0x1000U;
+                }
+            }
+            else
+            {
+                //Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
+
+                while (true) ;
+            }
         }
     }
 }
