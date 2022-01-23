@@ -76,6 +76,102 @@ namespace Kernel.Memory
         private static BitArray _frames;
         private static PageDirectory _kernelDirectory, _currentDirectory;
 
+        public static PageDirectory KernelDirectory { get { return _kernelDirectory; } }
+
+        public static PageDirectory CurrentDirectory { get { return _currentDirectory; } set { _currentDirectory = value; } }
+
+        public static PageDirectory CloneDirectory(PageDirectory original)
+        {
+            PageDirectory clone = new PageDirectory();
+
+            for (int i = 0; i < 1024; i++)
+            {
+                if (original.PageTables[i] == null) continue;
+
+                if (_kernelDirectory.PageTables[i] == original.PageTables[i])
+                {
+                    clone.PageTables[i] = _kernelDirectory.PageTables[i];
+                    clone.TableAddresses[i] = _kernelDirectory.TableAddresses[i];
+                }
+                else
+                {
+                    uint newTableAddress = KernelHeap.KernelAllocator.MallocPageAligned(4096);
+                    PageTable newTable = Utilities.PtrToObject<PageTable>(newTableAddress);
+                    CopyTable(original.PageTables[i], newTable);
+                    clone.PageTables[i] = newTable;
+                    clone.TableAddresses[i] = newTableAddress | 0x7U;
+                }
+            }
+
+            return clone;
+        }
+
+        private static PageTable CopyTable(PageTable source, PageTable destination)
+        {
+            for (uint i = 0; i < 1024; i++)
+            {
+                var page = source.GetPage(i);
+                if (page == null) continue;
+
+                AllocateFrame(destination.GetPage(i), false, false);
+                // copy the flags from destination to source
+                var layout = destination.GetPage(i).Layout & 0xfffff000U;
+                destination.GetPage(i).Layout = layout | (page.Layout & 0xfffU);
+
+                CopyPage(source.GetPage(i).Frame * 0x1000, destination.GetPage(i).Frame * 0x1000);
+            }
+
+            return destination;
+        }
+
+        [IL2Asm.BaseTypes.AsmMethod]
+        private static void CopyPage(uint source, uint destination)
+        {
+
+        }
+
+        [IL2Asm.BaseTypes.AsmPlug("Kernel_Memory_Paging_CopyPage_Void_U4_U4", IL2Asm.BaseTypes.Architecture.X86, IL2Asm.BaseTypes.AsmFlags.None)]
+        private static void CopyPageAsm(IL2Asm.BaseTypes.IAssembledMethod assembly)
+        {
+            assembly.AddAsm("push ecx");
+            assembly.AddAsm("push esi");
+            assembly.AddAsm("push edi");
+            assembly.AddAsm("pushf");
+            assembly.AddAsm("cli");
+            assembly.AddAsm("mov esi, [esp + 24]"); // source address
+            assembly.AddAsm("mov edi, [esp + 20]"); // destination address
+
+            assembly.AddAsm("mov edx, cr0");
+            assembly.AddAsm("and edx, 0x7fffffff"); // clear paging bit
+            assembly.AddAsm("mov cr0, edx");        // disable paging
+
+            assembly.AddAsm("mov ecx, 1024");
+            assembly.AddAsm("rep movsd");
+
+            assembly.AddAsm("mov edx, cr0");
+            assembly.AddAsm("or edx, 0x80000000");  // enable paging bit
+            assembly.AddAsm("mov cr0, edx");        // enable paging
+
+            assembly.AddAsm("popf");
+            assembly.AddAsm("pop edi");
+            assembly.AddAsm("pop esi");
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("ret 8");   // pop the source and destination arguments
+        }
+
+        [IL2Asm.BaseTypes.AsmMethod]
+        public static void FlushTLB()
+        {
+
+        }
+
+        [IL2Asm.BaseTypes.AsmPlug("Kernel_Memory_Paging_FlushTLB_Void", IL2Asm.BaseTypes.Architecture.X86, IL2Asm.BaseTypes.AsmFlags.Inline)]
+        private static void FlushTLBAsm(IL2Asm.BaseTypes.IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov eax, cr3");
+            assembly.AddAsm("mov cr3, eax");
+        }
+
         private static void MarkFramesUnavailable(int frameCount, List<SMAP_Entry> freeMemory)
         {
             for (int i = 0; i < frameCount; i++)
@@ -118,7 +214,9 @@ namespace Kernel.Memory
                 addr += 0x1000U;
             }
 
+            //_currentDirectory = CloneDirectory(_kernelDirectory);
             SwitchPageDirectory(_kernelDirectory);
+
             MarkFramesUnavailable(frameCount, freeMemory);
         }
 
@@ -144,6 +242,13 @@ namespace Kernel.Memory
                 return newTable.GetPage(address & 0x3ff);
             }
             else return _emptyPage;
+        }
+
+        public static void SwitchPageDirectoryFast(PageDirectory dir)
+        {
+            _currentDirectory = dir;
+
+            CPUHelper.CPU.SetPageDirectoryFast(dir.PhysicalAddress);
         }
 
         public static void SwitchPageDirectory(PageDirectory dir)
