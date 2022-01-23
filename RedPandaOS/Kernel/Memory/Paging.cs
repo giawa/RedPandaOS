@@ -1,6 +1,7 @@
 ﻿using Kernel.Devices;
 using System.Runtime.InteropServices;
 using Runtime.Collections;
+using System;
 
 namespace Kernel.Memory
 {
@@ -52,7 +53,7 @@ namespace Kernel.Memory
         public Page GetPage(uint num)
         {
             var baseAddr = Utilities.ObjectToPtr(this);
-            baseAddr += num * (uint)Marshal.SizeOf<Page>();
+            baseAddr += num * (uint)Marshal.SizeOf<IntPtr>();
             return Utilities.PtrToObject<Page>(baseAddr);
         }
     }
@@ -60,14 +61,52 @@ namespace Kernel.Memory
     public class PageDirectory
     {
         public uint PhysicalAddress;
-        public FixedArray<PageTable> PageTables;
+        public FixedArrayPtr<PageTable> PageTables;
         public FixedArray<uint> TableAddresses;
 
         public PageDirectory()
         {
-            PageTables = new FixedArray<PageTable>(1024, 1);
+            PageTables = new FixedArrayPtr<PageTable>(1024, 1);
             TableAddresses = new FixedArray<uint>(1024, 1);
             PhysicalAddress = TableAddresses.AddressOfArray;
+        }
+
+        public void Free()
+        {
+            for (int i = 0; i < 1024; i++)
+            {
+                if (PageTables[i] == null) continue;
+
+                if (Paging.KernelDirectory.PageTables[i] == PageTables[i]) continue;
+                else
+                {
+                    FreeTable(PageTables[i]);
+                }
+            }
+
+            if (PageTables != null) PageTables.Free();
+            if (TableAddresses != null) TableAddresses.Free();
+
+            if (PageTables != null) KernelHeap.KernelAllocator.Free(Utilities.ObjectToPtr(PageTables), 8);
+            if (TableAddresses != null) KernelHeap.KernelAllocator.Free(Utilities.ObjectToPtr(TableAddresses), 8);
+
+            PageTables = null;
+            TableAddresses = null;
+            PhysicalAddress = 0;
+        }
+
+        private void FreeTable(PageTable pageTable)
+        {
+            for (uint i = 0; i < 1024; i++)
+            {
+                var page = pageTable.GetPage(i);
+                if (page == null) continue;
+
+                Paging.FreeFrame(pageTable.GetPage(i));
+            }
+
+            // finally free the page table that was allocated
+            KernelHeap.KernelAllocator.Free(Utilities.ObjectToPtr(pageTable), 4096);
         }
     }
 

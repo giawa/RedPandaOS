@@ -10,6 +10,23 @@
             _array = new uint[Math32.Ceiling(capacity, 32)];
         }
 
+        public void Draw()
+        {
+            for (int i = 0; i < _array.Length; i++)
+            {
+                if (_array[i] == 0) Kernel.Devices.VGA.WriteChar('0');
+                else if (_array[i] == 0xffffffffU) Kernel.Devices.VGA.WriteChar('F');
+                else
+                {
+                    int count = 0;
+                    for (int j = 0; j < 32; j++)
+                        if (((_array[i] >> j) & 0x01) != 0) count++;
+                    count = count >> 1;
+                    Kernel.Devices.VGA.WriteChar('0' + count);
+                }
+            }
+        }
+
         public bool this[int index]
         {
             get
