@@ -1,5 +1,6 @@
 ﻿using Kernel.Devices;
 using Runtime.Collections;
+using System.Runtime.InteropServices;
 
 namespace Kernel
 {
@@ -38,6 +39,40 @@ namespace Kernel
 
             // re-enable interrupts
             CPUHelper.CPU.Sti();
+        }
+
+        public static void Kill(uint id)
+        {
+            int index = -1;
+
+            for (int i = 0; i < Tasks.Count; i++)
+                if (Tasks[i].Id == id) index = i;
+
+            if (index != -1)
+            {
+                var task = Tasks[index];
+
+                // need to stop interrupts here since once we start cleaning up we must finish
+                CPUHelper.CPU.Cli();
+                Tasks.RemoveAt(index);
+
+                task.pageDirectory.Free();
+
+                Memory.KernelHeap.KernelAllocator.Free(task.pageDirectory);
+                Memory.KernelHeap.KernelAllocator.Free(task);
+
+                // if we're currently in the killed task then halt and wait for the schedule to pick this up
+                if (CurrentTask.Id == id)
+                {
+                    CurrentTask = null;
+                    CPUHelper.CPU.Sti();
+                    CPUHelper.CPU.Halt();
+                }
+                else
+                {
+                    CPUHelper.CPU.Sti();
+                }
+            }
         }
 
         public static uint Fork()
