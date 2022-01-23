@@ -137,12 +137,19 @@ namespace Kernel.Memory
 
         private List<PageAlignedHeap> _memory;
 
-        private uint _startAddress = 0x21000;
+        private uint _startAddress = 0x61000;
 
         private SplitBumpHeap()
         {
-            _memory = new List<PageAlignedHeap>(95);
-            for (uint i = 0; i < 95; i++) _memory.Add(new PageAlignedHeap(_startAddress + i * 4096));
+            _memory = new List<PageAlignedHeap>(100);
+            // allocate the first chunk of memory that is guaranteed available
+            for (uint i = 0; i < 31; i++) _memory.Add(new PageAlignedHeap(_startAddress + i * 4096));
+            //for (uint i = 0; i < 95; i++) _memory.Add(new PageAlignedHeap(_startAddress + i * 4096));
+        }
+
+        public void ExpandHeap(uint address, uint pages)
+        {
+            for (uint i = 0; i < pages; i++) _memory.Add(new PageAlignedHeap(address + i * 4096));
         }
 
         private uint MallocLarge(uint size, uint init = 0)
@@ -158,6 +165,7 @@ namespace Kernel.Memory
 
                     for (int j = i + 1; j < _memory.Count && consecutive < subsequentPages; j++)
                     {
+                        if (_memory[j].Address != _memory[i].Address + 4096) break;
                         if (_memory[j].Available != 4096) break;
 
                         consecutive++;
@@ -237,11 +245,13 @@ namespace Kernel.Memory
             return addr;
         }
 
+        public void Free<T>(T obj)
+        {
+            Free(Utilities.ObjectToPtr(obj), (uint)Marshal.SizeOf<T>());
+        }
+
         public void Free(uint addr, uint size)
         {
-            var internalAddress = (addr - _startAddress) >> 12;
-            if (internalAddress >= (uint)_memory.Count) throw new ArgumentOutOfRangeException("Invalid address");
-
             // make sure we're always allocating word aligned
             if ((size & 0x03) != 0)
             {
@@ -251,12 +261,22 @@ namespace Kernel.Memory
 
             if (size > 4096) throw new ArgumentOutOfRangeException("Invalid size");
 
-            var page = _memory[(int)internalAddress];
-            var offset = addr & 0xfff;
+            for (int i = 0; i < _memory.Count; i++)
+            {
+                var page = _memory[i];
 
-            page.Free(offset, size);
+                if (page.Address <= addr && page.Address + 4096 > addr)
+                {
+                    var offset = addr & 0xfff;
 
-            Logging.WriteLine(LogLevel.Trace, "[SBH] Freeing {0} bytes at 0x{1:X}", size, addr);
+                    page.Free(offset, size);
+
+                    Logging.WriteLine(LogLevel.Trace, "[SBH] Freeing {0} bytes at 0x{1:X}", size, addr);
+                    return;
+                }
+            }
+
+            throw new Exception("Invalid address");
         }
 
         public void Free<T>(T[] array)

@@ -11,7 +11,7 @@ namespace Kernel.Memory
 
         static KernelHeap()
         {
-            if (_addr == 0) _addr = 0x20000;    // the start of the kernel heap
+            if (_addr == 0) _addr = 0x60000;    // the start of the kernel heap
             KernelAllocator = SplitBumpHeap.Instance;
         }
 
@@ -28,7 +28,7 @@ namespace Kernel.Memory
         {
             // it's possible the static constructor gets called after other things trying to malloc
             // so check for the case where the address is still zero and the constructor hasn't been called
-            if (_addr == 0) _addr = 0x20000;
+            if (_addr == 0) _addr = 0x60000;
 
             if ((_addr & 0x03) != 0)
             {
@@ -45,13 +45,18 @@ namespace Kernel.Memory
             var addr = _addr;
             _addr += size;
 
-            if (_addr >= 0x21000)
+            if (_addr >= 0x61000)
             {
                 Logging.WriteLine(LogLevel.Panic, "[KernelHeap] Out of memory");
                 while (true) ;
             }
 
             return addr;
+        }
+
+        public static void ExpandHeap(uint address, uint pages)
+        {
+            if (KernelAllocator != null) KernelAllocator.ExpandHeap(address, pages);
         }
     }
 }
