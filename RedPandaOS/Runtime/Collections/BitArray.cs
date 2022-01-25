@@ -27,17 +27,27 @@
             }
         }
 
+        public int Length { get { return _array.Length; } }
+
         public bool this[int index]
         {
             get
             {
-                uint t = _array[index >> 5];
+                int arrayIndex = index >> 5;
+                if (arrayIndex < 0 || arrayIndex >= _array.Length)
+                    throw new System.ArgumentOutOfRangeException("Index was out of range");
+
+                uint t = _array[arrayIndex];
                 int i = index & 0x1f;
                 return ((t >> i) & 0x01) != 0;
             }
             set
             {
-                uint t = _array[index >> 5];
+                int arrayIndex = index >> 5;
+                if (arrayIndex < 0 || arrayIndex >= _array.Length)
+                    throw new System.ArgumentOutOfRangeException("Index was out of range");
+
+                uint t = _array[arrayIndex];
                 int i = index & 0x1f;
 
                 if (value) t |= (1U << i);

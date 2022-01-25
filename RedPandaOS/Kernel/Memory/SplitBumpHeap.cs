@@ -81,7 +81,7 @@ namespace Kernel.Memory
                     for (uint i = 3; i < 35; i++)
                         CPU.WriteMemInt(this.Address + (i << 2), 0);
                     //Array.Clear(Used._array, 0, Used._array.Length);
-                    
+
                     for (int i = 0; i < 140 / 4; i++) Used[i] = true;
                     Available = 4096 - 140;
                 }
@@ -100,7 +100,7 @@ namespace Kernel.Memory
                     bool works = true;
                     for (int i = newAddr; i < newAddr + (int)(size >> 2); i++)
                     {
-                        if (Used[i])
+                        if (i >= (Used.Length << 5) || Used[i])
                         {
                             works = false;
                             newAddr = i;
@@ -120,7 +120,7 @@ namespace Kernel.Memory
                     return (uint)newAddr * 4 + Address;
                 }
 
-                return 0;
+                return uint.MaxValue;
             }
         }
 
@@ -206,8 +206,9 @@ namespace Kernel.Memory
                 if (_memory[i].Available >= size)
                 {
                     addr = _memory[i].Malloc(size);
-                    if (addr == 0) continue;    // if we failed to allocate then try the next page
-                    break;
+
+                    if (addr == uint.MaxValue) continue;    // if we failed to allocate then try the next page
+                    else break;
                 }
             }
 
@@ -231,6 +232,7 @@ namespace Kernel.Memory
                 if (_memory[i].Available >= 4096)
                 {
                     addr = _memory[i].Malloc(size);
+                    if (addr == uint.MaxValue) throw new Exception("Could not allocated page?");
                     break;
                 }
             }
