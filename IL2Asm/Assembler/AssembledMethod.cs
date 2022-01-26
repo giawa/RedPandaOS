@@ -77,17 +77,11 @@ namespace IL2Asm
             return Method?.MethodDef?.ToAsmString() ?? "Unknown Method";
         }
 
-        private int _methodCounter = 0;
+        private static int _uniqueLabelCounter = 0;
 
         public string GetUniqueLabel(string name)
         {
-            if (_methodCounter == 0)
-            {
-                Runtime.GlobalMethodCounter++;
-                _methodCounter = Runtime.GlobalMethodCounter;
-            }
-
-            return $"{name.ToUpperInvariant()}_{_methodCounter}";
+            return $"{name.ToUpperInvariant()}_{_uniqueLabelCounter++}";
         }
     }
 }
