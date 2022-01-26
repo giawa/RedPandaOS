@@ -42,7 +42,7 @@ namespace Kernel.IO
                     string result = path[0];
                     for (int i = 1; i < path.Count; i++)
                     {
-                        result += path[i];
+                        result = path[i] + result;
                     }
 
                     return result;

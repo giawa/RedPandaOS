@@ -88,5 +88,13 @@ namespace Kernel.Memory
             assembly.AddAsm($"; StructToPtr nop");
         }
 
+        public static T Clone<T>(T original, uint size) where T : class
+        {
+            var addr = KernelHeap.Malloc(size);
+
+            CPUHelper.CPU.FastCopyBytes(ObjectToPtr(original), addr, size);
+
+            return PtrToObject<T>(addr);
+        }
     }
 }
