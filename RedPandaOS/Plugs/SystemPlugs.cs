@@ -30,10 +30,14 @@ namespace Plugs
         [AsmPlug("System.Action`1.Invoke_Void_Var", Architecture.X86)]
         private static void ActionInvoke1Asm(IAssembledMethod assembly)
         {
+            var skipLabel = assembly.GetUniqueLabel("skip_push");
             assembly.AddAsm("pop edi"); // pop the arg
             assembly.AddAsm("pop eax"); // pop the action
             assembly.AddAsm("mov ebx, [eax + 4]");  // grab the object we're calling this on
+            assembly.AddAsm("cmp ebx, 0");
+            assembly.AddAsm($"je {skipLabel}");
             assembly.AddAsm("push ebx");    // push the object
+            assembly.AddAsm($"{skipLabel}:");
             assembly.AddAsm("push edi");    // push the arg again
             assembly.AddAsm("call [eax]");
         }
