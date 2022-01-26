@@ -44,6 +44,20 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void FastCopyBytes(uint src, uint dest, uint length)
+        {
+        }
+
+        [AsmPlug("CPUHelper.CPU.FastCopyBytes_Void_U4_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void FastCopyBytesAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop edi");
+            assembly.AddAsm("pop esi");
+            assembly.AddAsm("rep movsb");
+        }
+
+        [AsmMethod]
         public static void FastCopyDWords(uint src, uint dest, uint length)
         {
             for (uint i = 0; i < length; i++)

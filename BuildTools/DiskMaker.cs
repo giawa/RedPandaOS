@@ -85,7 +85,7 @@ namespace BuildTools
 
             Console.WriteLine($"Stage 2 is using {stage2Bytes.Length / (512.0 * 7) * 100}% of available space.");
             var pmBytes = File.ReadAllBytes(kernel).Length;
-            Console.WriteLine($"Kernel is using {pmBytes / 512 + 1} sectors ({(pmBytes / 90112.0) * 100}%).");
+            Console.WriteLine($"Kernel is using {pmBytes / 512 + 1} sectors ({(pmBytes / 352256.0) * 100}%).");
 
             int toCopy = stage2Bytes.Length;
             int offset = 0;
