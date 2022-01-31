@@ -8,16 +8,15 @@ namespace Plugs
         [AsmPlug("System.Char.ToString_String", Architecture.X86)]
         private static void CharToStringAsm(IAssembledMethod assembly)
         {
-            assembly.AddAsm("push 12"); // 8 bytes for array metadata, then 2 bytes for char and 2 bytes for null termination
+            assembly.AddAsm("push 10"); // 8 bytes for array metadata, then 2 bytes for char
             assembly.AddAsm("push 0");
             assembly.AddAsm($"call {assembly.HeapAllocatorMethod}");
             // the array is now in eax
-            assembly.AddAsm("mov dword [eax], 2");      // the array length of 2
+            assembly.AddAsm("mov dword [eax], 1");      // the array length of 1
             assembly.AddAsm("mov dword [eax + 4], 2");  // the size per element of 2
             assembly.AddAsm("pop ebx");                 // the contents to put in the array
             assembly.AddAsm("mov ebx, [ebx]");          // place the contents in the array
             assembly.AddAsm("mov [eax + 8], bx");       // place the contents in the array
-            assembly.AddAsm("mov word [eax + 10], 0");  // null terminate the string
             assembly.AddAsm("push eax");                // push the resulting 'string' object back on to the stack
         }
 
