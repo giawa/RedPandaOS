@@ -73,6 +73,11 @@ namespace IL2Asm.Assembler.x86_RealMode
                         localVarNames.Add("di");
                         if (_methods.Count > 1) assembly.AddAsm($"push {localVarNames[2]}");
                     }
+                    /*if (localVarCount > 3)
+                    {
+                        localVarNames.Add("si");
+                        if (_methods.Count > 1) assembly.AddAsm($"push {localVarNames[3]}");
+                    }*/
                 }
             }
 
@@ -913,13 +918,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                 if (memberName == "System.String.get_Chars_Char_I4")
                 {
                     assembly.AddAsm("; System.String.get_Chars plug");
-                    if (localVarNames.Contains("si")) assembly.AddAsm("mov ax, si");
+                    ///*if (localVarNames.Contains("si"))*/ assembly.AddAsm("mov ax, si");
                     assembly.AddAsm("pop si");  // pop index
                     assembly.AddAsm("pop bx");  // pop this
                     //assembly.AddAsm("add ax, bx");
                     assembly.AddAsm("lea bx, [bx + si]");
                     //assembly.AddAsm("mov bx, ax");
-                    if (localVarNames.Contains("si")) assembly.AddAsm("mov si, ax");  // recover si
+                    ///*if (localVarNames.Contains("si"))*/ assembly.AddAsm("mov si, ax");  // recover si
                     //assembly.AddAsm("xor ax, ax");
                     assembly.AddAsm("movzx ax, byte [bx]");
                     //assembly.AddAsm("and ax, 255");
