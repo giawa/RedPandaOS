@@ -91,7 +91,7 @@ namespace Plugs
         [CSharpPlug("System.String.Concat_String_String_String_String")]
         private static string StringConcat3(string s1, string s2, string s3)
         {
-            char[] concat = new char[s1.Length + s2.Length + s3.Length + 1];
+            char[] concat = new char[s1.Length + s2.Length + s3.Length];
             for (int i = 0; i < s1.Length; i++) concat[i] = s1[i];
             for (int i = 0; i < s2.Length; i++) concat[i + s1.Length] = s2[i];
             for (int i = 0; i < s3.Length; i++) concat[i + s1.Length + s2.Length] = s3[i];
@@ -103,7 +103,7 @@ namespace Plugs
         [CSharpPlug("System.String.Concat_String_String_String")]
         private static string StringConcat2(string s1, string s2)
         {
-            char[] concat = new char[s1.Length + s2.Length + 1];
+            char[] concat = new char[s1.Length + s2.Length];
             for (int i = 0; i < s1.Length; i++) concat[i] = s1[i];
             for (int i = 0; i < s2.Length; i++) concat[i + s1.Length] = s2[i];
 
@@ -115,7 +115,7 @@ namespace Plugs
         private static int StringLength(string s1)
         {
             // the array is one element longer than the string due to the null termination
-            return (int)CPUHelper.CPU.ReadMemInt(Kernel.Memory.Utilities.ObjectToPtr(s1)) - 1;
+            return (int)CPUHelper.CPU.ReadMemInt(Kernel.Memory.Utilities.ObjectToPtr(s1));
         }
 
         [AsmPlug("System.String.get_Chars_Char_I4", Architecture.X86)]
@@ -124,8 +124,7 @@ namespace Plugs
             assembly.AddAsm("pop eax");  // pop index
             assembly.AddAsm("pop ebx");  // pop this
             assembly.AddAsm("lea ebx, [2 * eax + ebx + 8]");
-            assembly.AddAsm("mov eax, [ebx]");
-            assembly.AddAsm("and eax, 65535");
+            assembly.AddAsm("movzx eax, word [ebx]");
             assembly.AddAsm("push eax");
         }
     }

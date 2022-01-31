@@ -2720,10 +2720,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                         var s = (string)data.Value.Data;
                         output.Add($"{data.Key}:");
                         StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < s.Length; i++) sb.Append($"{(int)s[i]}, ");
+                        sb.Append($"{(int)s[0]}");
+                        for (int i = 1; i < s.Length; i++) sb.Append($", {(int)s[i]}");
 
-                        output.Add($"    dd {s.Length + 1}, 2");        // length of array and stride of 2 bytes
-                        output.Add($"    dw {sb.ToString()} 0 ; {s}");  // 0 for null termination after the string
+                        output.Add($"    dd {s.Length}, 2");        // length of array and stride of 2 bytes
+                        output.Add($"    dw {sb.ToString()}; {s}"); // no null termination required since we know the length of the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I4)
                     {
