@@ -1,4 +1,5 @@
 ﻿using System;
+using Runtime.Collections;
 
 namespace Kernel.Devices
 {
@@ -116,38 +117,29 @@ namespace Kernel.Devices
             DevAddress = 0x0D,
         }
 
-        private static Runtime.Collections.List<Channel> _channels = new Runtime.Collections.List<Channel>();
+        private static List<Channel> _channels = new List<Channel>();
 
         private static int _irqInvoked = 0;
         private static uint[] _buffer = new uint[2048 / 4];
-        private static Runtime.Collections.List<Device> _devices = new Runtime.Collections.List<Device>();
-        private static char diskletter = 'a';
+        private static List<Device> _devices = new List<Device>();
 
         public static void AttachDriver()
         {
-            var root = IO.Filesystem.Root;
-            IO.Directory devices = null;
-            for (int i = 0; i < root.Directories.Count; i++)
-                if (root.Directories[i].Name == "dev") devices = root.Directories[i];
-
-            if (devices == null) throw new Exception("/dev did not exist");
-
             for (int i = 0; i < PCI.Devices.Count; i++)
             {
                 var device = PCI.Devices[i];
                 if (device.ClassCode == PCI.ClassCode.MassStorageController && (device.SubClass == 1 || device.SubClass == 5))
                 {
-                    if (PATA.InitDevice(device))
+                    if (!InitDevice(device))
                     {
-                        IO.File harddisk = new IO.File("hd" + diskletter, devices);
-                        devices.Contents.Add(harddisk);
-
-                        if (diskletter == 'a')
-                            Exceptions.ReadSymbols(0);
-
-                        diskletter++;
+                        Logging.WriteLine(LogLevel.Warning, "[PATA] Failed to initialize PCI device {0} {1} {2}", device.Bus, device.Device, device.Function);
                     }
                 }
+            }
+
+            for (int i = 0; i < _devices.Count; i++)
+            {
+                IO.Disk.AddDevice(_devices[i]);
             }
         }
 

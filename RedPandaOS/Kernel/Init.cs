@@ -118,7 +118,7 @@ namespace Kernel
             if (result != 0)
             {
                 // idle task
-                Logging.WriteLine(LogLevel.Warning, "Idle thread has pid {0}", Scheduler.CurrentTask.Id);
+                //Logging.WriteLine(LogLevel.Warning, "Idle thread has pid {0}", Scheduler.CurrentTask.Id);
                 while (true)
                 {
                     CPU.Halt();
@@ -127,16 +127,16 @@ namespace Kernel
             else
             {
                 //Logging.LoggingLevel = LogLevel.Trace;
-                uint anotherThread = Scheduler.Fork();
+                //uint anotherThread = Scheduler.Fork();
 
-                if (anotherThread != 0)
+                //if (anotherThread != 0)
                 {
                     Logging.WriteLine(LogLevel.Warning, "Terminal thread has pid {0}", Scheduler.CurrentTask.Id);
                     // actual user programs
                     Applications.terminal terminal = new Applications.terminal();
-                    terminal.Run(IO.Filesystem.Root.Directories[0]);
+                    terminal.Run(IO.Filesystem.Root);
                 }
-                else
+                /*else
                 {
                     Logging.WriteLine(LogLevel.Warning, "Sample busy thread has pid {0}", Scheduler.CurrentTask.Id);
                     for (int i = 0; i < 10; i++)
@@ -152,7 +152,7 @@ namespace Kernel
                     }
                     Logging.WriteLine(LogLevel.Warning, "Thread {0} finished", Scheduler.CurrentTask.Id);
                     Scheduler.Kill(Scheduler.CurrentTask.Id);
-                }
+                }*/
             }
 
             while (true) ;

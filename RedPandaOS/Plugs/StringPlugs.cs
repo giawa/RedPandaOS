@@ -114,7 +114,6 @@ namespace Plugs
         [CSharpPlug("System.String.get_Length_I4")]
         private static int StringLength(string s1)
         {
-            // the array is one element longer than the string due to the null termination
             return (int)CPUHelper.CPU.ReadMemInt(Kernel.Memory.Utilities.ObjectToPtr(s1));
         }
 

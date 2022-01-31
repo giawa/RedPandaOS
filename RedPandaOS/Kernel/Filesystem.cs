@@ -14,6 +14,12 @@ namespace Kernel.IO
 
         public Directory Parent { get; private set; }
 
+        public Action<Directory> OnOpen { get; set; } = null;
+
+        public bool Opened { get; set; } = false;
+
+        public uint FilesystemInformation { get; set; }
+
         public Directory(string name, Directory parent)
         {
             Name = name;
