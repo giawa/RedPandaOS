@@ -81,6 +81,9 @@ namespace Kernel.Devices
 
                 divisor = divisor / 10;// Runtime.Math32.Divide(divisor, 10);
             }
+
+            Scroll();
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
         public static void WriteInt(int value)
@@ -111,29 +114,30 @@ namespace Kernel.Devices
         public static void WriteLine()
         {
             offset += 160;
-            offset -= VIDEO_MEMORY;
-            offset -= offset % 160;
-            offset += VIDEO_MEMORY;
+            offset -= (offset - VIDEO_MEMORY) % 160;
 
             Scroll();
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
         public static void Delete()
         {
             offset -= 2;
+
+            Scroll();
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
         public static void Clear()
         {
-            /*offset = VIDEO_MEMORY;
-            for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
-                WriteVideoMemoryChar(' ');
-            offset = VIDEO_MEMORY;*/
             for (int i = (int)VIDEO_MEMORY; i < (int)VIDEO_MEMORY + VGA_WIDTH * VGA_HEIGHT * 2; i += 2)
             {
-                CPU.WriteMemory(i, ' ');
+                CPU.WriteMemory(i, (' ' | 0x0f00));
             }
             offset = VIDEO_MEMORY;
+
+            Scroll();
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
         public static void WriteChar(int c, ushort effect = 0x0f00)
@@ -144,14 +148,26 @@ namespace Kernel.Devices
             SetCursorPos((offset - VIDEO_MEMORY) >> 1);
         }
 
+        private static bool _cursorEnabled = false;
+
         public static void DisableCursor()
         {
+            _cursorEnabled = false;
+
             CPU.OutDxAl(0x3D4, 0x0A);
             CPU.OutDxAl(0x3D5, 0x20);
         }
 
+        public static void EnableCursor()
+        {
+            EnableCursor(14, 15);
+            SetCursorPos((offset - VIDEO_MEMORY) >> 1);
+        }
+
         public static void EnableCursor(byte start, byte end)
         {
+            _cursorEnabled = true;
+
             CPU.OutDxAl(0x3D4, 0x0A);
             CPU.OutDxAl(0x3D5, (byte)((CPU.InDxByte(0x3D5) & 0xC0) | start));
 
@@ -167,6 +183,8 @@ namespace Kernel.Devices
 
         public static void SetCursorPos(uint pos)
         {
+            if (!_cursorEnabled) return;
+
             CPU.OutDxAl(0x3D4, 0x0F);
             CPU.OutDxAl(0x3D5, (byte)pos);
 
