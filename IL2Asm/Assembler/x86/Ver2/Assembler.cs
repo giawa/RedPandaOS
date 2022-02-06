@@ -1223,12 +1223,12 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             ProcessStaticConstructor(pe, methodDef);
 
-            while (_methodsToCompile.Count > 0)
+            /*while (_methodsToCompile.Count > 0)
             {
                 var m = _methodsToCompile[0];
                 _methodsToCompile.RemoveAt(0);
                 Assemble(pe, m);
-            }
+            }*/
         }
 
         private void ProcessStaticConstructor(PortableExecutableFile pe, MethodDefLayout methodDef)
@@ -2338,7 +2338,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             _stack.Push(eaxType);
         }
 
-        private List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
+        public List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
 
         private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
 

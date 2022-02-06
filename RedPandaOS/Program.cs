@@ -102,6 +102,13 @@ namespace GiawaOS
                 assembler32.Assemble(file, mallocMethod);
                 assembler32.Assemble(file, throwMethod);
 
+                var methodsToCompile = assembler32._methodsToCompile;
+                while (methodsToCompile.Count > 0)
+                {
+                    var m = methodsToCompile[0];
+                    methodsToCompile.RemoveAt(0);
+                    assembler32.Assemble(file, m);
+                }
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
                 //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.UseIncOrDec.ProcessAssembly(pm);
