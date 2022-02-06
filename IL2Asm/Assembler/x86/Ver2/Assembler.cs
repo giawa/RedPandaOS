@@ -557,6 +557,22 @@ namespace IL2Asm.Assembler.x86.Ver2
                         ebxType = _stack.Pop();
                         break;
 
+                    // BLE
+                    case 0x3E:
+                        if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
+
+                        _int = BitConverter.ToInt32(code, i);
+                        i += 4;
+
+                        _jmpLabel = $"IL_{(i + _int).ToString("X4")}_{assembly.MethodCounter}";
+                        assembly.AddAsm("pop eax");        // value2
+                        assembly.AddAsm("pop ebx");        // value1
+                        assembly.AddAsm("cmp ebx, eax");    // compare values
+                        assembly.AddAsm($"jle {_jmpLabel}");
+                        eaxType = _stack.Pop();
+                        ebxType = _stack.Pop();
+                        break;
+
                     // BLT
                     case 0x3F:
                         if (!_stack.Peek().Is32BitCapable(pe.Metadata)) throw new Exception("Unsupported type");
@@ -1631,6 +1647,38 @@ namespace IL2Asm.Assembler.x86.Ver2
             _stack.Push(new ElementType(ElementType.EType.String));
         }
 
+        private void MovToEaxExtended(AssembledMethod assembly, CLIMetadata metadata, ElementType type, string address)
+        {
+            if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.Boolean)
+            {
+                assembly.AddAsm($"movzx eax, byte {address}");
+            }
+            else if (type.Type == ElementType.EType.I1)
+            {
+                assembly.AddAsm($"movsx eax, byte {address}");
+            }
+            else if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.Char)
+            {
+                assembly.AddAsm($"movzx eax, word {address}");
+            }
+            else if (type.Type == ElementType.EType.I2)
+            {
+                assembly.AddAsm($"movsx eax, word {address}");
+            }
+            else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
+            {
+                throw new Exception("Unsupported type");
+            }
+            else if (type.Is32BitCapable(metadata))
+            {
+                assembly.AddAsm($"mov eax, {address}");
+            }
+            else
+            {
+                throw new Exception("Unsupported type");
+            }
+        }
+
         private void LDFLD(AssembledMethod assembly, CLIMetadata metadata, byte[] code, ref ushort i)
         {
             uint fieldToken = BitConverter.ToUInt32(code, i);
@@ -1645,30 +1693,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 int ebxSize = _runtime.GetTypeSize(metadata, ebxType);
 
-                if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    assembly.AddAsm($"mov word ax, [esp + {offset}]");
-                    /*if (offset == 0) assembly.AddAsm($"mov word ax, [ebp + {offset}]");
-                    else assembly.AddAsm($"mov word ax, [ebx + {offset & 0x03}]");*/
-                }
-                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1 || type.Type == ElementType.EType.Boolean)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    assembly.AddAsm($"mov byte al, [esp + {offset}]");
-                    /*if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
-                    else assembly.AddAsm($"mov byte al, [ebx + {offset}]");*/
-                }
-                else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
-                {
-                    throw new Exception("Unsupported type");
-                }
-                else if (type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4)
-                {
-                    assembly.AddAsm($"mov eax, [esp + {offset}]");
-                    /*if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
-                    else assembly.AddAsm($"mov eax, [ebx + {offset}]");*/
-                }
+                MovToEaxExtended(assembly, metadata, type, $"[esp + {offset}]");
 
                 // if this is just 4 or 8 bytes then we can pop once or twice, but otherwise manipulate esp directly
                 if (ebxSize <= 8)
@@ -1691,28 +1716,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 assembly.AddAsm("pop ebx");
 
-                if (type.Type == ElementType.EType.U2 || type.Type == ElementType.EType.I2 || type.Type == ElementType.EType.Char)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    if (offset == 0) assembly.AddAsm("mov word ax, [ebx]");
-                    else assembly.AddAsm($"mov word ax, [ebx + {offset}]");
-                }
-                else if (type.Type == ElementType.EType.U1 || type.Type == ElementType.EType.I1 || type.Type == ElementType.EType.Boolean)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    if (offset == 0) assembly.AddAsm("mov byte al, [ebx]");
-                    else assembly.AddAsm($"mov byte al, [ebx + {offset}]");
-                }
-                else if (type.Type == ElementType.EType.U8 || type.Type == ElementType.EType.I8 || type.Type == ElementType.EType.R8)
-                {
-                    throw new Exception("Unsupported type");
-                }
-                else if (type.Is32BitCapable(metadata))//type.Type == ElementType.EType.U4 || type.Type == ElementType.EType.I4 || type.Type == ElementType.EType.R4 || type.Type == ElementType.EType.SzArray)
-                {
-                    if (offset == 0) assembly.AddAsm("mov eax, [ebx]");
-                    else assembly.AddAsm($"mov eax, [ebx + {offset}]");
-                }
-                else throw new Exception("Unsupported type");
+                if (offset == 0) MovToEaxExtended(assembly, metadata, type, "[ebx]");
+                else MovToEaxExtended(assembly, metadata, type, $"[ebx + {offset}]");
             }
 
             assembly.AddAsm("push eax");
@@ -1935,32 +1940,14 @@ namespace IL2Asm.Assembler.x86.Ver2
                 for (int b = (int)Math.Ceiling(sizeOf / 4f) - 1; b >= 0; b--)
                 //for (int b = 0; b < Math.Ceiling(sizeOf / 4f); b++)
                 {
-                    assembly.AddAsm($"mov eax, [{label}+{4 * b}]");
+                    assembly.AddAsm($"mov eax, [{label} + {4 * b}]");
                     assembly.AddAsm($"push eax");
                 }
             }
             else
             {
-                var size = _runtime.GetTypeSize(metadata, eaxType);
-
-                if (size == 4)
-                {
-                    assembly.AddAsm($"mov eax, [{label}]");
-                    assembly.AddAsm($"push eax");
-                }
-                else if (size == 2)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    assembly.AddAsm($"mov word ax, [{label}]");
-                    assembly.AddAsm("push eax");
-                }
-                else if (size == 1)
-                {
-                    assembly.AddAsm("xor eax, eax");
-                    assembly.AddAsm($"mov byte al, [{label}]");
-                    assembly.AddAsm("push eax");
-                }
-                else throw new Exception("Unsupported type");
+                MovToEaxExtended(assembly, metadata, eaxType, $"[{label}]");
+                assembly.AddAsm("push eax");
             }
         }
 
@@ -2720,11 +2707,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                         var s = (string)data.Value.Data;
                         output.Add($"{data.Key}:");
                         StringBuilder sb = new StringBuilder();
-                        sb.Append($"{(int)s[0]}");
+                        if (s.Length > 0) sb.Append($"{(int)s[0]}");
                         for (int i = 1; i < s.Length; i++) sb.Append($", {(int)s[i]}");
 
                         output.Add($"    dd {s.Length}, 2");        // length of array and stride of 2 bytes
-                        output.Add($"    dw {sb.ToString()}; {s}"); // no null termination required since we know the length of the string
+                        if (s.Length > 0) output.Add($"    dw {sb.ToString()} ; {s}"); // no null termination required since we know the length of the string
                     }
                     else if (data.Value.Type.Type == ElementType.EType.I4)
                     {
