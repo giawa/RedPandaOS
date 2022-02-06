@@ -144,6 +144,23 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void OutDxAx(ushort dx, ushort ax)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.OutDxAx_Void_U2_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void OutDxAxAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // ax
+            assembly.AddAsm("pop ebx"); // dx
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, ebx");
+            assembly.AddAsm("out dx, ax");
+            assembly.AddAsm("pop edx");
+        }
+
+        [AsmMethod]
         public static void OutDxEax(ushort edx, uint eax)
         {
 
@@ -172,7 +189,26 @@ namespace CPUHelper
             assembly.AddAsm("pop eax"); // address
             assembly.AddAsm("push edx");
             assembly.AddAsm("mov edx, eax");
+            assembly.AddAsm("xor eax, eax");
             assembly.AddAsm("in al, dx");
+            assembly.AddAsm("pop edx");
+            assembly.AddAsm("push eax");
+        }
+
+        [AsmMethod]
+        public static ushort InDxWord(ushort dx)
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.CPU.InDxWord_U2_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void InDxWordAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // address
+            assembly.AddAsm("push edx");
+            assembly.AddAsm("mov edx, eax");
+            assembly.AddAsm("xor eax, eax");
+            assembly.AddAsm("in ax, dx");
             assembly.AddAsm("pop edx");
             assembly.AddAsm("push eax");
         }
