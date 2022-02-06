@@ -22,6 +22,18 @@
             _array = new T[capacity];
         }
 
+        public void Dispose()
+        {
+            Kernel.Memory.KernelHeap.KernelAllocator.Free(_array);
+            _array = null;
+        }
+
+        public void Clear()
+        {
+            System.Array.Clear(_array, 0, _index);
+            _index = 0;
+        }
+
         private void EnsureCapacity()
         {
             var oldArray = _array;
@@ -32,7 +44,7 @@
                 _array[i] = oldArray[i];
 
             // dispose of the old array
-            Kernel.Memory.SplitBumpHeap.Instance.Free(oldArray);
+            Kernel.Memory.KernelHeap.KernelAllocator.Free(oldArray);
         }
 
         public void Add(T item)
