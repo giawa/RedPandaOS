@@ -691,11 +691,14 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         if (eaxType.Is32BitCapable(pe.Metadata))
                         {
-                            assembly.AddAsm("mov ebx, [esp]");
-                            assembly.AddAsm("mov eax, [esp + 4]");
-                            assembly.AddAsm("add eax, ebx");
+                            //assembly.AddAsm("mov ebx, [esp]");
+                            //assembly.AddAsm("mov eax, [esp + 4]");
                             assembly.AddAsm("pop ebx");
-                            assembly.AddAsm("mov [esp], eax");
+                            assembly.AddAsm("pop eax");
+                            assembly.AddAsm("add eax, ebx");
+                            assembly.AddAsm("push eax");
+                            //assembly.AddAsm("pop ebx");
+                            //assembly.AddAsm("mov [esp], eax");
                         }
                         else if (eaxType.Type == ElementType.EType.R4)
                         {
@@ -719,11 +722,14 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                         if (eaxType.Is32BitCapable(pe.Metadata) && ebxType.Is32BitCapable(pe.Metadata))
                         {
-                            assembly.AddAsm("mov ebx, [esp]");
-                            assembly.AddAsm("mov eax, [esp + 4]");
-                            assembly.AddAsm("sub eax, ebx");
+                            //assembly.AddAsm("mov ebx, [esp]");
+                            //assembly.AddAsm("mov eax, [esp + 4]");
                             assembly.AddAsm("pop ebx");
-                            assembly.AddAsm("mov [esp], eax");
+                            assembly.AddAsm("pop eax");
+                            assembly.AddAsm("sub eax, ebx");
+                            assembly.AddAsm("push eax");
+                            //assembly.AddAsm("pop ebx");
+                            //assembly.AddAsm("mov [esp], eax");
                         }
                         else if (eaxType.Type == ElementType.EType.R4)
                         {

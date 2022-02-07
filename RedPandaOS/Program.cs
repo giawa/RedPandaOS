@@ -109,7 +109,18 @@ namespace GiawaOS
                     methodsToCompile.RemoveAt(0);
                     assembler32.Assemble(file, m);
                 }
+
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
+
+                IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
+                IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);
+                IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
+                IL2Asm.Optimizer.x86.SimplifyConstants.ProcessAssembly(pm);
+                IL2Asm.Optimizer.x86.RemoveRedundantMoves.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(pm);
+                IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(pm);
+                //IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(pm);
+
                 //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.UseIncOrDec.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.MergePushPop.ProcessAssembly(pm);

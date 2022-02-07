@@ -10,6 +10,13 @@ namespace IL2Asm.Optimizer
         {
             for (int i = 0; i < assembly.Count - 2; i++)
             {
+                if (assembly[i].StartsWith("Kernel_Scheduler_Fork_U4:"))
+                {
+                    var instruction = assembly[++i].Trim();
+                    while (!instruction.EndsWith(":"))
+                        instruction = assembly[++i].Trim();
+                }
+
                 var l1 = assembly[i].Trim().Split(_split);
 
                 int offset1 = 1;
