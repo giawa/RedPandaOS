@@ -363,7 +363,7 @@ namespace BuildTools
             else
             {
                 // find which fat sector this cluster is in
-                int offset = (int)(ClusterId / 512 * 4) + _fatBeginLba;
+                int offset = (int)(ClusterId * 4) / 512 + _fatBeginLba;
                 var fatSector = _sectors[offset];
                 var nextCluster = BitConverter.ToUInt32(fatSector, (int)(ClusterId % 128) * 4);
                 nextCluster &= 0x0FFFFFFF;
@@ -413,7 +413,7 @@ namespace BuildTools
             var empty = ReserveEmptyCluster();
 
             // update the fat table entry of the previous cluster to point to the new one
-            int offset = (int)(ClusterId / 512 * 4) + _fatBeginLba;
+            int offset = (int)(ClusterId * 4) / 512 + _fatBeginLba;
             var fatSector = _sectors[offset];
             int byteOffset = (int)(ClusterId % 128) * 4;
             fatSector[byteOffset + 0] = (byte)empty;
