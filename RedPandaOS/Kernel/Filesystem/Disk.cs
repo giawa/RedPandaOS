@@ -53,7 +53,9 @@ namespace Kernel.IO
             _pataDisk = disk;
             _partitions = new List<Partition>();
 
-            _buffer = new uint[512 / 4];    // full sector, 512 bytes
+            //_buffer = new uint[512 / 4];    // full sector, 512 bytes
+            _buffers = new List<CachedBuffer>(4);
+            for (int i = 0; i < 4; i++) _buffers.Add(new CachedBuffer());
 
             // check for an MBR
             var sector0 = ReadSector(0);
@@ -81,20 +83,69 @@ namespace Kernel.IO
                 } while (offset < 0x0200);
             }
 
-            Array.Clear(_buffer, 0, 512 / 4);
+            //Array.Clear(_buffer, 0, 512 / 4);
 
             Logging.WriteLine(LogLevel.Warning, "Found {0} partitions", (uint)_partitions.Count);
             for (int i = 0; i < _partitions.Count; i++)
                 Logging.WriteLine(LogLevel.Warning, "Found partition {0:X} offset {1:X} size {2:X}", _partitions[i].PartitionType, _partitions[i].RelativeSector, _partitions[i].TotalSectors);
         }
 
-        private uint[] _buffer;
+        //private uint[] _buffer;
+        private List<CachedBuffer> _buffers;
+
+        public class CachedBuffer
+        {
+            public uint AccessSinceUsed;
+            public uint[] Buffer;
+            public uint Lba;
+
+            public CachedBuffer()
+            {
+                AccessSinceUsed = 0;
+                Buffer = new uint[128];
+                Lba = uint.MaxValue;
+            }
+        }
+
+        public void WriteSector(uint lba, byte[] data)
+        {
+            // TODO:  Keep in _buffers and mark as dirty.  Only flush to disk when falling out of _buffers
+            byte result = PATA.Access(1, 0, lba, 1, 0, Memory.Utilities.UnsafeCast<uint[]>(data));
+        }
 
         public byte[] ReadSector(uint lba)
         {
-            byte result = PATA.Access(0, 0, lba, 1, 0, _buffer);
+            CachedBuffer buffer = null;
+            for (int i = 0; i < _buffers.Count; i++)
+            {
+                if (_buffers[i].Lba == lba)
+                {
+                    buffer = _buffers[i];
+                    buffer.AccessSinceUsed = 0;
+                }
+                else _buffers[i].AccessSinceUsed++;
+            }
 
-            return Memory.Utilities.UnsafeCast<byte[]>(_buffer);
+            if (buffer == null)
+            {
+                // find the worst buffer
+                uint worst = 0;
+
+                for (int i = 0; i < _buffers.Count; i++)
+                {
+                    if (_buffers[i].AccessSinceUsed >= worst)
+                    {
+                        buffer = _buffers[i];
+                        worst = buffer.AccessSinceUsed;
+                    }
+                }
+
+                byte result = PATA.Access(0, 0, lba, 1, 0, buffer.Buffer);
+                buffer.AccessSinceUsed = 0;
+                buffer.Lba = lba;
+            }
+
+            return Memory.Utilities.UnsafeCast<byte[]>(buffer.Buffer);
         }
 
         private static char diskletter = 'a';

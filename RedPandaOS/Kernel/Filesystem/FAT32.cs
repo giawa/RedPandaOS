@@ -31,9 +31,14 @@ namespace Kernel.IO
             return firstSector;
         }
 
-        private byte[] LoadLba(uint lba)
+        protected byte[] LoadLba(uint lba)
         {
             return _partition.Disk.ReadSector(lba);
+        }
+
+        protected void WriteLba(uint lba, byte[] data)
+        {
+            _partition.Disk.WriteSector(lba, data);
         }
 
         private bool HasName(byte[] data, ushort offset, string name, ushort length)
@@ -174,8 +179,14 @@ namespace Kernel.IO
                         name[curPos++] = (char)sectorData[offset + j + 8];
                     }
 
+                    uint fileCluster = BitConverter.ToUInt16(sectorData, offset + 0x1A);
+                    fileCluster |= (uint)BitConverter.ToUInt16(sectorData, offset + 0x14) << 16;
+
                     var newFile = new File(new string(name), dir);
+                    newFile.OnOpen = OnOpen;
+                    newFile.FileSystem = this;
                     dir.Contents.Add(newFile);
+                    newFile.FilesystemInformation = fileCluster;
                 }
             }
         }
@@ -197,6 +208,151 @@ namespace Kernel.IO
             ExploreDirectory(lba, dir);
 
             dir.Opened = true;
+        }
+
+        public void OnOpen(File file)
+        {
+            SectorHandler handler = new SectorHandler(this, _fatBeginLba, _clusterBeginLba, _sectorsPerFat, _sectorsPerCluster);
+            handler.SetCluster(file.FilesystemInformation);
+
+            _files.Add(file.FilesystemInformation);
+            _handlers.Add(handler);
+
+            Logging.WriteLine(LogLevel.Warning, "SetCluster {0:X}", file.FilesystemInformation);
+        }
+
+        public byte[] GetFirstSector(File file)
+        {
+            SectorHandler handler = null;
+            for (int i = 0; i < _files.Count; i++)
+            {
+                if (_files[i] == file.FilesystemInformation)
+                    handler = _handlers[i];
+            }
+
+            if (handler == null) throw new Exception("No handler existed for this file, use OnOpen first");
+
+            handler.SetCluster(file.FilesystemInformation);
+
+            return handler.GetCurrentSector();
+        }
+
+        public byte[] OnReadSector(File file)
+        {
+            SectorHandler handler = null;
+            for (int i = 0; i < _files.Count; i++)
+            {
+                if (_files[i] == file.FilesystemInformation)
+                    handler = _handlers[i];
+            }
+
+            if (handler == null) throw new Exception("No handler existed for this file, use OnOpen first");
+
+            if (handler.AdvanceRead()) return handler.GetCurrentSector();
+            else return null;
+        }
+
+        private List<uint> _files = new List<uint>();
+        private List<SectorHandler> _handlers = new List<SectorHandler>();
+
+        public class SectorHandler
+        {
+            private FAT32 _fat32;
+
+            public byte[] GetCurrentSector()
+            {
+                return _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster + _sectorInCluster);
+            }
+
+            public uint ClusterId { get; private set; }
+
+            private byte _sectorInCluster;
+
+            private uint _fatBeginLba, _clusterBeginLba;
+            private uint _sectorsPerFat;
+            private byte _sectorsPerCluster;
+
+            public SectorHandler(FAT32 fat32, uint fatBeginLba, uint clusterBeginLba, uint sectorsPerFat, uint sectorsPerCluster)
+            {
+                _fat32 = fat32;
+                _fatBeginLba = fatBeginLba;
+                _clusterBeginLba = clusterBeginLba;
+                _sectorsPerFat = sectorsPerFat;
+                _sectorsPerCluster = (byte)sectorsPerCluster;
+            }
+
+            public void SetCluster(uint cluster)
+            {
+                ClusterId = cluster;
+                _sectorInCluster = 0;
+            }
+
+            public bool AdvanceRead()
+            {
+                if (_sectorInCluster < _sectorsPerCluster - 1) _sectorInCluster++;
+                else
+                {
+                    // find which fat sector this cluster is in
+                    var offset = (ClusterId * 4) / 512 + _fatBeginLba;
+                    var fatSector = _fat32.LoadLba(offset);
+                    var nextCluster = BitConverter.ToUInt32(fatSector, (int)(ClusterId % 128) * 4);
+                    nextCluster &= 0x0FFFFFFF;
+
+                    if (nextCluster >= 0x0FFFFFF8) return false; // no more clusters
+                    else if (nextCluster >= 2 && nextCluster <= 0xFFFFFEF)
+                    {
+                        ClusterId = nextCluster;
+                        _sectorInCluster = 0;
+                    }
+                    else throw new Exception("Unsupported cluster type");
+                }
+
+                return true;
+            }
+
+            public uint ReserveEmptyCluster()
+            {
+                uint empty = 0;
+                for (uint i = 0; i < _sectorsPerFat && empty == 0; i++)
+                {
+                    var fatSector = _fat32.LoadLba(i + _fatBeginLba);
+                    for (uint j = 0; j < fatSector.Length / 4; j++)
+                    {
+                        var nextCluster = BitConverter.ToUInt32(fatSector, (int)j * 4);
+                        if (nextCluster == 0)
+                        {
+                            // mark this cluster as used
+                            fatSector[j * 4 + 0] = 0xff;
+                            fatSector[j * 4 + 1] = 0xff;
+                            fatSector[j * 4 + 2] = 0xff;
+                            fatSector[j * 4 + 3] = 0x0f;
+                            empty = i * 512 / 4 + j;
+                            break;
+                        }
+                    }
+                    if (empty != 0) break;
+                }
+                return empty;
+            }
+
+            public bool AdvanceWrite()
+            {
+                if (AdvanceRead()) return true;
+
+                // this means we hit the end of the cluster chain, so we need to find an empty cluster
+                var empty = ReserveEmptyCluster();
+
+                // update the fat table entry of the previous cluster to point to the new one
+                uint offset = (ClusterId * 4) / 512 + _fatBeginLba;
+                var fatSector = _fat32.LoadLba(offset);
+                int byteOffset = (int)(ClusterId % 128) * 4;
+                fatSector[byteOffset + 0] = (byte)empty;
+                fatSector[byteOffset + 1] = (byte)(empty >> 8);
+                fatSector[byteOffset + 2] = (byte)(empty >> 16);
+                fatSector[byteOffset + 3] = (byte)(empty >> 24);
+
+                return AdvanceRead();
+            }
         }
     }
 }

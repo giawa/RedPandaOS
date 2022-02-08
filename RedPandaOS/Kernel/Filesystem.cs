@@ -64,6 +64,12 @@ namespace Kernel.IO
 
         public Directory Parent { get; private set; }
 
+        public Action<File> OnOpen { get; set; } = null;
+
+        public FAT32 FileSystem { get; set; } = null;
+
+        public uint FilesystemInformation { get; set; }
+
         public enum Type
         {
             File,
