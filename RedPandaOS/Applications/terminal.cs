@@ -35,7 +35,14 @@ namespace Applications
                     }
                 }
 
-                if (newDirectory != null) _currentDirectory = newDirectory;
+                if (newDirectory != null)
+                {
+                    _currentDirectory = newDirectory;
+                    if (_currentDirectory.OnOpen != null)
+                    {
+                        _currentDirectory.OnOpen(_currentDirectory);
+                    }
+                }
                 else
                 {
                     VGA.WriteString("Could not find directory");
@@ -70,23 +77,32 @@ namespace Applications
 
             //VGA.Clear();
             VGA.EnableScrolling = true;
-            //VGA.EnableCursor(0, 0);
+            VGA.EnableCursor();
             //VGA.ResetPosition();
 
             _currentDirectory = dir;
 
             //VGA.WriteHex(Kernel.Memory.Utilities.ObjectToPtr(dir));
             char[] command = new char[256];
+            Kernel.Memory.TraceableHeap trace = new Kernel.Memory.TraceableHeap();
+            //Kernel.Memory.KernelHeap.KernelAllocator.AddTrace(trace);
+            //Kernel.Memory.KernelHeap.KernelAllocator.RemoveTrace(trace);
+
+            //Kernel.Logging.LoggingLevel = Kernel.LogLevel.Trace;
 
             while (true)
             {
-                string directory = _currentDirectory.FullName;
-                if (directory == null) directory = "/";
+                //Kernel.Memory.KernelHeap.KernelAllocator.AddTrace(trace);
+                {
+                    string directory = _currentDirectory.FullName;
+                    if (directory == null) directory = "/";
 
-                VGA.WriteString("giawa@redpandaos", 0x0A00);
-                VGA.WriteChar(':');
-                VGA.WriteString(directory, 0x0B00);
-                VGA.WriteString("$ ");
+                    VGA.WriteString("giawa@redpandaos", 0x0A00);
+                    VGA.WriteChar(':');
+                    VGA.WriteString(directory, 0x0B00);
+                    VGA.WriteString("$ ");
+                }
+                //trace.Dispose();
 
                 int pos = 0;// message.Length;
                 int index = 0;
@@ -107,7 +123,11 @@ namespace Applications
                         VGA.WriteLine();
 
                         if (CompareCommand(command, "ls"))
-                            ls.Run(_currentDirectory, WriteLine);
+                        {
+                            System.Action<string> onWrite = new System.Action<string>(WriteLine);
+                            ls.Run(_currentDirectory, onWrite);
+                            Kernel.Memory.KernelHeap.KernelAllocator.Free(Kernel.Memory.Utilities.ObjectToPtr(onWrite), 8);
+                        }
                         else if (CompareCommand(command, "cd"))
                             cd(command);
                         else if (CompareCommand(command, "uname"))
@@ -133,6 +153,22 @@ namespace Applications
                     {
                         VGA.WriteChar(key);
                         command[index++] = key;
+                    }
+                    else if (key == 0x08)
+                    {
+                        if (index > 0)
+                        {
+                            command[index] = '\0';
+                            index--;
+                            VGA.Delete();
+                            VGA.WriteChar(' ');
+                            VGA.Delete();
+                        }
+                    }
+                    else
+                    {
+                        VGA.WriteString(" 0x");
+                        VGA.WriteHex(key);
                     }
                 }
             }
