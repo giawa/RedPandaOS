@@ -1893,6 +1893,12 @@ namespace IL2Asm.Assembler.x86.Ver2
             if (type1.Type == ElementType.EType.U4 || type1.Type == ElementType.EType.I4)
                 return (type2.Type == ElementType.EType.U4 || type2.Type == ElementType.EType.I4);
 
+            // U1 and U4 seem to be compatible...
+            if ((type1.Type == ElementType.EType.U4 && type2.Type == ElementType.EType.U1) ||
+                (type1.Type == ElementType.EType.U1 && type2.Type == ElementType.EType.U4)) return true;
+            if ((type1.Type == ElementType.EType.U4 && type2.Type == ElementType.EType.I1) ||
+                (type1.Type == ElementType.EType.I1 && type2.Type == ElementType.EType.U4)) return true;
+
             if (type1.Type == ElementType.EType.Class && type2.Type == ElementType.EType.Class)
             {
                 if ((type1.Token & 0xff000000) == 0x02000000)
