@@ -18,15 +18,32 @@ This is a place to toy around with what might be necessary to build an operating
   - ✔️ Interrupts
   - ✔️ Paging
   - ✔️ Multitasking
+  - System Calls
+  - Inter Process Communication
+- Intermediate
+  - ✔️ Bitmapped Fonts
+  - User Mode Applications
+  - Ports?
+  - 64 Bit Support?
+- Advanced
+  - TrueType/etc Fonts?
+  - Multiprocessor Support?
 - Drivers
   - ✔️ Keyboard
+  - ✔️ COM1
   - Mouse
   - ✔️ Text mode
-  - VGA
+  - ✔️ VGA (✔️ BGA, Intel?, Other?)
   - Network
   - ✔️ Storage (✔️ PATA, ATAPI, SATA, NVMe)
-  - File system (exFAT, FAT32?)
+  - ✔️ File system (exFAT, ✔️ FAT32, ✔️ VFS)
   - USB
+  - QEMU Mouse/Keyboard Integration
+- Applications
+  - Terminal
+  - Window Compositor
+  - File Explorer
+  - Task Manager
 
 ## Getting Started
 1) Install your preferred C# development environment (I use Visual Studio 2022)
@@ -79,5 +96,6 @@ Contributions via pull requests are welcome!  Please ensure you follow the exist
 
 ## Screenshots:
 
+![image](https://user-images.githubusercontent.com/3923687/153539830-3cf3767c-9a28-4888-b885-fcb8fe654075.png)
 ![image](https://user-images.githubusercontent.com/3923687/116469294-d32b8380-a826-11eb-8555-335d2a64fdae.png)
 ![image](https://user-images.githubusercontent.com/3923687/147905793-06953fb5-3cbb-4ebe-b4e3-eb7e1de977cf.png)
