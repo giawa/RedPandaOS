@@ -31,6 +31,9 @@ This is a place to toy around with what might be necessary to build an operating
 - Drivers
   - ✔️ Keyboard
   - ✔️ COM1
+  - ✔️ PCI
+  - ✔️ PIC
+  - ✔️ PIT
   - Mouse
   - ✔️ Text mode
   - ✔️ VGA (✔️ BGA, Intel?, Other?)
