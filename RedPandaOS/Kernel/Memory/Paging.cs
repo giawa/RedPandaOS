@@ -253,6 +253,32 @@ namespace Kernel.Memory
                 addr += 0x1000U;
             }
 
+            // check for PCI devices that need their memory identity mapped
+            uint end = 0;
+            for (int i = 0; i < PCI.Devices.Count; i++)
+            {
+                var device = PCI.Devices[i];
+
+                if ((device.BAR0 & 0x1) == 0 && device.BAR0 != 0)
+                {
+                    addr = device.BAR0 & 0xFFFFFFF0U;
+                    end = addr + device.BAR0Size;
+
+                    while (addr < end)
+                    {
+                        var page = GetPage(addr, true, _kernelDirectory);
+                        var result = AllocateFrame(page, addr >> 12, true, true);
+                        if (result == -1)
+                        {
+                            Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
+                            while (true) ;
+                        }
+                        addr += 0x1000U;
+                    }
+                    //Logging.WriteLine(LogLevel.Warning, "Identity mapping {0:X} to {1:X}", addr, end);
+                }
+            }
+
             //_currentDirectory = CloneDirectory(_kernelDirectory);
             SwitchPageDirectory(_kernelDirectory);
 
