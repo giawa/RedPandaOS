@@ -111,7 +111,12 @@ namespace IL2Asm.Optimizer.x86
                     int start = 2;
                     if (instruction.StartsWith("cmp"))
                         continue;// start = 1;
-                    if (instruction.StartsWith("lea")) continue;
+                    if (instruction.StartsWith("lea"))
+                    {
+                        registers["eax"].Reset();
+                        registers["ebx"].Reset();
+                        continue;
+                    }
                     for (int j = start; j < split.Length; j++)
                     {
                         if (registers.TryGetValue(split[j], out var reg) && reg.Constant != null)
