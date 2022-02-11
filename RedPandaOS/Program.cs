@@ -163,8 +163,8 @@ namespace GiawaOS
                 DiskMaker.PartitionInfo bootablePartition = new DiskMaker.PartitionInfo()
                 {
                     FirstSectorLBA = 2,
-                    //NumberOfSectors = 32 * 1024 / 512 * 1024 - 2,   // 32MiB minus the FirstSectorLBA
-                    NumberOfSectors = 2878,
+                    NumberOfSectors = 32 * 1024 / 512 * 1024 - 2,   // 32MiB minus the FirstSectorLBA
+                    //NumberOfSectors = 2878,   // 1.44MiB floppy disk
                     Bootable = true,
                     PartitionType = 0x0B    // FAT32 CHS/LBA
                 };
@@ -339,6 +339,7 @@ namespace GiawaOS
                             if (string.IsNullOrEmpty(symbol.Name)) continue;
                             if (symbol.Name.StartsWith("IL_")) continue;
                             if (symbol.Name.StartsWith("BLOB_")) break;
+                            if (symbol.Name.StartsWith("SKIP_PUSH_")) continue;
 
                             if (symbol is ELFSharp.ELF.Sections.SymbolEntry<uint> entry)
                             {
@@ -353,7 +354,7 @@ namespace GiawaOS
                                     filePos += fill.Length;
                                 }
 
-                                output.WriteLine($"{entry.Value.ToString("X")} {entry.Name}");
+                                output.WriteLine($"{(entry.Value + 0xA000).ToString("X")} {entry.Name}");
                                 binary.Write(entry.Value + 0xA000);
                                 for (int i = 0; i < entry.Name.Length; i++)
                                     binary.Write((byte)entry.Name[i]);
