@@ -108,8 +108,48 @@ namespace BuildTools
             FATFile kernelFile = new FATFile("KERNEL.BIN", _handler, kernelBytes);
             kernelFile.DirEntry[0x0B] = 0x05;       // system and read only flags
             kernelFile.DirEntry[0x0C] = 0x18;    // mark as lowercase
-            var bootSector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (bootCluster - 2) * _sectorsPerCluster)];
-            kernelFile.DirEntry.CopyTo(bootSector, 0);
+            var bootDirectoryFirstSector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (bootCluster - 2) * _sectorsPerCluster)];
+            kernelFile.DirEntry.CopyTo(bootDirectoryFirstSector, 0);
+
+            var symbolsBytes = File.ReadAllBytes("symbols.bin");
+            FATFile symbolsFile = new FATFile("SYMBOLS.BIN", _handler, symbolsBytes);
+            symbolsFile.DirEntry[0x0B] = 0x05;    // system and read only flags
+            symbolsFile.DirEntry[0x0C] = 0x18;    // mark as lowercase
+            symbolsFile.DirEntry.CopyTo(bootDirectoryFirstSector, 32);
+
+            ExploreDirectory(new DirectoryInfo("../../../disk"), null, shouldBeRoot, 64);
+        }
+
+        private void ExploreDirectory(DirectoryInfo dir, FATDirectory parentDir, uint cluster, int startOffset = 0)
+        {
+            int offset = startOffset;
+
+            foreach (var d in dir.GetDirectories())
+            {
+                if (startOffset == 0 && d.Name.ToLowerInvariant() == "boot") throw new Exception("Boot directory is reserved");
+                if (offset >= 512) throw new Exception("Too many directories!");
+
+                var newCluster = _handler.ReserveEmptyCluster();
+                FATDirectory newDirectory = new FATDirectory(d.Name.ToUpperInvariant(), newCluster);
+                var sector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (cluster - 2) * _sectorsPerCluster)];
+                newDirectory.DirEntry.CopyTo(sector, offset);
+                offset += 32;
+
+                ExploreDirectory(d, newDirectory, newCluster);
+            }
+
+            foreach (var f in dir.GetFiles())
+            {
+                if (offset >= 512) throw new Exception("Too many files!");
+
+                var fileBytes = File.ReadAllBytes(f.FullName);
+                // preprocess .fnt files
+                if (f.FullName.EndsWith(".fnt")) fileBytes = FontConverter.FromFnt(f.FullName);
+                FATFile newFiles = new FATFile(f.Name.ToUpperInvariant(), _handler, fileBytes);
+                var sector = _sectors[(int)(_reservedSectors + 2 * _sectorsPerFat + (cluster - 2) * _sectorsPerCluster)];
+                newFiles.DirEntry.CopyTo(sector, offset);
+                offset += 32;
+            }
         }
 
         private void WriteUInt(byte[] sector, uint value, int offset)
