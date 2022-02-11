@@ -165,7 +165,7 @@ namespace Kernel.Memory
 
                     for (int j = i + 1; j < _memory.Count && consecutive < subsequentPages; j++)
                     {
-                        if (_memory[j].Address != _memory[i].Address + 4096) break;
+                        if (_memory[j].Address != _memory[j - 1].Address + 4096) break;
                         if (_memory[j].Available != 4096) break;
 
                         consecutive++;
