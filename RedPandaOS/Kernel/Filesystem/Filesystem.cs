@@ -70,6 +70,8 @@ namespace Kernel.IO
 
         public uint FilesystemInformation { get; set; }
 
+        public uint Size { get; set; }
+
         public enum Type
         {
             File,

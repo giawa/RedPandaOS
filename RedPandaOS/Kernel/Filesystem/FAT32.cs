@@ -187,6 +187,7 @@ namespace Kernel.IO
                     newFile.FileSystem = this;
                     dir.Contents.Add(newFile);
                     newFile.FilesystemInformation = fileCluster;
+                    newFile.Size = BitConverter.ToUInt32(sectorData, offset + 0x1C);
                 }
             }
         }
