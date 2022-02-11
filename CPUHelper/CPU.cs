@@ -105,6 +105,20 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void WriteMemory(uint addr, uint c)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteMemory_Void_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteMemoryUnsignedAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // character
+            assembly.AddAsm("pop ebx"); // address
+            assembly.AddAsm("mov [ebx], eax");
+        }
+
+        [AsmMethod]
         public static void WriteMemory(int addr, ushort c)
         {
 
