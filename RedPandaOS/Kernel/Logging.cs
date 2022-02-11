@@ -4,6 +4,7 @@ namespace Kernel
 {
     public enum LogLevel : uint
     {
+        Uninitialized,
         Trace,
         Warning,
         Error,
@@ -23,8 +24,8 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteFormattedString(s, u1, u2, u3);
-                VGA.WriteLine();
+                COM.WriteFormattedString(s, u1, u2, u3);
+                COM.WriteLine();
             }
         }
 
@@ -32,8 +33,8 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteString(s);
-                VGA.WriteLine();
+                COM.WriteString(s);
+                COM.WriteLine();
             }
         }
 
@@ -41,7 +42,7 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteFormattedString(s, u1, u2, u3);
+                COM.WriteFormattedString(s, u1, u2, u3);
             }
         }
 
@@ -49,7 +50,7 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
-                VGA.WriteString(s);
+                COM.WriteString(s);
             }
         }
     }

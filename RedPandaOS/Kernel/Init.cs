@@ -42,6 +42,8 @@ namespace Kernel
 
         static void Start()
         {
+            COM.Initialize();
+
             Logging.LoggingLevel = LogLevel.Warning;
             VGA.EnableScrolling = true;
 

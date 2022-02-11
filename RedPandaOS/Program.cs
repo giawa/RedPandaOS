@@ -179,7 +179,7 @@ namespace GiawaOS
                 Console.WriteLine();
                 Console.WriteLine("* Booting OS!");
                 //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.bin -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
-                var qemu = Process.Start("qemu-system-x86_64", "-m 48M -device piix3-ide,id=ide -drive id=disk,file=disk.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
+                var qemu = Process.Start("qemu-system-x86_64", "-m 48M -device piix3-ide,id=ide -drive id=disk,file=disk.bin,format=raw,if=none -device ide-hd,drive=disk,bus=ide.0 -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa -serial stdio");
                 //var qemu = Process.Start("qemu-system-x86_64", "-drive format=raw,file=boot.img,if=floppy -usb -rtc clock=host -smp cores=2,sockets=1,threads=1 -device usb-audio,audiodev=alsa -audiodev alsa,id=alsa -device ich9-intel-hda -device hda-duplex,audiodev=alsa");
                 qemu.WaitForExit();
 
