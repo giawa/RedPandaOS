@@ -55,10 +55,10 @@ namespace Kernel.IO
 
             //_buffer = new uint[512 / 4];    // full sector, 512 bytes
             _buffers = new List<CachedBuffer>(4);
-            for (int i = 0; i < 4; i++) _buffers.Add(new CachedBuffer());
+            //for (int i = 0; i < 4; i++) _buffers.Add(new CachedBuffer());
 
             // check for an MBR
-            var sector0 = ReadSector(0);
+            var sector0 = ReadSector(0, 1);
 
             Memory.SplitBumpHeap.Instance.PrintSpace();
 
@@ -98,12 +98,14 @@ namespace Kernel.IO
             public uint AccessSinceUsed;
             public uint[] Buffer;
             public uint Lba;
+            public uint Sectors;
 
-            public CachedBuffer()
+            public CachedBuffer(uint sectorsPerBuffer)
             {
                 AccessSinceUsed = 0;
-                Buffer = new uint[128];
+                Buffer = new uint[128 * sectorsPerBuffer];
                 Lba = uint.MaxValue;
+                Sectors = sectorsPerBuffer;
             }
         }
 
@@ -113,18 +115,49 @@ namespace Kernel.IO
             byte result = PATA.Access(1, 0, lba, 1, 0, Memory.Utilities.UnsafeCast<uint[]>(data));
         }
 
-        public byte[] ReadSector(uint lba)
+        public byte ReadSector(uint lba, ushort sectorsPerCluster, byte[] buffer)
+        {
+            //return PATA.Access(0, 0, lba, (byte)sectorsPerCluster, 0, Memory.Utilities.UnsafeCast<uint[]>(buffer));
+            return PATA.AccessWithDMASimple(0, lba, (byte)sectorsPerCluster, Memory.Utilities.UnsafeCast<uint[]>(buffer));
+        }
+
+        public byte Read(uint[] lbas, PATA.PRDT[] dmas)
+        {
+            return 0;
+        }
+
+        public byte[] ReadSector(uint lba, ushort sectorsPerCluster)
         {
             CachedBuffer buffer = null;
+            bool hasCache = false;
+
             for (int i = 0; i < _buffers.Count; i++)
             {
-                if (_buffers[i].Lba == lba)
+                if (_buffers[i].Sectors == sectorsPerCluster)
                 {
-                    buffer = _buffers[i];
-                    buffer.AccessSinceUsed = 0;
+                    hasCache = true;
+                    if (_buffers[i].Lba == lba && _buffers[i].Sectors == sectorsPerCluster)
+                    {
+                        buffer = _buffers[i];
+                        buffer.AccessSinceUsed = 0;
+                    }
+                    else _buffers[i].AccessSinceUsed++;
                 }
-                else _buffers[i].AccessSinceUsed++;
+                //if (_buffers[i].Sectors == sectorsPerCluster) buffer = _buffers[i];
             }
+
+            if (!hasCache)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    _buffers.Add(new CachedBuffer(sectorsPerCluster));
+                }
+            }
+            /*if (buffer == null)
+            {
+                buffer = new CachedBuffer(sectorsPerCluster);
+                _buffers.Add(buffer);
+            }*/
 
             if (buffer == null)
             {
@@ -133,14 +166,15 @@ namespace Kernel.IO
 
                 for (int i = 0; i < _buffers.Count; i++)
                 {
-                    if (_buffers[i].AccessSinceUsed >= worst)
+                    if (_buffers[i].Sectors == sectorsPerCluster && _buffers[i].AccessSinceUsed >= worst)
                     {
                         buffer = _buffers[i];
                         worst = buffer.AccessSinceUsed;
                     }
                 }
 
-                byte result = PATA.Access(0, 0, lba, 1, 0, buffer.Buffer);
+                //byte result = PATA.Access(0, 0, lba, (byte)sectorsPerCluster, 0, buffer.Buffer);
+                byte result = PATA.AccessWithDMASimple(0, lba, (byte)sectorsPerCluster, buffer.Buffer);
                 buffer.AccessSinceUsed = 0;
                 buffer.Lba = lba;
             }

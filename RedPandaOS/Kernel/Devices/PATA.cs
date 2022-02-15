@@ -166,6 +166,9 @@ namespace Kernel.Devices
                 if (_channels[i].Base == channel0.Base || _channels[i].Base == channel1.Base) return false;
             }
 
+            // enable bus mastering mode so that we can use DMA transfers
+            device[1] = (device[1] & 0xffff0000) | 0x05;
+
             _channels.Add(channel0);
             _channels.Add(channel1);
 
@@ -356,6 +359,56 @@ namespace Kernel.Devices
 
         private static byte[] lbaIo = new byte[6];
 
+        public class PRDT
+        {
+            public uint Address;
+            public uint Size;
+        }
+
+        private static PRDT _prdt = new PRDT();
+
+        public static byte AccessWithDMASimple(byte drive, uint lba, byte numSectors, uint[] data)
+        {
+            byte channel = _devices[drive].Channel;
+            byte slaveBit = _devices[drive].Drive;
+
+            _prdt.Address = Memory.Utilities.ObjectToPtr(data) + 8;
+            _prdt.Size = 0x80000000U | (uint)(numSectors * 512);
+            var prdt = Memory.Utilities.ObjectToPtr(_prdt);
+
+            // clear DMA command register
+            CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + 0x00), 0);
+
+            // write prdt address to bus master PRDT register
+            CPUHelper.CPU.OutDxEax((ushort)(_channels[channel].BusMasterIDE + 0x04), prdt);
+
+            // select drive
+            WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4) | (byte)((lba & 0x0f000000U) >> 24)));
+
+            // set sector count, LBAs
+            WriteRegister(channel, Register.SectorCount0, numSectors);
+            WriteRegister(channel, Register.LBA0, (byte)lba);
+            WriteRegister(channel, Register.LBA1, (byte)(lba >> 8));
+            WriteRegister(channel, Register.LBA2, (byte)(lba >> 16));
+
+            // write READ_DMA
+            WriteRegister(channel, Register.Command, 0xC8);
+
+            // start DMA
+            CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + 0x00), 9);
+
+            // TODO:  Use interrupts instead and allow this to yield back to the scheduler
+            while (true)
+            {
+                var bmStatus = CPUHelper.CPU.InDxByte((ushort)(_channels[channel].BusMasterIDE + 0x02));
+                var driveStatus = (Status)ReadRegister(channel, Register.Status);
+
+                if ((driveStatus & Status.Busy) == 0 && (bmStatus & 0x01) == 0) break;
+            }
+
+            return 0;
+        }
+
         public static byte Access(byte direction, byte drive, uint lba, byte numSectors, ushort selector, uint[] data)
         {
             byte lbaMode;
@@ -412,8 +465,7 @@ namespace Kernel.Devices
 
             if (count >= 1000)
             {
-                Logging.WriteLine(LogLevel.Panic, "Timed out while waiting for ATA not busy");
-                while (true) ;
+                throw new Exception("Timed out while waiting for ATA not busy");
             }
 
             if (lbaMode == 0)

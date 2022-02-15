@@ -41,6 +41,21 @@
                     return (byte)(reg2 >> 16);
                 }
             }
+
+            public uint this[int index]
+            {
+                get
+                {
+                    if (index < 0 || index > 63) throw new System.Exception("index out of range");
+                    return ReadDword(Bus, Device, Function, (byte)(index * 4));
+                }
+                set
+                {
+                    if (index < 0 || index > 63) throw new System.Exception("index out of range");
+                    Logging.WriteLine(LogLevel.Warning, "Writing to bus {0:X} device {1:X} function {2:X}", Bus, Device, Function);
+                    WriteDword(Bus, Device, Function, (byte)(index * 4), value);
+                }
+            }
         }
 
         public static Runtime.Collections.List<PCIDevice> Devices;

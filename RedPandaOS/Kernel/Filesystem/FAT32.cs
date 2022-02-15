@@ -21,7 +21,7 @@ namespace Kernel.IO
 
         private byte[] EnsureFilesystem(DiskWithPartition partition)
         {
-            var firstSector = partition.Disk.ReadSector(partition.Partition.RelativeSector);
+            var firstSector = partition.Disk.ReadSector(partition.Partition.RelativeSector, 1);
 
             if (!HasName(firstSector, 0x52, "FAT32 ", 6) || partition.Partition.PartitionType != 0x0B)
             {
@@ -33,7 +33,17 @@ namespace Kernel.IO
 
         protected byte[] LoadLba(uint lba)
         {
-            return _partition.Disk.ReadSector(lba);
+            return _partition.Disk.ReadSector(lba, _sectorsPerCluster);
+        }
+
+        protected void LoadLba(uint lba, byte[] buffer)
+        {
+            _partition.Disk.ReadSector(lba, _sectorsPerCluster, buffer);
+        }
+
+        protected void LoadLba(uint lba, byte[] buffer, ushort numClusters)
+        {
+            _partition.Disk.ReadSector(lba, (ushort)(_sectorsPerCluster * numClusters), buffer);
         }
 
         protected void WriteLba(uint lba, byte[] data)
@@ -253,6 +263,83 @@ namespace Kernel.IO
             else return null;
         }
 
+        public void GetFirstCluster(File file, byte[] buffer)
+        {
+            SectorHandler handler = null;
+            for (int i = 0; i < _files.Count; i++)
+            {
+                if (_files[i] == file.FilesystemInformation)
+                    handler = _handlers[i];
+            }
+
+            if (handler == null) throw new Exception("No handler existed for this file, use OnOpen first");
+
+            handler.ReadCluster(file.FilesystemInformation, buffer);
+        }
+
+        public void OnReadCluster(File file, byte[] buffer)
+        {
+            SectorHandler handler = null;
+            for (int i = 0; i < _files.Count; i++)
+            {
+                if (_files[i] == file.FilesystemInformation)
+                    handler = _handlers[i];
+            }
+
+            if (handler == null) throw new Exception("No handler existed for this file, use OnOpen first");
+
+            handler.ReadNextCluster(buffer);
+        }
+
+        public void OnBufferFile(File file, byte[] buffer)
+        {
+            SectorHandler handler = null;
+            for (int i = 0; i < _files.Count; i++)
+            {
+                if (_files[i] == file.FilesystemInformation)
+                    handler = _handlers[i];
+            }
+
+            if (handler == null) throw new Exception("No handler existed for this file, use OnOpen first");
+
+            // initialize handler to first cluster
+            handler.SetCluster(file.FilesystemInformation);
+
+            List<uint> clusters = new List<uint>((int)file.Size / (_sectorsPerCluster * 512) + 1);
+            List<ushort> clusterCount = new List<ushort>((int)file.Size / (_sectorsPerCluster * 512) + 1);
+            clusters.Add(file.FilesystemInformation);
+            clusterCount.Add(1);
+
+            uint lastCluster = 0;
+
+            // then build up a table of clusters that make up the file
+            for (uint addr = 0; addr < file.Size; addr += (uint)_sectorsPerCluster * 512)
+            {
+                while (handler.GetNextCluster())
+                {
+                    if (handler.ClusterId == lastCluster + 1 && clusterCount[clusterCount.Count - 1] < 63)
+                    {
+                        clusterCount[clusterCount.Count - 1]++;
+                    }
+                    else
+                    {
+                        clusters.Add(handler.ClusterId);
+                        clusterCount.Add(1);
+                    }
+                    lastCluster = handler.ClusterId;
+                }
+            }
+
+            var baseAddr = Memory.Utilities.ObjectToPtr(buffer);
+            for (int i = 0; i < clusters.Count; i++)
+            {
+                var lba = _clusterBeginLba + (clusters[i] - 2) * _sectorsPerCluster;
+                LoadLba(lba, Memory.Utilities.PtrToObject<byte[]>(baseAddr), clusterCount[i]);
+
+                baseAddr += ((uint)clusterCount[i] * _sectorsPerCluster * 512);
+            }
+        }
+
         private List<uint> _files = new List<uint>();
         private List<SectorHandler> _handlers = new List<SectorHandler>();
 
@@ -260,9 +347,19 @@ namespace Kernel.IO
         {
             private FAT32 _fat32;
 
+            private uint _currentLba = uint.MaxValue;
+            private byte[] _currentLbaData = null;
+
             public byte[] GetCurrentSector()
             {
-                return _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster + _sectorInCluster);
+                var lba = _clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster;
+                if (lba != _currentLba)
+                {
+                    _currentLbaData = _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster);
+                    _currentLba = lba;
+                }
+                return Memory.Utilities.PtrToObject<byte[]>(Memory.Utilities.ObjectToPtr(_currentLbaData) + ((uint)_sectorInCluster << 9));
+                //return _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster + _sectorInCluster);
             }
 
             public uint ClusterId { get; private set; }
@@ -282,6 +379,22 @@ namespace Kernel.IO
                 _sectorsPerCluster = (byte)sectorsPerCluster;
             }
 
+            public void ReadCluster(uint cluster, byte[] buffer)
+            {
+                ClusterId = cluster;
+                _sectorInCluster = 0;
+
+                _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster, buffer);
+            }
+
+            public void ReadNextCluster(byte[] buffer)
+            {
+                AdvanceRead();
+                while (_sectorInCluster != 0) AdvanceRead();
+
+                _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster, buffer);
+            }
+
             public void SetCluster(uint cluster)
             {
                 ClusterId = cluster;
@@ -291,24 +404,27 @@ namespace Kernel.IO
             public bool AdvanceRead()
             {
                 if (_sectorInCluster < _sectorsPerCluster - 1) _sectorInCluster++;
-                else
-                {
-                    // find which fat sector this cluster is in
-                    var offset = (ClusterId * 4) / 512 + _fatBeginLba;
-                    var fatSector = _fat32.LoadLba(offset);
-                    var nextCluster = BitConverter.ToUInt32(fatSector, (int)(ClusterId % 128) * 4);
-                    nextCluster &= 0x0FFFFFFF;
-
-                    if (nextCluster >= 0x0FFFFFF8) return false; // no more clusters
-                    else if (nextCluster >= 2 && nextCluster <= 0xFFFFFEF)
-                    {
-                        ClusterId = nextCluster;
-                        _sectorInCluster = 0;
-                    }
-                    else throw new Exception("Unsupported cluster type");
-                }
+                else return GetNextCluster();
 
                 return true;
+            }
+
+            public bool GetNextCluster()
+            {
+                // find which fat sector this cluster is in
+                var offset = (ClusterId * 4) / 512 + _fatBeginLba;
+                var fatSector = _fat32.LoadLba(offset);
+                var nextCluster = BitConverter.ToUInt32(fatSector, (int)(ClusterId % 128) * 4);
+                nextCluster &= 0x0FFFFFFF;
+
+                if (nextCluster >= 0x0FFFFFF8) return false; // no more clusters
+                else if (nextCluster >= 2 && nextCluster <= 0xFFFFFEF)
+                {
+                    ClusterId = nextCluster;
+                    _sectorInCluster = 0;
+                    return true;
+                }
+                else throw new Exception("Unsupported cluster type");
             }
 
             public uint ReserveEmptyCluster()
