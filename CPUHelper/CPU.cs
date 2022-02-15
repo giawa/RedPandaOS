@@ -493,6 +493,20 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void WriteMemByte(uint addr, byte data)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteMemByte_Void_U4_U1", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteMemByteAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov [ebx], al");
+        }
+
+        [AsmMethod]
         public static void WriteMemInt(uint addr, uint data)
         {
 
