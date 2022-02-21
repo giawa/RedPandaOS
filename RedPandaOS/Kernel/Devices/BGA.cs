@@ -31,8 +31,14 @@ namespace Kernel.Devices
         public BGA(PCI.PCIDevice device)
         {
             FrameBufferAddress = device.BAR0 & 0xfffffff0U;
+            
+            // try to detect if this is a VirtualBox device with VMSVGA enabled, which has backwards BAR values
+            if (FrameBufferAddress < 0x00010000U)
+            {
+                FrameBufferAddress = device.BAR1 & 0xfffffff0U;
+            }
 
-            Logging.WriteLine(LogLevel.Warning, "Got device with BAR0 {0:X}", device.BAR0);
+            Logging.WriteLine(LogLevel.Warning, "Got device with frame buffer {0:X}", FrameBufferAddress);
         }
 
         public void InitializeMode(ushort width, ushort height, byte bpp)
