@@ -248,8 +248,6 @@ namespace Kernel.Devices
 
         public static void WriteHexChar(int value)
         {
-            if (!initialized) return;  // not initialized yet
-
             value &= 0x0f;
             if (value >= 10) WriteChar(value + 55);
             else WriteChar(value + 48);

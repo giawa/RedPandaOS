@@ -109,6 +109,7 @@
 
         public static void WriteLine()
         {
+            if (!_initialized) return;
             Write((byte)'\n');
         }
 
