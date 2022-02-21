@@ -269,21 +269,22 @@ namespace Kernel.Devices
         {
             uint result = 0;
             byte reg = (byte)register;
+            var ch = _channels[channel];
 
             if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
+                WriteRegister(channel, Register.Control, (byte)(0x80 | ch.DisableInterrupts));
 
             if (reg < 0x08)
-                result = CPUHelper.CPU.InDxByte((ushort)(_channels[channel].Base + reg - 0x00));
+                result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x00));
             else if (reg < 0x0C)
-                result = CPUHelper.CPU.InDxByte((ushort)(_channels[channel].Base + reg - 0x06));
+                result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x06));
             else if (reg < 0x0E)
-                result = CPUHelper.CPU.InDxByte((ushort)(_channels[channel].Control + reg - 0x0C));
+                result = CPUHelper.CPU.InDxByte((ushort)(ch.Control + reg - 0x0C));
             else if (reg < 0x16)
-                result = CPUHelper.CPU.InDxByte((ushort)(_channels[channel].BusMasterIDE + reg - 0x0E));
+                result = CPUHelper.CPU.InDxByte((ushort)(ch.BusMasterIDE + reg - 0x0E));
 
             if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
+                WriteRegister(channel, Register.Control, ch.DisableInterrupts);
 
             return (byte)result;
         }
@@ -357,8 +358,6 @@ namespace Kernel.Devices
             return 0;
         }
 
-        private static byte[] lbaIo = new byte[6];
-
         public class PRDT
         {
             public uint Address;
@@ -383,16 +382,17 @@ namespace Kernel.Devices
             CPUHelper.CPU.OutDxEax((ushort)(_channels[channel].BusMasterIDE + 0x04), prdt);
 
             // select drive
-            WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4) | (byte)((lba & 0x0f000000U) >> 24)));
+            /*WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4) | (byte)((lba & 0x0f000000U) >> 24)));
 
             // set sector count, LBAs
             WriteRegister(channel, Register.SectorCount0, numSectors);
             WriteRegister(channel, Register.LBA0, (byte)lba);
             WriteRegister(channel, Register.LBA1, (byte)(lba >> 8));
-            WriteRegister(channel, Register.LBA2, (byte)(lba >> 16));
+            WriteRegister(channel, Register.LBA2, (byte)(lba >> 16));*/
+            var lbaMode = SetLba(channel, drive, numSectors, lba);
 
             // write READ_DMA
-            WriteRegister(channel, Register.Command, 0xC8);
+            WriteRegister(channel, Register.Command, 0xC8);// (byte)GetAccessCommand(lbaMode, 1, 0));
 
             // start DMA
             CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + 0x00), 9);
@@ -411,53 +411,15 @@ namespace Kernel.Devices
 
         public static byte Access(byte direction, byte drive, uint lba, byte numSectors, ushort selector, uint[] data)
         {
-            byte lbaMode;
             byte channel = _devices[drive].Channel;
-            byte slaveBit = _devices[drive].Drive;
             ushort bus = _channels[channel].Base;
-            ushort cylinder;
-            byte head, sector, err = 0;
+            byte err = 0;
 
             WriteRegister(channel, Register.Control, 2);    // make sure interrupts are disabled for now
 
-            if (lba >= 0x10000000)
-            {
-                // lba48
-                lbaMode = 2;
-                lbaIo[0] = (byte)lba;
-                lbaIo[1] = (byte)(lba >> 8);
-                lbaIo[2] = (byte)(lba >> 16);
-                lbaIo[3] = (byte)(lba >> 24);
-                lbaIo[4] = 0; // LBA28 is integer, so 32-bits are enough to access 2TB.
-                lbaIo[5] = 0; // LBA28 is integer, so 32-bits are enough to access 2TB.
-                head = 0; // Lower 4-bits of HDDEVSEL are not used here.
-            }
-            else if ((_devices[drive].Capabilities & 0x200) == 0x200)
-            {
-                // lba28
-                lbaMode = 1;
-                lbaIo[0] = (byte)lba;
-                lbaIo[1] = (byte)(lba >> 8);
-                lbaIo[2] = (byte)(lba >> 16);
-                lbaIo[3] = 0; // These Registers are not used here.
-                lbaIo[4] = 0; // These Registers are not used here.
-                lbaIo[5] = 0; // These Registers are not used here.
-                head = (byte)((lba & 0xF000000) >> 24);
-            }
-            else
-            {
-                // chs
-                lbaMode = 0;
-                sector = (byte)((lba % 63) + 1);
-                cylinder = (ushort)((lba + 1 - sector) / (16 * 63));
-                lbaIo[0] = sector;
-                lbaIo[1] = (byte)((cylinder >> 0) & 0xFF);
-                lbaIo[2] = (byte)((cylinder >> 8) & 0xFF);
-                lbaIo[3] = 0;
-                lbaIo[4] = 0;
-                lbaIo[5] = 0;
-                head = (byte)((lba + 1 - sector) % (16 * 63) / (63)); // Head number is written to HDDEVSEL lower 4-bits.
-            }
+            WriteRegister(channel, Register.Features, 0x03);    // set transfer mode
+            WriteRegister(channel, Register.SectorCount0, 0xC4);// pio4
+            WriteRegister(channel, Register.Command, 0xEF);     // set feature
 
             // wait for drive to be not busy
             int count = 0;
@@ -468,26 +430,7 @@ namespace Kernel.Devices
                 throw new Exception("Timed out while waiting for ATA not busy");
             }
 
-            if (lbaMode == 0)
-            {
-                WriteRegister(channel, Register.HDDevSel, (byte)(0xA0 | (slaveBit << 4) | head));   // CHS mode
-            }
-            else
-            {
-                WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4) | head));   // LBA mode
-            }
-
-            if (lbaMode == 2)
-            {
-                WriteRegister(channel, Register.SectorCount1, 0);
-                WriteRegister(channel, Register.LBA3, lbaIo[3]);
-                WriteRegister(channel, Register.LBA4, lbaIo[4]);
-                WriteRegister(channel, Register.LBA5, lbaIo[5]);
-            }
-            WriteRegister(channel, Register.SectorCount0, numSectors);
-            WriteRegister(channel, Register.LBA0, lbaIo[0]);
-            WriteRegister(channel, Register.LBA1, lbaIo[1]);
-            WriteRegister(channel, Register.LBA2, lbaIo[2]);
+            var lbaMode = SetLba(channel, drive, numSectors, lba);
 
             // not supporting dma yet, so force to 0
             WriteRegister(channel, Register.Command, (byte)GetAccessCommand(lbaMode, 0, direction));
@@ -531,6 +474,53 @@ namespace Kernel.Devices
             }
 
             return err;
+        }
+
+        private static byte SetLba(byte channel, byte drive, byte numSectors, uint lba)
+        {
+            byte slaveBit = _devices[drive].Drive;
+
+            if (lba >= 0x10000000)
+            {
+                // lba48
+                WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4)));
+                WriteRegister(channel, Register.SectorCount0, numSectors);
+                WriteRegister(channel, Register.LBA0, (byte)lba);
+                WriteRegister(channel, Register.LBA1, (byte)(lba >> 8));
+                WriteRegister(channel, Register.LBA2, (byte)(lba >> 16));
+                WriteRegister(channel, Register.LBA3, (byte)(lba >> 24));
+                WriteRegister(channel, Register.LBA4, 0);
+                WriteRegister(channel, Register.LBA5, 0);
+
+                return 2;
+            }
+            else if ((_devices[drive].Capabilities & 0x200) == 0x200)
+            {
+                var head = (byte)((lba & 0xF000000) >> 24);
+
+                WriteRegister(channel, Register.HDDevSel, (byte)(0xE0 | (slaveBit << 4) | head));
+                WriteRegister(channel, Register.SectorCount0, numSectors);
+                WriteRegister(channel, Register.LBA0, (byte)lba);
+                WriteRegister(channel, Register.LBA1, (byte)(lba >> 8));
+                WriteRegister(channel, Register.LBA2, (byte)(lba >> 16));
+
+                return 1;
+            }
+            else
+            {
+                // chs
+                var sector = (byte)((lba % 63) + 1);
+                var cylinder = (ushort)((lba + 1 - sector) / (16 * 63));
+                var head = (byte)((lba + 1 - sector) % (16 * 63) / (63)); // Head number is written to HDDEVSEL lower 4-bits.
+
+                WriteRegister(channel, Register.HDDevSel, (byte)(0xA0 | (slaveBit << 4) | head));
+                WriteRegister(channel, Register.SectorCount0, numSectors);
+                WriteRegister(channel, Register.LBA0, sector);
+                WriteRegister(channel, Register.LBA1, (byte)cylinder);
+                WriteRegister(channel, Register.LBA2, (byte)(cylinder >> 8));
+
+                return 0;
+            }
         }
 
         private static Command GetAccessCommand(byte lbaMode, byte dma, byte direction)
