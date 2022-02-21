@@ -77,10 +77,48 @@ namespace CPUHelper
             assembly.AddAsm("or eax, 0x1");
             assembly.AddAsm("mov cr0, eax");
             assembly.AddAsm("jmp 08h:0xA000");  // our 32 bit code starts at 0xA000, freshly loaded from the disk
-            assembly.AddAsm("");
             assembly.AddAsm("gdt_ptr:");
             assembly.AddAsm("dw 23");
             assembly.AddAsm("dd 0; this gets filled in with bx, which is the address of the gdt object");
+        }
+
+        [AsmMethod]
+        public static ushort LoadDisk(ushort dapPtr, byte drive)
+        {
+            return 0;
+        }
+
+        [AsmPlug("CPUHelper.Bios.LoadDisk_U2_U2_U1", IL2Asm.BaseTypes.Architecture.X86_Real, AsmFlags.None)]
+        public static void LoadDiskLbaAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("; Bios.LoadDisk_U2_U2_U1 plug");
+            assembly.AddAsm("LoadDisk_U2_U2:");
+            assembly.AddAsm("push bp");
+            assembly.AddAsm("mov bp, sp");
+            assembly.AddAsm("push cx");
+            assembly.AddAsm("push dx");
+            assembly.AddAsm("push es");
+            assembly.AddAsm("push di"); // di gets manipulated on some BIOS implementations
+
+            // bp + 4 is drive
+            // bp + 6 is dapPtr
+            assembly.AddAsm("mov ah, 0x42");
+            assembly.AddAsm("mov dl, [bp + 4]");
+            assembly.AddAsm("mov si, [bp + 6]");
+
+            assembly.AddAsm("int 0x13");
+            //assembly.AddAsm("mov al, dl");
+
+            assembly.AddAsm("jc LoadDisk_U2_U2_U1_Cleanup");
+            //assembly.AddAsm("mov ah, 0"); // al will now contain the number of sectors read
+
+            assembly.AddAsm("LoadDisk_U2_U2_U1_Cleanup:");
+            assembly.AddAsm("pop di");
+            assembly.AddAsm("pop es");
+            assembly.AddAsm("pop dx");
+            assembly.AddAsm("pop cx");
+            assembly.AddAsm("pop bp");
+            assembly.AddAsm("ret 4");
         }
 
         [AsmMethod]

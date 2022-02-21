@@ -19,6 +19,22 @@ namespace Bootloader
             public ushort TotalSectors1, TotalSectors2;
         }
 
+        public static bool LoadDiskWithRetry(ushort dapPtr, byte drive)
+        {
+            ushort retry = 0;
+            ushort result;
+
+            do
+            {
+                result = Bios.LoadDisk(dapPtr, drive);
+                BiosUtilities.Write("LoadDisk returned ");
+                BiosUtilities.WriteHex(result);
+                if (result == 0) Bios.ResetDisk();
+            } while (result == 0 && retry++ < 5);
+
+            return result != 0;
+        }
+
         public static bool LoadDiskWithRetry(Partition partition, ushort highAddr, /*ushort lowAddr,*/ byte disk, byte sectors)
         {
             ushort retry = 0;

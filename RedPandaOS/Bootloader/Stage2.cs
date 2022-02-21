@@ -37,8 +37,40 @@ namespace Bootloader
             }
         }
 
+        private class DAP
+        {
+            public byte Size;
+            public byte Unused;
+            public ushort NumSectors;
+            public ushort Addr0;
+            public ushort Addr1;
+            public ushort Lba0;
+            public ushort Lba1;
+            public ushort Lba2;
+            public ushort Lba3;
+        }
+
         private static void LoadLba(byte disk, byte heads, byte sectorsPerTrack, ushort lba, ushort addr)
         {
+#if USE_DAP
+            DAP dap = Kernel.Memory.Utilities.PtrToObject<DAP>(0x7c00);
+            dap.Size = 16;
+            dap.Unused = 0;
+            dap.NumSectors = 1;
+            dap.Addr0 = 0;
+            dap.Addr1 = addr;
+            dap.Lba0 = lba;
+            dap.Lba1 = 0;
+            dap.Lba2 = 0;
+            dap.Lba3 = 0;
+
+            if (!BiosUtilities.LoadDiskWithRetry(0x7c00, disk))
+            {
+                BiosUtilities.Write("LoadDiskWithRetry failed at addr 0x");
+                BiosUtilities.WriteHex(addr);
+                Panic(null);
+            }
+#else
             var sector = lba;
             ushort head = 0, cylinder = 0;
             sector++;   // advance because LBA is indexed from 0, but sectors are from 1
@@ -61,6 +93,7 @@ namespace Bootloader
                 BiosUtilities.WriteHex(addr);
                 Panic(null);
             }
+#endif
         }
 
         private static ushort kernelSectorCount = 0;
