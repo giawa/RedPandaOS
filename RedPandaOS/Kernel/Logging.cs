@@ -1,4 +1,7 @@
-﻿using Kernel.Devices;
+﻿//#define VGA_LOGGING
+#define COM_LOGGING
+
+using Kernel.Devices;
 
 namespace Kernel
 {
@@ -24,8 +27,14 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
+#if COM_LOGGING
                 COM.WriteFormattedString(s, u1, u2, u3);
                 COM.WriteLine();
+#endif
+#if VGA_LOGGING
+                VGA.WriteFormattedString(s, u1, u2, u3);
+                VGA.WriteLine();
+#endif
             }
         }
 
@@ -33,8 +42,14 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
+#if COM_LOGGING
                 COM.WriteString(s);
                 COM.WriteLine();
+#endif
+#if VGA_LOGGING
+                VGA.WriteString(s);
+                VGA.WriteLine();
+#endif
             }
         }
 
@@ -42,7 +57,12 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
+#if COM_LOGGING
                 COM.WriteFormattedString(s, u1, u2, u3);
+#endif
+#if VGA_LOGGING
+                VGA.WriteFormattedString(s, u1, u2, u3);
+#endif
             }
         }
 
@@ -50,7 +70,12 @@ namespace Kernel
         {
             if (level >= LoggingLevel)
             {
+#if COM_LOGGING
                 COM.WriteString(s);
+#endif
+#if VGA_LOGGING
+                VGA.WriteString(s);
+#endif
             }
         }
     }
