@@ -277,6 +277,25 @@ namespace Kernel.Memory
                     }
                     //Logging.WriteLine(LogLevel.Warning, "Identity mapping {0:X} to {1:X}", addr, end);
                 }
+
+                if ((device.BAR1 & 0x1) == 0 && device.BAR1 != 0)
+                {
+                    addr = device.BAR1 & 0xFFFFFFF0U;
+                    end = addr + device.BAR1Size;
+
+                    while (addr < end)
+                    {
+                        var page = GetPage(addr, true, _kernelDirectory);
+                        var result = AllocateFrame(page, addr >> 12, true, true);
+                        if (result == -1)
+                        {
+                            Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
+                            while (true) ;
+                        }
+                        addr += 0x1000U;
+                    }
+                    //Logging.WriteLine(LogLevel.Warning, "Identity mapping {0:X} to {1:X}", addr, end);
+                }
             }
 
             //_currentDirectory = CloneDirectory(_kernelDirectory);
