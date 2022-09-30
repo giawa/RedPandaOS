@@ -391,7 +391,9 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            //Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
+            Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
+            Exceptions.PrintStackTrace();
+            while (true) ;
 
             if (addr >= 0xA00000 && addr <= 0xAFFFFF)
             {
@@ -410,7 +412,7 @@ namespace Kernel.Memory
             }
             else
             {
-                //Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
+                Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
 
                 while (true) ;
             }

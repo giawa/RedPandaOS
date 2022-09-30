@@ -75,6 +75,12 @@ namespace PELoader
         public ElementType RetType { get; private set; }
         public ElementType[] Params { get; private set; }
 
+        public GenericInstSig(MethodSpecLayout.MethodSpecSig sig)
+        {
+            ParamCount = (uint)sig.Types.Length;
+            Params = sig.Types;
+        }
+
         public GenericInstSig(uint[] data, uint offset)
         {
             ParseSignature(data, offset);

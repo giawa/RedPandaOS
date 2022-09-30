@@ -21,6 +21,8 @@ namespace Kernel.Devices
 
         public static bool IsAvailable()
         {
+            //return false;
+
             var bgaAvailable = ReadBGARegister(Register.VBE_DISPI_INDEX_ID);
 
             return (bgaAvailable >= 0xB0C0 && bgaAvailable <= 0xB0C5);

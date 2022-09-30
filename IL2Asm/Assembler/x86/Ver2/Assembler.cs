@@ -76,7 +76,11 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         public void Assemble(PortableExecutableFile pe, AssembledMethod assembly)//MethodDefLayout methodDef, MethodSpecLayout methodSpec)
         {
-            if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0) throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
+            if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0)
+            {
+                var name = assembly.Method.MethodDef.ToAsmString();
+                throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
+            }
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
             if (assembly.Method != null && _methods.Where(m => m.Method?.MethodDef == assembly.Method.MethodDef && m.MethodSpec == assembly.MethodSpec).Any()) return;
 
@@ -2427,7 +2431,31 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private (uint, GenericInstSig) GetNonGenericEquivalent(CLIMetadata metadata, uint token)
         {
-            if ((token & 0xff000000) == 0x0a000000)
+            if ((token & 0xff000000) == 0x2b000000)
+            {
+                var methodSpec = metadata.MethodSpecs[(int)(token & 0x00ffffff) - 1];
+
+                return (methodSpec.method, new GenericInstSig(methodSpec.MemberSignature));
+
+                // use the parent methodSpec to work out the types
+                /*if (ass.MethodSpec != null)
+                {
+                    methodSpec = methodSpec.Clone();
+                    for (int j = 0; j < methodSpec.MemberSignature.Types.Length; j++)
+                    {
+                        var type = methodSpec.MemberSignature.Types[j];
+
+                        if (type.Type == ElementType.EType.MVar)
+                        {
+                            token = methodSpec.MemberSignature.Types[j].Token;
+                            methodSpec.MemberSignature.Types[j] = metadata.MethodSpec.MemberSignature.Types[token];
+                            methodSpec.MemberSignature.TypeNames[j] = metadata.MethodSpec.MemberSignature.TypeNames[token];
+                        }
+                    }
+                }
+                generic = methodSpec.MemberSignature.ToAsmString();*/
+            }
+            else if ((token & 0xff000000) == 0x0a000000)
             {
                 var memberRef = metadata.MemberRefs[(int)(token & 0x00ffffff) - 1];
 
@@ -2456,35 +2484,10 @@ namespace IL2Asm.Assembler.x86.Ver2
 
             uint methodDesc = BitConverter.ToUInt32(code, i);
             i += 4;
-            string generic = string.Empty;
 
             MethodSpecLayout methodSpec = null;
-
-            if ((methodDesc & 0xff000000) == 0x2b000000)
-            {
-                methodSpec = metadata.MethodSpecs[(int)(methodDesc & 0x00ffffff) - 1];
-                methodDesc = methodSpec.method;
-
-                // use the parent methodSpec to work out the types
-                if (assembly.MethodSpec != null)
-                {
-                    methodSpec = methodSpec.Clone();
-                    for (int j = 0; j < methodSpec.MemberSignature.Types.Length; j++)
-                    {
-                        var type = methodSpec.MemberSignature.Types[j];
-
-                        if (type.Type == ElementType.EType.MVar)
-                        {
-                            var token = methodSpec.MemberSignature.Types[j].Token;
-                            methodSpec.MemberSignature.Types[j] = assembly.MethodSpec.MemberSignature.Types[token];
-                            methodSpec.MemberSignature.TypeNames[j] = assembly.MethodSpec.MemberSignature.TypeNames[token];
-                        }
-                    }
-                }
-                generic = methodSpec.MemberSignature.ToAsmString();
-            }
-
             var genericOverride = GetNonGenericEquivalent(metadata, methodDesc);
+
             if (genericOverride.Item2 != null)
             {
                 methodDesc = genericOverride.Item1;
@@ -2504,7 +2507,6 @@ namespace IL2Asm.Assembler.x86.Ver2
             {
                 var memberRef = metadata.MemberRefs[(int)(methodDesc & 0x00ffffff) - 1];
                 var memberName = memberRef.ToAsmString();
-                if (!string.IsNullOrEmpty(generic)) memberName = memberName.Substring(0, memberName.IndexOf("_")) + generic + memberName.Substring(memberName.IndexOf("_"));
 
                 // eax and ebx may have been clobbered
                 eaxType = null;
@@ -2518,9 +2520,26 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 if (!CheckForPlugAndInvoke(path, memberName, memberRef.MemberSignature, assembly))
                 {
-                    if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
+                    /*if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                     {
                         var type = methodSpec.MemberSignature.Types[0];
+                        if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+                            type = assembly.GenericInstSig.Params[0];
+                        if (type.Type == ElementType.EType.Class)
+                        {
+                            type = new ElementType(ElementType.EType.ValueType, type.Token);
+                        }
+                        int size = _runtime.GetTypeSize(metadata, type);
+                        assembly.AddAsm($"push {size}");
+                    }
+                    else
+                    {
+                        throw new Exception("Unable to handle this method");
+                    }*/
+                    if (memberName == "System.Runtime.InteropServices.Marshal.SizeOf_I4")
+                    {
+                        if (genericOverride.Item2 == null) throw new Exception("Unsupported operation");
+                        var type = genericOverride.Item2.Params[0];
                         if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
                             type = assembly.GenericInstSig.Params[0];
                         if (type.Type == ElementType.EType.Class)
@@ -2554,6 +2573,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
 
                 var memberName = methodDef.ToAsmString(genericOverride.Item2);
+
+                if (memberName.Contains("Kernel_Memory_Utilities"))
+                {
+                    memberName = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1].ToAsmString();
+                }
 
                 if (!CheckForPlugAndInvoke(pe.Filename, memberName, methodDef.MethodSignature, assembly))
                 {

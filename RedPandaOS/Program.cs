@@ -117,9 +117,7 @@ namespace GiawaOS
                 IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(pm);
                 IL2Asm.Optimizer.x86.SimplifyConstants.ProcessAssembly(pm);
                 IL2Asm.Optimizer.x86.RemoveRedundantMoves.ProcessAssembly(pm);
-                //IL2Asm.Optimizer.x86_RealMode.ReplaceEquivalentInstructions.ProcessAssembly(pm);
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(pm);
-                //IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(pm);
 
                 //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(pm);
                 //IL2Asm.Optimizer.UseIncOrDec.ProcessAssembly(pm);
@@ -170,7 +168,8 @@ namespace GiawaOS
                 };
                 disk.Partitions.Add(bootablePartition);
                 DiskMaker.MakeBootableDisk(disk, "disk.bin", "stage1.bin", "stage2.bin", "pm.bin");
-                File.Copy("disk.bin", "boot.img", true);
+                //CopyToVDI("disk.bin", "disk.vdi");
+                File.Copy("disk.bin", "disk.hdd", true);
 
                 stopwatch.Stop();
                 Console.WriteLine($"Building disk image took {stopwatch.ElapsedMilliseconds} ms");
@@ -254,6 +253,24 @@ namespace GiawaOS
 
             Console.WriteLine("Press key to exit...");
             Console.ReadKey();
+        }
+
+        private static void CopyToVDI(string inputFile, string outputFile)
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo("qemu-img", $"convert -O vdi {inputFile} {outputFile}");
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+
+            Process qemuImg = new Process();
+            qemuImg.StartInfo = startInfo;
+            qemuImg.OutputDataReceived += (sender, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data)) Console.WriteLine(args.Data);
+            };
+
+            qemuImg.Start();
+            qemuImg.BeginOutputReadLine();
+            qemuImg.WaitForExit();
         }
 
         private static void RunNASM(string inputFile, string outputFile)
@@ -366,6 +383,24 @@ namespace GiawaOS
                     }
                 }
             }
+        }
+
+        private static void RunLinker(string inputFile, string outputFile, string offset)
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo("wsl", $"ld -m elf_i386 -Ttext={offset} --oformat binary -o {outputFile} {inputFile}");
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+
+            Process ld = new Process();
+            ld.StartInfo = startInfo;
+            ld.OutputDataReceived += (sender, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data)) Console.WriteLine(args.Data);
+            };
+
+            ld.Start();
+            ld.BeginOutputReadLine();
+            ld.WaitForExit();
         }
 
         private static MethodDefLayout FindEntryPoint(PortableExecutableFile file, string typeName, string methodName)

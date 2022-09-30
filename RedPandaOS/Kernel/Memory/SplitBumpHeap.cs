@@ -155,6 +155,7 @@ namespace Kernel.Memory
         private uint MallocLarge(uint size, uint init = 0)
         {
             uint subsequentPages = (size >> 12) + 1;
+            Logging.WriteLine(LogLevel.Warning, "Trying to allocate {0} subsequent pages", subsequentPages);
 
             for (int i = 0; i < _memory.Count; i++)
             {
@@ -179,12 +180,58 @@ namespace Kernel.Memory
                         {
                             _memory[i + j].Malloc(4096);
                         }
+
+                        /*if (_traces != null)
+                        {
+                            for (int j = 0; j < _traces.Count; j++) _traces[j].Trace(addr, size);
+                        }*/
+
                         return addr;
                     }
                 }
             }
 
-            return uint.MaxValue;
+            throw new Exception("Failed to allocate enough memory");
+        }
+
+        /*private List<TraceableHeap> _traces;
+
+        public TraceableHeap AddTrace(TraceableHeap trace)
+        {
+            if (_traces == null) _traces = new List<TraceableHeap>();
+            _traces.Add(trace);
+            return trace;
+        }
+
+        public void RemoveTrace(TraceableHeap trace)
+        {
+            if (_traces == null) return;
+
+            for (int i = 0; i < _traces.Count; i++)
+            {
+                if (_traces[i] == trace)
+                {
+                    _traces.RemoveAt(i);
+                    break;
+                }
+            }
+        }*/
+
+        public void PrintSpace()
+        {
+            return;
+
+            for (int i = 0; i < 10; i++)
+                Logging.Write(LogLevel.Warning, " {0} has {1}", (uint)i, _memory[i].Available);
+            Logging.WriteLine(LogLevel.Warning, "");
+            Logging.WriteLine(LogLevel.Warning, "First at 1 is 0x{0:X}", (uint)_memory[1].Used.IndexOfFirstZero());
+        }
+
+        public void DebugPrint(string info)
+        {
+            Logging.Write(LogLevel.Warning, "[Debug] ");
+            Logging.Write(LogLevel.Warning, info);
+            Logging.WriteLine(LogLevel.Warning, " {0:X} {1:X} {2}", CPU.ReadMemInt(0x62000), CPU.ReadMemInt(0x62004), _memory[1].Available);
         }
 
         [Allocator]
@@ -218,6 +265,11 @@ namespace Kernel.Memory
                 CPU.WriteMemInt(i, init);
 
             Logging.WriteLine(LogLevel.Trace, "[SBH] Allocating {0} bytes at 0x{1:X}", size, addr);
+
+            /*if (_traces != null)
+            {
+                for (int i = 0; i < _traces.Count; i++) _traces[i].Trace(addr, size);
+            }*/
 
             return addr;
         }
@@ -272,6 +324,14 @@ namespace Kernel.Memory
                     var offset = addr & 0xfff;
 
                     page.Free(offset, size);
+
+                    /*if (_traces != null)
+                    {
+                        for (int j = 0; j < _traces.Count; j++)
+                        {
+                            _traces[j].Untrace(addr, size);
+                        }
+                    }*/
 
                     Logging.WriteLine(LogLevel.Trace, "[SBH] Freeing {0} bytes at 0x{1:X}", size, addr);
                     return;
@@ -332,6 +392,71 @@ namespace Kernel.Memory
             uint addr = Malloc(size);
 
             return Utilities.PtrToObject<T[]>(addr);
+        }
+    }
+
+    public class TraceableHeap : IDisposable
+    {
+        private uint pid;
+
+        public TraceableHeap()
+        {
+            _addr = new List<uint>(100);
+            _size = new List<uint>(100);
+
+            pid = Scheduler.CurrentTask.Id;
+        }
+
+        private List<uint> _addr;
+        private List<uint> _size;
+
+        public void Trace(uint addr, uint size)
+        {
+            if (Scheduler.CurrentTask.Id != pid) return;
+
+            _addr.Add(addr);
+            _size.Add(size);
+        }
+
+        public void Untrace(uint addr, uint size)
+        {
+            if (Scheduler.CurrentTask.Id != pid) return;
+
+            int index = -1;
+            for (int i = 0; i < _addr.Count; i++)
+            {
+                if (_addr[i] == addr)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index == -1) return;
+
+            if (_size[index] != size) throw new Exception("Freed incorrect size");
+            _size.RemoveAt(index);
+            _addr.RemoveAt(index);
+        }
+
+        public void Dispose()
+        {
+            //KernelHeap.KernelAllocator.RemoveTrace(this);
+            for (int i = 0; i < _addr.Count; i++)
+            {
+                KernelHeap.KernelAllocator.Free(_addr[i], _size[i]);
+            }
+            _addr.Clear();
+            _size.Clear();
+        }
+
+        public void Free()
+        {
+            _addr.Dispose();
+            _size.Dispose();
+            KernelHeap.KernelAllocator.Free(_addr);
+            KernelHeap.KernelAllocator.Free(_size);
+            KernelHeap.KernelAllocator.Free(this);
         }
     }
 }

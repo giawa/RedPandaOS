@@ -231,7 +231,29 @@ namespace Kernel.Devices
                         continue;
                     }
 
-                    ReadBuffer(i, Register.Data, 128);
+                    ReadBuffer(i, Register.Data, 128);  // 512 bytes (256 words)
+
+                    Logging.WriteLine(LogLevel.Warning, "PIO, DMA {0:X}", _buffer[26]);
+                    Logging.WriteLine(LogLevel.Warning, "PIO (51) {0:X}", (_buffer[25] >> 16) & 0xffff);
+                    Logging.WriteLine(LogLevel.Warning, "PIO (67) {0:X}", (_buffer[33] >> 16) & 0xffff);
+                    Logging.WriteLine(LogLevel.Warning, "PIO (64) {0:X}", _buffer[32] & 0xffff);
+                    Logging.WriteLine(LogLevel.Warning, "PIO (68) {0:X}", _buffer[34] & 0xffff);
+
+                    Logging.WriteLine(LogLevel.Warning, "DMA (62) {0:X}", _buffer[31] & 0xffff);
+
+                    Logging.WriteLine(LogLevel.Warning, "PCI (offset 40h) {0:X}", device[16]);
+
+                    // start PIO4
+                    //device[16] = 0xA300 | (device[16] & 0xffff00ff);
+                    // end PIO4
+
+                    // start dma
+                    //device[16] = 0xe377;    // IDE timing register 1
+                    //device[21] = 0x0400;    // IDE i/o configuration register
+                    //device[13] = (device[13] & 0xffff) | 0x04000000U;
+                    // end dma
+
+                    Logging.WriteLine(LogLevel.Warning, "PCI (offset 40h) {0:X}", device[16]);
 
                     Device ideDevice = new Device();
                     _devices.Add(ideDevice);

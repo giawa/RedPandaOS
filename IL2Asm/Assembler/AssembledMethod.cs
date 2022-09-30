@@ -61,7 +61,7 @@ namespace IL2Asm
 
             var asmName = Method.MethodDef.ToAsmString(genericSig);
 
-            if (asmName.Contains("MVar"))
+            if (asmName.Contains("MVar") && MethodSpec != null)
             {
                 if (MethodSpec.MemberSignature.Types.Length != 1)
                     throw new Exception("Multiple generics are not yet supported");

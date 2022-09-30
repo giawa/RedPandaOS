@@ -4,6 +4,7 @@ using Runtime;
 using Runtime.Collections;
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Kernel
 {
@@ -24,7 +25,7 @@ namespace Kernel
             // mark unavailable chunks of memory as 'used' in the page allocator
             uint entries = CPU.ReadMemShort(0x500);
 
-            List<Memory.SMAP_Entry> freeMemory = new List<Memory.SMAP_Entry>();
+            List<Memory.SMAP_Entry> freeMemory = new List<Memory.SMAP_Entry>((int)entries);
 
             for (uint i = 0; i < entries; i++)
             {
@@ -40,6 +41,119 @@ namespace Kernel
             Memory.Paging.InitializePaging(frameCount, freeMemory);    // loads the entire kernel + heap into paging
         }
 
+        private static void ReadSymbols()
+        {
+            var root = IO.Filesystem.Root;
+            IO.Directory dev = null, hda = null, boot = null;
+            for (int i = 0; i < root.Directories.Count; i++) if (root.Directories[i].Name == "dev") dev = root.Directories[i];
+            if (dev == null) return;
+            for (int i = 0; i < dev.Directories.Count; i++) if (dev.Directories[i].Name == "hda") hda = dev.Directories[i];
+            if (hda == null) return;
+            hda.OnOpen(hda);
+            for (int i = 0; i < hda.Directories.Count; i++) if (hda.Directories[i].Name == "BOOT") boot = hda.Directories[i];
+            if (boot == null) return;
+            boot.OnOpen(boot);
+            IO.File symbols = null;
+            for (int i = 0; i < boot.Contents.Count; i++)
+            {
+                if (boot.Contents[i].Name == "SYMBOLS.BIN") symbols = boot.Contents[i];
+            }
+            if (symbols == null) return;
+
+            symbols.OnOpen(symbols);
+            var firstSector = symbols.FileSystem.GetFirstSector(symbols);
+            Exceptions.AddSymbols(Memory.Utilities.UnsafeCast<uint[]>(firstSector));
+
+            for (uint i = 512; i < symbols.Size; i += 512)
+            {
+                firstSector = symbols.FileSystem.OnReadSector(symbols);
+                Exceptions.AddSymbols(Memory.Utilities.UnsafeCast<uint[]>(firstSector));
+            }
+        }
+
+        private static BitmapFont LoadFont()
+        {
+            var root = IO.Filesystem.Root;
+            IO.Directory dev = null, hda = null, etc = null;
+            for (int i = 0; i < root.Directories.Count; i++) if (root.Directories[i].Name == "dev") dev = root.Directories[i];
+            if (dev == null) return null;
+            for (int i = 0; i < dev.Directories.Count; i++) if (dev.Directories[i].Name == "hda") hda = dev.Directories[i];
+            if (hda == null) return null;
+            hda.OnOpen(hda);
+            for (int i = 0; i < hda.Directories.Count; i++) if (hda.Directories[i].Name == "ETC") etc = hda.Directories[i];
+            if (etc == null) return null;
+            etc.OnOpen(etc);
+            IO.File texture = null, charData = null;
+            for (int i = 0; i < etc.Contents.Count; i++)
+            {
+                if (etc.Contents[i].Name == "INCONS16.BIN") texture = etc.Contents[i];
+                if (etc.Contents[i].Name == "INCONS16.FNT") charData = etc.Contents[i];
+            }
+
+            if (texture == null || charData == null)
+            {
+                Logging.WriteLine(LogLevel.Error, "Could not load font");
+                return null;
+            }
+
+            byte[] fontData = ReadFile(charData);
+            byte[] textureData = ReadFile(texture);
+
+            var ptr = Memory.Utilities.ObjectToPtr(fontData) + 8;   // skip over byte array length/size and use values stored by diskmaker
+
+            return new BitmapFont(Memory.Utilities.PtrToObject<BitmapFont.Character[]>(ptr), textureData, 256, 128);
+        }
+
+        private static byte[] ReadFile(IO.File file)
+        {
+            byte[] data = new byte[file.Size];
+
+            uint remaining = file.Size;
+            int offset = 0;
+
+            file.OnOpen(file);
+            byte[] fileData = file.FileSystem.GetFirstSector(file);
+
+            do
+            {
+                int toCopy = (remaining > 512 ? 512 : (int)remaining);
+
+                for (int i = 0; i < toCopy; i++) data[offset + i] = fileData[i];
+                offset += toCopy;
+                remaining -= (uint)toCopy;
+
+                if (remaining > 0) fileData = file.FileSystem.OnReadSector(file);
+
+            } while (remaining > 0);
+
+            return data;
+        }
+
+        private static void SetWallpaper(BGA bga)
+        {
+            var root = IO.Filesystem.Root;
+            IO.Directory dev = null, hda = null, etc = null;
+            for (int i = 0; i < root.Directories.Count; i++) if (root.Directories[i].Name == "dev") dev = root.Directories[i];
+            for (int i = 0; i < dev.Directories.Count; i++) if (dev.Directories[i].Name == "hda") hda = dev.Directories[i];
+            hda.OnOpen(hda);
+            for (int i = 0; i < hda.Directories.Count; i++) if (hda.Directories[i].Name == "ETC") etc = hda.Directories[i];
+            if (etc != null) etc.OnOpen(etc);
+            IO.File wallpaper = null;
+            for (int i = 0; i < etc.Contents.Count; i++)
+            {
+                if (etc.Contents[i].Name == "WALLPAPR.BIN") wallpaper = etc.Contents[i];
+            }
+
+            if (wallpaper != null)
+            {
+                Logging.WriteLine(LogLevel.Warning, "wallpaper at {0:X}", Memory.Utilities.ObjectToPtr(wallpaper));
+                wallpaper.OnOpen(wallpaper);
+                uint baseAddr = bga.FrameBufferAddress - 8;
+
+                wallpaper.FileSystem.OnBufferFile(wallpaper, Memory.Utilities.PtrToObject<byte[]>(baseAddr));
+            }
+        }
+
         static void Start()
         {
             COM.Initialize();
@@ -53,13 +167,14 @@ namespace Kernel
             PIC.Init();
             PIT.Init(100);
 
-            //PIC.SetIrqCallback(14, EmptyIrq);
-            //PIC.SetIrqCallback(15, EmptyIrq);
+            PIC.SetIrqCallback(14, EmptyIrq);
+            PIC.SetIrqCallback(15, EmptyIrq);
 
             //VGA.Clear();
             //VGA.WriteString(_welcomeMessage, 0x0700);
             //VGA.WriteLine();
 
+            PCI.ScanBus();
             InitializePaging();
 
             var newDirectory = Memory.Paging.CloneDirectory(Memory.Paging.KernelDirectory);
@@ -91,8 +206,6 @@ namespace Kernel
 
             Scheduler.Init();
 
-
-
             //Logging.WriteLine(LogLevel.Warning, "init is back!");
 
             /*for (uint i = 0; i < 5; i++)
@@ -107,54 +220,101 @@ namespace Kernel
             //Memory.Paging.Draw(); VGA.WriteLine();
 
             IO.Filesystem.Init();
-            PCI.ScanBus();
             PATA.AttachDriver();
+
+            ReadSymbols();
+
+            // grab some more memory to use for fonts/etc
+            uint addr = 0x100000;
+            for (uint i = 0; i < 60; i++)
+            {
+                var page = Memory.Paging.GetPage(addr, true, Memory.Paging.CurrentDirectory);
+                var frameAddr = Memory.Paging.AllocateFrame(page, false, true);
+                //Logging.WriteLine(LogLevel.Warning, "Address {0:X} mapped to memory {1:X}", addr, page.Frame);
+                if (frameAddr == -1)
+                {
+                    Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
+                    while (true) ;
+                }
+                addr += 0x1000U;
+            }
+            Memory.KernelHeap.ExpandHeap(0x100000, 60);
 
             //Logging.WriteLine(LogLevel.Warning, "Page fault by reading 0xA09000: 0x{0:X}", CPU.ReadMemInt(0xA09000));
 
             //Logging.WriteLine(LogLevel.Warning, "Using {0} bytes of memory", Memory.SplitBumpHeap.Instance.UsedBytes);
             //Logging.WriteLine(LogLevel.Warning, "Found {0} PCI devices", (uint)PCI.Devices.Count);
 
-            uint result = Scheduler.Fork();
+            uint result = 0;// Scheduler.Fork();
 
             if (result != 0)
             {
                 // idle task
-                //Logging.WriteLine(LogLevel.Warning, "Idle thread has pid {0}", Scheduler.CurrentTask.Id);
+                Logging.WriteLine(LogLevel.Warning, "Idle thread has pid {0}", Scheduler.CurrentTask.Id);
                 while (true)
                 {
-                    CPU.Halt();
+                    System.Threading.Thread.Sleep(1000);
+                    Logging.WriteLine(LogLevel.Warning, "Sleeping 1");
+                    //CPU.Halt();
                 }
             }
             else
             {
-                //Logging.LoggingLevel = LogLevel.Trace;
-                //uint anotherThread = Scheduler.Fork();
-
-                //if (anotherThread != 0)
+                if (BGA.IsAvailable())
                 {
-                    Logging.WriteLine(LogLevel.Warning, "Terminal thread has pid {0}", Scheduler.CurrentTask.Id);
-                    // actual user programs
+                    for (int i = 0; i < PCI.Devices.Count; i++)
+                    {
+                        var device = PCI.Devices[i];
+
+                        if (device.ClassCode == PCI.ClassCode.DisplayController)
+                        {
+                            BGA bga = new BGA(device);
+
+                            bga.InitializeMode(1280, 720, 32);
+
+                            /*uint color = 0;
+                            uint[] row = new uint[1280];
+                            uint ptr = Memory.Utilities.ObjectToPtr(row) + 8;
+                            while (true)
+                            {
+                                for (int j = 0; j < row.Length; j++) row[j] = color;
+
+                                uint fb = bga.FrameBufferAddress;
+                                uint end = fb + 1280 * 720 * 4;
+                                for (uint k = 0; k < 1280 * 720; k++, fb += 4)
+                                //for (; fb < end; fb += (uint)row.Length << 2)
+                                {
+                                    //CPU.FastCopyDWords(ptr, fb, (uint)row.Length);
+                                    CPU.WriteMemInt(fb, color);
+                                    if ((fb & 63) == 0)// && k < 917504)
+                                    {
+                                        color = (color + 1) & 0x00ffffffU;
+                                    }
+                                }
+                                color = (color & 0xff0000) + 0x010000;
+                            }*/
+
+                            var watch = new Runtime.Stopwatch();
+                            watch.Start();
+
+                            SetWallpaper(bga);
+
+                            watch.Stop();
+                            Logging.WriteLine(LogLevel.Warning, "Took {0} ticks", watch.ElapsedTicks);
+
+                            var font = LoadFont();
+                            if (font != null) font.DrawString("Hello from C#!", 20, 20, bga.FrameBufferAddress, 1280, 720);
+
+                            Logging.WriteLine(LogLevel.Warning, "Entered BGA mode");
+                        }
+                    }
+                }
+                else
+                {
+                    Logging.WriteLine(LogLevel.Warning, "No BGA support found, running text mode command prompt.");
                     Applications.terminal terminal = new Applications.terminal();
                     terminal.Run(IO.Filesystem.Root);
                 }
-                /*else
-                {
-                    Logging.WriteLine(LogLevel.Warning, "Sample busy thread has pid {0}", Scheduler.CurrentTask.Id);
-                    for (int i = 0; i < 10; i++)
-                    {
-                        System.Threading.Thread.Sleep(1000);
-                        Logging.WriteLine(LogLevel.Warning, "Thread {0} doing some work...", Scheduler.CurrentTask.Id);
-
-                        if (i == 3)
-                        {
-                            Logging.WriteLine(LogLevel.Warning, "Killing thread {0}", Scheduler.CurrentTask.Id);
-                            Scheduler.Kill(Scheduler.CurrentTask.Id);
-                        }
-                    }
-                    Logging.WriteLine(LogLevel.Warning, "Thread {0} finished", Scheduler.CurrentTask.Id);
-                    Scheduler.Kill(Scheduler.CurrentTask.Id);
-                }*/
             }
 
             while (true) ;

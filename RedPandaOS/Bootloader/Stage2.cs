@@ -212,9 +212,11 @@ namespace Bootloader
             if (disk <= 0x01 && heads != 2)
             {
                 // floppy drive defaults
-                BiosUtilities.Write("Bad geometry - using floppy defaults");
-                sectorsPerTrack = 18;
-                heads = 2;
+                BiosUtilities.Write("Bad geometry - using floppy defaults ");
+                //sectorsPerTrack = 18;
+                //heads = 2;
+                sectorsPerTrack = 63;
+                heads = 255;
             }
 
             // make sure this is a fat32 file system

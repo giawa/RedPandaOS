@@ -15,9 +15,11 @@
 
         public static void PrintStackTrace()
         {
+            Logging.LoggingLevel = LogLevel.Warning;    // disable memory allocation messages
+
             // try printing the stack trace
             uint ebp = CPUHelper.CPU.ReadEBP();
-            for (uint i = 0, s = 0; i < 40 && s < 10; i++)   // explore the stack up to a depth of 40 dwords
+            for (uint i = 0, s = 0; i < 60 && s < 10; i++)   // explore the stack up to a depth of 40 dwords
             {
                 var address = ebp + (i << 2);
                 if ((address & 0xfff) == 0) break;
@@ -32,7 +34,11 @@
                     Logging.WriteLine(LogLevel.Panic, symbol);
                     s++;
                 }
-                else if (_symbols == null) Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
+                else if (_symbols == null && contents > 0xA000 && contents <= 0x13000)
+                {
+                    Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
+                    s++;
+                }
             }
         }
 

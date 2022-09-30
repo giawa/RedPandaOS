@@ -57,6 +57,12 @@ namespace Applications
             VGA.WriteLine();
         }
 
+        private void cad()
+        {
+            VGA.WriteString("Yes?");
+            VGA.WriteLine();
+        }
+
         private bool CompareCommand(char[] command, string comparison)
         {
             int i = 0;
@@ -132,6 +138,8 @@ namespace Applications
                             cd(command);
                         else if (CompareCommand(command, "uname"))
                             uname();
+                        else if (CompareCommand(command, "cad"))
+                            cad();
                         else if (CompareCommand(command, "stack"))
                         {
                             var esp = CPUHelper.CPU.ReadESP();
