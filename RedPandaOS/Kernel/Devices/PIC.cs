@@ -90,9 +90,7 @@ namespace Kernel.Devices
             if (_isrHandlers[int_no] != null) _isrHandlers[int_no]();
             else
             {
-                VGA.WriteString("Unhandled Interrupt ");
-                VGA.WriteHex(int_no);
-                VGA.WriteChar(' ');
+                Logging.WriteLine(LogLevel.Panic, "Unhandled interrupt {0}", int_no);
 
                 while (true) ;
             }
@@ -113,9 +111,7 @@ namespace Kernel.Devices
             if (_irqHandlers[int_no - 32] != null) _irqHandlers[int_no - 32]();
             else
             {
-                VGA.WriteString("Unhandled IRQ ");
-                VGA.WriteHex(int_no);
-                VGA.WriteChar(' ');
+                Logging.WriteLine(LogLevel.Panic, "Unhandled IRQ {0}", int_no);
 
                 while (true) ;
             }
