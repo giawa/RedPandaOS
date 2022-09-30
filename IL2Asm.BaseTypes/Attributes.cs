@@ -22,6 +22,11 @@ namespace IL2Asm.BaseTypes
 
     }
 
+    public class RequireStackFrameAttribute : Attribute
+    {
+
+    }
+
     public class AllocatorAttribute : Attribute
     {
 

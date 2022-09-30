@@ -81,6 +81,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var name = assembly.Method.MethodDef.ToAsmString();
                 throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
             }
+            if (assembly.Method.MethodDef.Attributes.Where(a => a.Name.Contains("Il2Asm.BaseTypes.RequireStackFrameAttribute")).Count() > 0)
+            {
+                AddStackFrame(assembly);
+            }
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
             if (assembly.Method != null && _methods.Where(m => m.Method?.MethodDef == assembly.Method.MethodDef && m.MethodSpec == assembly.MethodSpec).Any()) return;
 
