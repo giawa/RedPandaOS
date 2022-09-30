@@ -1,8 +1,10 @@
 ﻿using CPUHelper;
 using Kernel.Devices;
+using Kernel.Memory;
 using Runtime;
 using Runtime.Collections;
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -36,7 +38,7 @@ namespace Kernel
             }
 
             // when initializing page we set up how many frames we will make available (each frame must be mapped somewhere in memory)
-            // to start we'll support up to 64MiB of memory, which requires an 2kiB allocation of frames
+            // to start we'll support up to 128MiB of memory, which requires a 4kiB allocation of frames
             int frameCount = 128 * 1024 * 1024 / 4096;
             Memory.Paging.InitializePaging(frameCount, freeMemory);    // loads the entire kernel + heap into paging
         }
@@ -158,166 +160,75 @@ namespace Kernel
         {
             COM.Initialize();
 
-            Logging.LoggingLevel = LogLevel.Warning;
-            VGA.EnableScrolling = true;
-
             PIC.SetIrqCallback(0, PIT.Tick);
-            PIC.SetIrqCallback(1, Keyboard.OnKeyPress);
-            PIC.SetIrqCallback(12, EmptyIrq);   // ps-2 mouse
             PIC.Init();
-            PIT.Init(100);
 
-            PIC.SetIrqCallback(14, EmptyIrq);
-            PIC.SetIrqCallback(15, EmptyIrq);
+            Logging.LoggingLevel = LogLevel.Trace;
 
-            //VGA.Clear();
-            //VGA.WriteString(_welcomeMessage, 0x0700);
-            //VGA.WriteLine();
-
-            PCI.ScanBus();
             InitializePaging();
 
-            var newDirectory = Memory.Paging.CloneDirectory(Memory.Paging.KernelDirectory);
-            Memory.Paging.SwitchPageDirectory(newDirectory);
+            kernelTask = SchedulerV2.GetCurrentTask();
 
-            /*var page = Memory.Paging.GetPage(0xDEAD0000, true, newDirectory);
-            Memory.Paging.AllocateFrame(page, false, true);
-            //CPU.WriteMemInt(0xDEAD0000, 0x12345678U);
-            for (uint i = 0; i < 1024; i++)
-                CPU.WriteMemInt(0xDEAD0000 + i * 4, i + 0x12345678U);
+            var kernelPagingDirectory = Paging.CurrentDirectory;
 
-            var userDirectory = Memory.Paging.CloneDirectory(newDirectory);
+            Logging.WriteLine(LogLevel.Warning, "Create firstPagingDirectory");
+            var firstPagingDirectory = Paging.CloneDirectory(Paging.CurrentDirectory);
+            Paging.SwitchPageDirectory(firstPagingDirectory);
+            var stackPage1 = Paging.GetPage(0xDEAD0000, true, firstPagingDirectory);
+            Paging.AllocateFrame(stackPage1, true, true);
 
-            Logging.WriteLine(LogLevel.Warning, "Original (0x12345678U): 0x{0:X}", CPU.ReadMemInt(0xDEAD0000));
-            CPU.WriteMemInt(0xDEAD0000, 0x23456789U);
-            Logging.WriteLine(LogLevel.Warning, "Updated (0x23456789U): 0x{0:X}", CPU.ReadMemInt(0xDEAD0000));
-            Memory.Paging.SwitchPageDirectory(userDirectory);
-            Logging.WriteLine(LogLevel.Warning, "New Directory (0x12345678U): 0x{0:X}", CPU.ReadMemInt(0xDEAD0000));
+            // clear the stage 1 bootloader memory in prep for using it as a stack for now
+            for (uint i = 0; i < 512; i += 4) CPU.WriteMemInt(0xDEAD0000 + i, 0);
 
-            for (uint i = 0; i < 4; i++)
-                Logging.WriteLine(LogLevel.Warning, "{0:X} : {1:X}", 0xDEAD0000 + (i * 4), CPU.ReadMemInt(0xDEAD0000 + i * 4));
+            Paging.SwitchPageDirectory(kernelPagingDirectory);
+            Logging.WriteLine(LogLevel.Warning, "Create firstTask");
+            firstTask = new TaskV2(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            firstTask.SetEntryPoint(FirstStack);
 
-            Memory.Paging.SwitchPageDirectory(newDirectory);
+            Logging.WriteLine(LogLevel.Warning, "Create secondPagingDirectory");
+            //Paging.SwitchPageDirectory(kernelPagingDirectory);
+            var secondPagingDirectory = Paging.CloneDirectory(kernelPagingDirectory);
+            Paging.SwitchPageDirectory(secondPagingDirectory);
+            var stackPage2 = Paging.GetPage(0xDEAD0000, true, secondPagingDirectory);
+            Paging.AllocateFrame(stackPage2, true, true);
 
-            for (uint i = 0; i < 4; i++)
-                Logging.WriteLine(LogLevel.Warning, "{0:X} : {1:X}", 0xDEAD0000 + (i * 4), CPU.ReadMemInt(0xDEAD0000 + i * 4));*/
+            // clear the stage 1 bootloader memory in prep for using it as a stack for now
+            for (uint i = 0; i < 512; i += 4) CPU.WriteMemInt(0xDEAD0000 + i, 0);
+            Logging.WriteLine(LogLevel.Warning, "Create secondTask");
+            //Paging.SwitchPageDirectory(kernelPagingDirectory);
+            secondTask = new TaskV2(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            secondTask.SetEntryPoint(SecondStack);
 
-            Memory.Stack.MoveStack(0x9000, 0xDEAE000, 8192);
+            SchedulerV2.SwitchToTask(secondTask);
 
-            Scheduler.Init();
-
-            //Logging.WriteLine(LogLevel.Warning, "init is back!");
-
-            /*for (uint i = 0; i < 5; i++)
+            while (true)
             {
-                var page = Memory.Paging.GetPage(0xDEAD0000 + (i << 12), true, Memory.Paging.KernelDirectory);
-                Memory.Paging.AllocateFrame(page, true, true);
-
-                CPU.WriteMemInt(0xDEAD0000 + (i << 12), 0x12345678U);
-            }*/
-
-            //Logging.WriteLine(LogLevel.Warning, "After:");
-            //Memory.Paging.Draw(); VGA.WriteLine();
-
-            IO.Filesystem.Init();
-            PATA.AttachDriver();
-
-            ReadSymbols();
-
-            // grab some more memory to use for fonts/etc
-            uint addr = 0x100000;
-            for (uint i = 0; i < 60; i++)
-            {
-                var page = Memory.Paging.GetPage(addr, true, Memory.Paging.CurrentDirectory);
-                var frameAddr = Memory.Paging.AllocateFrame(page, false, true);
-                //Logging.WriteLine(LogLevel.Warning, "Address {0:X} mapped to memory {1:X}", addr, page.Frame);
-                if (frameAddr == -1)
-                {
-                    Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
-                    while (true) ;
-                }
-                addr += 0x1000U;
+                Logging.WriteLine(LogLevel.Warning, "Kernel task, stack {0:X}", CPU.ReadEBP());
             }
-            Memory.KernelHeap.ExpandHeap(0x100000, 60);
+        }
 
-            //Logging.WriteLine(LogLevel.Warning, "Page fault by reading 0xA09000: 0x{0:X}", CPU.ReadMemInt(0xA09000));
+        private static TaskV2 kernelTask, firstTask, secondTask;
 
-            //Logging.WriteLine(LogLevel.Warning, "Using {0} bytes of memory", Memory.SplitBumpHeap.Instance.UsedBytes);
-            //Logging.WriteLine(LogLevel.Warning, "Found {0} PCI devices", (uint)PCI.Devices.Count);
+        static void FirstStack()
+        {
+            uint temp = 1;
 
-            uint result = 0;// Scheduler.Fork();
-
-            if (result != 0)
+            while (true)
             {
-                // idle task
-                Logging.WriteLine(LogLevel.Warning, "Idle thread has pid {0}", Scheduler.CurrentTask.Id);
-                while (true)
-                {
-                    System.Threading.Thread.Sleep(1000);
-                    Logging.WriteLine(LogLevel.Warning, "Sleeping 1");
-                    //CPU.Halt();
-                }
+                Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
+                SchedulerV2.SwitchToTask(secondTask);
             }
-            else
+        }
+
+        static void SecondStack()
+        {
+            uint temp = 2;
+
+            while (true)
             {
-                if (BGA.IsAvailable())
-                {
-                    for (int i = 0; i < PCI.Devices.Count; i++)
-                    {
-                        var device = PCI.Devices[i];
-
-                        if (device.ClassCode == PCI.ClassCode.DisplayController)
-                        {
-                            BGA bga = new BGA(device);
-
-                            bga.InitializeMode(1280, 720, 32);
-
-                            /*uint color = 0;
-                            uint[] row = new uint[1280];
-                            uint ptr = Memory.Utilities.ObjectToPtr(row) + 8;
-                            while (true)
-                            {
-                                for (int j = 0; j < row.Length; j++) row[j] = color;
-
-                                uint fb = bga.FrameBufferAddress;
-                                uint end = fb + 1280 * 720 * 4;
-                                for (uint k = 0; k < 1280 * 720; k++, fb += 4)
-                                //for (; fb < end; fb += (uint)row.Length << 2)
-                                {
-                                    //CPU.FastCopyDWords(ptr, fb, (uint)row.Length);
-                                    CPU.WriteMemInt(fb, color);
-                                    if ((fb & 63) == 0)// && k < 917504)
-                                    {
-                                        color = (color + 1) & 0x00ffffffU;
-                                    }
-                                }
-                                color = (color & 0xff0000) + 0x010000;
-                            }*/
-
-                            var watch = new Runtime.Stopwatch();
-                            watch.Start();
-
-                            SetWallpaper(bga);
-
-                            watch.Stop();
-                            Logging.WriteLine(LogLevel.Warning, "Took {0} ticks", watch.ElapsedTicks);
-
-                            var font = LoadFont();
-                            if (font != null) font.DrawString("Hello from C#!", 20, 20, bga.FrameBufferAddress, 1280, 720);
-
-                            Logging.WriteLine(LogLevel.Warning, "Entered BGA mode");
-                        }
-                    }
-                }
-                else
-                {
-                    Logging.WriteLine(LogLevel.Warning, "No BGA support found, running text mode command prompt.");
-                    Applications.terminal terminal = new Applications.terminal();
-                    terminal.Run(IO.Filesystem.Root);
-                }
+                Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
+                SchedulerV2.SwitchToTask(firstTask);
             }
-
-            while (true) ;
         }
 
         private enum MissingCPUFeature : byte
