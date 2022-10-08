@@ -77,6 +77,17 @@ namespace Kernel
         private static List<Task> _runningTasks = new List<Task>();
         private static List<Task> _tasks = new List<Task>();
         private static int _currentTask = 0;
+        public static Task IdleTask;
+
+        private static void IdleTaskEntryPoint()
+        {
+            while (true)
+            {
+                //for (uint i = 0; i < 10000000; i++) ;
+                //Logging.Write(LogLevel.Panic, "I");
+                CPUHelper.CPU.Halt();
+            }
+        }
 
         public static void Add(Task task)
         {
@@ -92,10 +103,8 @@ namespace Kernel
                 {
                     if (_tasks[i].StateInfo <= PIT.TickCount)
                     {
-                        Lock();
-                        _tasks[i].State = TaskState.ReadyToRun;
-                        _runningTasks.Add(_tasks[i]);
-                        Unlock();
+                        Logging.WriteLine(LogLevel.Warning, "Waking thread");
+                        UnblockTask(_tasks[i]);
                     }
                 }
             }
@@ -109,11 +118,33 @@ namespace Kernel
             // TODO:  This has a bug where _currentTask will now point to the next task after removal of this task
             // which means the next task could be skipped and have to wait another full round before being run
             Lock();
-            //_runningTasks.Remove(task);
+            _runningTasks.Remove(task);   // no need to remove the task here, as Schedule will remove it for us
             task.State = TaskState.Sleeping;
             task.StateInfo = end;
             Unlock();
             Schedule();
+        }
+
+        public static void CreateIdleTask()
+        {
+            if (Paging.CurrentDirectory != Paging.KernelDirectory)
+                throw new Exception("Must be called with kernel stack");
+
+            Lock();
+
+            var idlePagingDirectory = Paging.CloneDirectory(Paging.KernelDirectory);
+            Paging.SwitchPageDirectory(idlePagingDirectory);
+            var idleStack = Paging.GetPage(0xDEAD0000, true, idlePagingDirectory);
+            Paging.AllocateFrame(idleStack, true, true);
+
+            for (uint i = 0; i < 512; i += 4) CPUHelper.CPU.WriteMemInt(0xDEAD0000 + i, 0);
+
+            Paging.SwitchPageDirectory(Paging.KernelDirectory);
+
+            IdleTask = new Task(0xDEAD0000 + 512, idlePagingDirectory);
+            IdleTask.SetEntryPoint(IdleTaskEntryPoint);
+
+            Unlock();
         }
 
         public static void Schedule()
@@ -122,12 +153,14 @@ namespace Kernel
 
             if (_runningTasks.Count == 0)
             {
-                // TODO: Run idle task
-                throw new Exception("No idle task");
+                if (IdleTask == null) throw new Exception("No idle task");
+                SwitchToTask(IdleTask);
             }
-
-            _currentTask = (_currentTask + 1) % _runningTasks.Count;
-            SwitchToTask(_runningTasks[_currentTask]);
+            else
+            {
+                _currentTask = (_currentTask + 1) % _runningTasks.Count;
+                SwitchToTask(_runningTasks[_currentTask]);
+            }
 
             Unlock();
         }
@@ -170,6 +203,12 @@ namespace Kernel
                 _runningTasks.Add(task);
             }
             task.State = TaskState.ReadyToRun;
+            
+            if (CurrentTask == IdleTask)
+            {
+                // preempt the idle task
+                SwitchToTask(task);
+            }
 
             Unlock();
         }
@@ -196,7 +235,7 @@ namespace Kernel
                 {
                     if (!_runningTasks.Remove(CurrentTask))
                     {
-                        Logging.WriteLine(LogLevel.Error, "Tried to remove task but it was already removed");
+                        //Logging.WriteLine(LogLevel.Error, "Tried to remove task but it was already removed");
                     }
                 }
                 

@@ -169,6 +169,7 @@ namespace Kernel
             InitializePaging();
 
             kernelTask = SchedulerV2.GetCurrentTask();
+            SchedulerV2.CreateIdleTask();
 
             var kernelPagingDirectory = Paging.CurrentDirectory;
 
