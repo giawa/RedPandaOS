@@ -15,7 +15,8 @@ namespace Kernel
             ReadyToRun,
             Running,
             Waiting,
-            Sleeping
+            Sleeping,
+            Terminated
         }
 
         public class Task
@@ -95,19 +96,26 @@ namespace Kernel
             _tasks.Add(task);
         }
 
+        public static bool PreemptiveScheduler = false;
+
         public static void Tick()
         {
+            bool alreadyPreempted = false;
+
             for (int i = 0; i < _tasks.Count; i++)
             {
                 if (_tasks[i].State == TaskState.Sleeping)
                 {
                     if (_tasks[i].StateInfo <= PIT.TickCount)
                     {
-                        Logging.WriteLine(LogLevel.Warning, "Waking thread");
-                        UnblockTask(_tasks[i]);
+                        // it's possible we preempt the idle thread while unblocking here,
+                        // so if that happens then we do not need to run the scheduler at the end of Tick
+                        alreadyPreempted = UnblockTask(_tasks[i]);
                     }
                 }
             }
+
+            if (PreemptiveScheduler && !alreadyPreempted) Schedule();
         }
 
         public static void Sleep(Task task, uint milliseconds)
@@ -194,7 +202,7 @@ namespace Kernel
             Unlock();
         }
 
-        public static void UnblockTask(Task task)
+        public static bool UnblockTask(Task task)
         {
             Lock();
             
@@ -208,7 +216,21 @@ namespace Kernel
             {
                 // preempt the idle task
                 SwitchToTask(task);
+                return true;
             }
+
+            Unlock();
+            return false;
+        }
+
+        public static void TerminateTask(Task task)
+        {
+            Lock();
+
+            task.State = TaskState.Terminated;
+            _tasks.Remove(task);
+            _runningTasks.Remove(task);
+            Schedule();
 
             Unlock();
         }

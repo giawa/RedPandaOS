@@ -204,8 +204,10 @@ namespace Kernel
             //SchedulerV2.SwitchToTask(secondTask);
             SchedulerV2.Add(firstTask);
             SchedulerV2.Add(secondTask);
+            SchedulerV2.PreemptiveScheduler = true;
             SchedulerV2.Schedule();
 
+            // this will never happen because the scheduler will switch to a new task
             while (true)
             {
                 Logging.WriteLine(LogLevel.Warning, "Kernel task, stack {0:X}", CPU.ReadEBP());
@@ -220,28 +222,19 @@ namespace Kernel
 
             while (true)
             {
-                //Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
-                SchedulerV2.Schedule();
+                SchedulerV2.Sleep(firstTask, 1000);
+                Logging.WriteLine(LogLevel.Warning, "Awake! Thread {0} working, stack {1:X}", temp, CPU.ReadEBP());
             }
         }
 
         static void SecondTaskEntryPoint()
         {
             uint temp = 2;
-            //uint sleep = 500;
 
             while (true)
             {
-                SchedulerV2.Sleep(secondTask, 1000);
-                //sleep--;
-                /*if (sleep <= 0)
-                {
-                    SchedulerV2.CurrentTask.State = TaskState.Sleeping;
-                    Logging.WriteLine(LogLevel.Warning, "Thread {0}, sleeping", temp);
-                }
-                else*/ 
-                Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
-                SchedulerV2.Schedule();
+                SchedulerV2.Sleep(secondTask, 2000);
+                Logging.WriteLine(LogLevel.Warning, "Awake! Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
             }
         }
 
