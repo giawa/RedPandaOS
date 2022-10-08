@@ -1,4 +1,6 @@
-﻿namespace Runtime.Collections
+﻿using Kernel.Memory;
+
+namespace Runtime.Collections
 {
     public class List<T>
     {
@@ -65,6 +67,25 @@
             }
 
             _index--;
+        }
+
+        /// <summary>
+        /// Removes an item from the list if their memory locations match.
+        /// Note:  This is different behaviour from .NET, which can use overrides/etc
+        /// </summary>
+        /// <param name="item">The item to remove from the List</param>
+        /// <returns>True if the item was in the List and was removed, false if the item was not in the List</returns>
+        public bool Remove(T item)
+        {
+            for (int i = 0; i < _array.Length; i++)
+            {
+                if (Utilities.ObjectToPtr(item) == Utilities.ObjectToPtr(_array[i]))
+                {
+                    RemoveAt(i);
+                    return true;
+                }
+            }
+            return false;
         }
 
         public int Count
