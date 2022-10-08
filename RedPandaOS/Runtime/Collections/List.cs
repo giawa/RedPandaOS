@@ -77,7 +77,7 @@ namespace Runtime.Collections
         /// <returns>True if the item was in the List and was removed, false if the item was not in the List</returns>
         public bool Remove(T item)
         {
-            for (int i = 0; i < _array.Length; i++)
+            for (int i = 0; i < _index; i++)
             {
                 if (Utilities.ObjectToPtr(item) == Utilities.ObjectToPtr(_array[i]))
                 {
