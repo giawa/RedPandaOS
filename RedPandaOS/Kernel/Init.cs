@@ -167,9 +167,9 @@ namespace Kernel
             Logging.LoggingLevel = LogLevel.Trace;
 
             InitializePaging();
+            kernelTask = Scheduler.GetCurrentTask();
+            Scheduler.CreateIdleTask();
 
-            kernelTask = SchedulerV2.GetCurrentTask();
-            SchedulerV2.CreateIdleTask();
 
             var kernelPagingDirectory = Paging.CurrentDirectory;
 
@@ -184,7 +184,7 @@ namespace Kernel
 
             Paging.SwitchPageDirectory(kernelPagingDirectory);
             Logging.WriteLine(LogLevel.Warning, "Create firstTask");
-            firstTask = new SchedulerV2.Task(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            firstTask = new Scheduler.Task(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
             firstTask.SetEntryPoint(FirstTaskEntryPoint);
 
             Logging.WriteLine(LogLevel.Warning, "Create secondPagingDirectory");
@@ -198,14 +198,14 @@ namespace Kernel
             for (uint i = 0; i < 512; i += 4) CPU.WriteMemInt(0xDEAD0000 + i, 0);
             Logging.WriteLine(LogLevel.Warning, "Create secondTask");
             //Paging.SwitchPageDirectory(kernelPagingDirectory);
-            secondTask = new SchedulerV2.Task(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            secondTask = new Scheduler.Task(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
             secondTask.SetEntryPoint(SecondTaskEntryPoint);
 
             //SchedulerV2.SwitchToTask(secondTask);
-            SchedulerV2.Add(firstTask);
-            SchedulerV2.Add(secondTask);
-            SchedulerV2.PreemptiveScheduler = true;
-            SchedulerV2.Schedule();
+            Scheduler.Add(firstTask);
+            Scheduler.Add(secondTask);
+            Scheduler.PreemptiveScheduler = true;
+            Scheduler.Schedule();
 
             // this will never happen because the scheduler will switch to a new task
             while (true)
@@ -214,7 +214,7 @@ namespace Kernel
             }
         }
 
-        private static SchedulerV2.Task kernelTask, firstTask, secondTask;
+        private static Scheduler.Task kernelTask, firstTask, secondTask;
 
         static void FirstTaskEntryPoint()
         {
@@ -222,7 +222,7 @@ namespace Kernel
 
             while (true)
             {
-                SchedulerV2.Sleep(firstTask, 1000);
+                Scheduler.Sleep(firstTask, 1000);
                 Logging.WriteLine(LogLevel.Warning, "Awake! Thread {0} working, stack {1:X}", temp, CPU.ReadEBP());
             }
         }
@@ -233,7 +233,7 @@ namespace Kernel
 
             while (true)
             {
-                SchedulerV2.Sleep(secondTask, 2000);
+                Scheduler.Sleep(secondTask, 2000);
                 Logging.WriteLine(LogLevel.Warning, "Awake! Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
             }
         }

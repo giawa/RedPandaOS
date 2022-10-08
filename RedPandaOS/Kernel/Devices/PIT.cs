@@ -30,7 +30,7 @@ namespace Kernel.Devices
         {
             _tickCount += 1;
 
-            SchedulerV2.Tick();
+            Scheduler.Tick();
 
             /*if (Profile)
             {

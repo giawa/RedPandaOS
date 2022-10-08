@@ -6,7 +6,7 @@ using Runtime.Collections;
 
 namespace Kernel
 {
-    public class SchedulerV2
+    public class Scheduler
     {
         public enum TaskState
         {

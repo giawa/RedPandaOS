@@ -1,4 +1,5 @@
-﻿using Kernel.Devices;
+﻿#if SCHEDULER_V1
+using Kernel.Devices;
 using Runtime.Collections;
 using System.Runtime.InteropServices;
 
@@ -168,3 +169,4 @@ namespace Kernel
         }
     }
 }
+#endif
