@@ -2191,6 +2191,29 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
                 }
+                else if (memberName.EndsWith("Exception..ctor_Void"))
+                {
+                    var split = memberName.Split('.');
+                    var exceptionType = split[1];
+
+                    if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+                    assembly.AddAsm("push 8");
+                    assembly.AddAsm("push 0");
+                    assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+                    assembly.AddAsm("pop ebx");         // the function ptr
+                    assembly.AddAsm($"add esp, {BytesPerRegister}");    // the object ptr (normally null, we don't use this yet)
+
+                    string label = "Name_" + exceptionType;
+                    if (!_initializedData.ContainsKey(label)) _initializedData.Add(label, new DataType(ElementType.EType.String, exceptionType));
+
+                    assembly.AddAsm($"mov dword [eax], {label}");  // put the string in for the exception message
+
+                    assembly.AddAsm("push eax");
+
+                    _stack.Push(new ElementType(ElementType.EType.Class, memberRef.Parent));
+                }
                 else if (memberName == "System.String..ctor_Void_SzArray")
                 {
                     var type = _stack.Pop();

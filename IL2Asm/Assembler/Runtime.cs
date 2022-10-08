@@ -147,6 +147,8 @@ namespace IL2Asm
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;
 
+                if ((typeRefToken & 0xff000000) == 0x02000000) typeRefToken = field.Parent;
+
                 if ((typeRefToken & 0xff000000) == 0x1b000000)
                 {
                     var typeSpec = metadata.TypeSpecs[(int)(typeRefToken & 0x00ffffff) - 1];
@@ -219,6 +221,8 @@ namespace IL2Asm
 
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;
+
+                if ((typeRefToken & 0xff000000) == 0x02000000) typeRefToken = field.Parent;
 
                 if ((typeRefToken & 0xff000000) == 0x1b000000)
                 {

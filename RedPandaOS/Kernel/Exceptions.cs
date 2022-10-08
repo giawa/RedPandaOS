@@ -5,7 +5,9 @@
         public static void Throw(Runtime.KernelException exception)
         {
             Logging.Write(LogLevel.Panic, "Caught exception: ");
-            Logging.WriteLine(LogLevel.Panic, exception.Message);
+
+            if (exception.Message == null) Logging.WriteLine(LogLevel.Panic, "Unknown Type");
+            else Logging.WriteLine(LogLevel.Panic, exception.Message);
 
             // try printing the stack trace
             PrintStackTrace();

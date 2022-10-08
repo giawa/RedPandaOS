@@ -183,7 +183,7 @@ namespace Kernel
             Paging.SwitchPageDirectory(kernelPagingDirectory);
             Logging.WriteLine(LogLevel.Warning, "Create firstTask");
             firstTask = new TaskV2(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
-            firstTask.SetEntryPoint(FirstStack);
+            firstTask.SetEntryPoint(FirstTaskEntryPoint);
 
             Logging.WriteLine(LogLevel.Warning, "Create secondPagingDirectory");
             //Paging.SwitchPageDirectory(kernelPagingDirectory);
@@ -197,7 +197,7 @@ namespace Kernel
             Logging.WriteLine(LogLevel.Warning, "Create secondTask");
             //Paging.SwitchPageDirectory(kernelPagingDirectory);
             secondTask = new TaskV2(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
-            secondTask.SetEntryPoint(SecondStack);
+            secondTask.SetEntryPoint(SecondTaskEntryPoint);
 
             SchedulerV2.SwitchToTask(secondTask);
 
@@ -209,7 +209,7 @@ namespace Kernel
 
         private static TaskV2 kernelTask, firstTask, secondTask;
 
-        static void FirstStack()
+        static void FirstTaskEntryPoint()
         {
             uint temp = 1;
 
@@ -220,7 +220,7 @@ namespace Kernel
             }
         }
 
-        static void SecondStack()
+        static void SecondTaskEntryPoint()
         {
             uint temp = 2;
 
