@@ -30,6 +30,8 @@ namespace Kernel.Devices
         {
             _tickCount += 1;
 
+            SchedulerV2.Tick();
+
             /*if (Profile)
             {
                 if (_profiler == null) _profiler = new Runtime.Collections.List<uint>(800);

@@ -162,6 +162,7 @@ namespace Kernel
 
             PIC.SetIrqCallback(0, PIT.Tick);
             PIC.Init();
+            PIT.Init(100);
 
             Logging.LoggingLevel = LogLevel.Trace;
 
@@ -182,7 +183,7 @@ namespace Kernel
 
             Paging.SwitchPageDirectory(kernelPagingDirectory);
             Logging.WriteLine(LogLevel.Warning, "Create firstTask");
-            firstTask = new TaskV2(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            firstTask = new SchedulerV2.Task(0xDEAD0000 + 512, firstPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
             firstTask.SetEntryPoint(FirstTaskEntryPoint);
 
             Logging.WriteLine(LogLevel.Warning, "Create secondPagingDirectory");
@@ -196,12 +197,12 @@ namespace Kernel
             for (uint i = 0; i < 512; i += 4) CPU.WriteMemInt(0xDEAD0000 + i, 0);
             Logging.WriteLine(LogLevel.Warning, "Create secondTask");
             //Paging.SwitchPageDirectory(kernelPagingDirectory);
-            secondTask = new TaskV2(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
+            secondTask = new SchedulerV2.Task(0xDEAD0000 + 512, secondPagingDirectory);    // create a new task with a stack in the stage 1 bootloader memory
             secondTask.SetEntryPoint(SecondTaskEntryPoint);
 
             //SchedulerV2.SwitchToTask(secondTask);
-            SchedulerV2.Tasks.Add(firstTask);
-            SchedulerV2.Tasks.Add(secondTask);
+            SchedulerV2.Add(firstTask);
+            SchedulerV2.Add(secondTask);
             SchedulerV2.Schedule();
 
             while (true)
@@ -210,7 +211,7 @@ namespace Kernel
             }
         }
 
-        private static TaskV2 kernelTask, firstTask, secondTask;
+        private static SchedulerV2.Task kernelTask, firstTask, secondTask;
 
         static void FirstTaskEntryPoint()
         {
@@ -218,7 +219,7 @@ namespace Kernel
 
             while (true)
             {
-                Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
+                //Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
                 SchedulerV2.Schedule();
             }
         }
@@ -226,17 +227,19 @@ namespace Kernel
         static void SecondTaskEntryPoint()
         {
             uint temp = 2;
-            uint sleep = 500;
+            //uint sleep = 500;
 
             while (true)
             {
-                sleep--;
-                if (sleep <= 0)
+                SchedulerV2.Sleep(secondTask, 1000);
+                //sleep--;
+                /*if (sleep <= 0)
                 {
                     SchedulerV2.CurrentTask.State = TaskState.Sleeping;
                     Logging.WriteLine(LogLevel.Warning, "Thread {0}, sleeping", temp);
                 }
-                else Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
+                else*/ 
+                Logging.WriteLine(LogLevel.Warning, "Thread {0}, stack {1:X}", temp, CPU.ReadEBP());
                 SchedulerV2.Schedule();
             }
         }
