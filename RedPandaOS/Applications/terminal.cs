@@ -119,7 +119,7 @@ namespace Applications
                     // wait for enter key
                     while (Keyboard.KeyQueue.Count == 0)
                     {
-                        Kernel.Scheduler.Yield();
+                        //Kernel.Scheduler.Yield();
                     }
 
                     var key = Keyboard.KeyQueue.Dequeue();

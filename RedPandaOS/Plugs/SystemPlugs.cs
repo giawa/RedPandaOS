@@ -57,8 +57,8 @@ namespace Plugs
 
             while (Kernel.Devices.PIT.TickCount < end)
             {
-                if (Kernel.Devices.PIT.TickCount < end - 1)
-                    Kernel.Scheduler.Yield();   // since we're not doing any work yield to a different thread
+                //if (Kernel.Devices.PIT.TickCount < end - 1)
+                //    Kernel.Scheduler.Yield();   // since we're not doing any work yield to a different thread
             }
         }
 

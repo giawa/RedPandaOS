@@ -25,12 +25,17 @@ namespace Kernel
             public PageDirectory PageDirectory;
             public TaskState State;
             public uint StateInfo;
+            public uint Id;
+
+            private static uint _id = 1;
 
             public Task(uint stackTop, PageDirectory pageDirectory)
             {
                 ESP = EBP = stackTop;
                 PageDirectory = pageDirectory;
                 State = TaskState.Uninitialized;
+
+                Id = _id++;
             }
 
             public void SetEntryPoint(Action entryPoint)
