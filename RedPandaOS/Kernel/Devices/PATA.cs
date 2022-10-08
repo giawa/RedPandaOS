@@ -287,11 +287,34 @@ namespace Kernel.Devices
             return true;
         }
 
+        private static int _locks = 0;
+
+        private static void Lock()
+        {
+            // disable interrupts
+            CPUHelper.CPU.Cli();
+            _locks++;
+
+            //Logging.WriteLine(LogLevel.Panic, "Lock {0}", (uint)_locks);
+        }
+
+        private static void Unlock()
+        {
+            _locks--;
+            // re-enable interrupts
+            if (_locks == 0) CPUHelper.CPU.Sti();
+            if (_locks <= 0) _locks = 0;
+
+            //Logging.WriteLine(LogLevel.Panic, "Unlock {0}", (uint)_locks);
+        }
+
         private static byte ReadRegister(byte channel, Register register)
         {
             uint result = 0;
             byte reg = (byte)register;
             var ch = _channels[channel];
+
+            Lock();
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, (byte)(0x80 | ch.DisableInterrupts));
@@ -308,12 +331,16 @@ namespace Kernel.Devices
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, ch.DisableInterrupts);
 
+            Unlock();
+
             return (byte)result;
         }
 
         private static void WriteRegister(byte channel, Register register, byte data)
         {
             byte reg = (byte)register;
+
+            Lock();
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
@@ -329,11 +356,15 @@ namespace Kernel.Devices
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
+
+            Unlock();
         }
 
         private static void ReadBuffer(byte channel, Register register, int size)
         {
             var reg = (byte)register;
+
+            Lock();
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
@@ -354,6 +385,8 @@ namespace Kernel.Devices
 
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
+
+            Unlock();
         }
 
         private static byte Poll(byte channel, int advancedCheck)
