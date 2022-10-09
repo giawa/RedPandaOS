@@ -134,8 +134,9 @@ namespace Kernel
             _runningTasks.Remove(task);   // no need to remove the task here, as Schedule will remove it for us
             task.State = TaskState.Sleeping;
             task.StateInfo = end;
-            Unlock();
+            
             Schedule();
+            Unlock();
         }
 
         public static void CreateIdleTask()
@@ -251,7 +252,7 @@ namespace Kernel
             if (CurrentTask == nextTask) return;
 
             CurrentTask.ESP = CPUHelper.CPU.ReadESP();
-            CurrentTask.EBP = CPUHelper.CPU.ReadESP();
+            CurrentTask.EBP = CPUHelper.CPU.ReadEBP();
 
             // set up page directories
             if (CurrentTask.PageDirectory.PhysicalAddress != nextTask.PageDirectory.PhysicalAddress)
