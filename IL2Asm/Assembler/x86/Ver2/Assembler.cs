@@ -1139,6 +1139,31 @@ namespace IL2Asm.Assembler.x86.Ver2
                         _stack.Push(eaxType);
                         break;
 
+                    // ENDFINALLY
+                    case 0xDC:
+                        // TODO: We should use the value stored in LEAVE.S _jmpLabel to know where to actually jump to
+                        assembly.AddAsm("nop");
+
+                        break;
+
+                    // LEAVE.S
+                    case 0xDE:
+                        // TODO:  We should store this somewhere so that the finally block knows where to actually jump
+                        _sbyte = (sbyte)code[i++];
+                        _jmpLabel = $"IL_{(i + _sbyte).ToString("X4")}_{assembly.MethodCounter}";   // technically we should jump here after executing any finally/etc
+
+                        // find the try we are in
+                        var exceptionHeader = method.ExceptionHeaders.Where(h => h.TryOffset < i && i <= h.TryOffset + h.TryLength).SingleOrDefault();
+                        if (exceptionHeader.Flags.HasFlag(ExceptionHeader.ExceptionHeaderFlags.Finally))
+                        {
+                            string finallyJmp = $"IL_{(exceptionHeader.HandlerOffset).ToString("X4")}_{assembly.MethodCounter}";   // technically we should jump here after executing any finally/etc
+
+                            assembly.AddAsm($"jmp {finallyJmp}");
+                        }
+                        else throw new Exception("Unhandled EHTable flag (II.25.4.6)");
+
+                        break;
+
                     // CONV.U
                     case 0xE0:
                         if (_stack.Peek().Type != ElementType.EType.Pinned && !_stack.Peek().Is32BitCapable(pe.Metadata))
@@ -2576,6 +2601,24 @@ namespace IL2Asm.Assembler.x86.Ver2
                         int size = _runtime.GetTypeSize(metadata, type);
                         assembly.AddAsm($"push {size}");
                     }
+                    else if (memberName == "System.IDisposable.Dispose_Void")
+                    {
+                        // this is a callvirt on the object on the stack, usually happens via a "using" block
+                        var _this = _stack.Peek();
+
+                        if ((_this.Token & 0xff000000) == 0x02000000)
+                        {
+                            var tdef = metadata.TypeDefs[(int)(_this.Token & 0x00ffffff) - 1];
+                            var method = tdef.Methods.Where(m => m.ToAsmString().EndsWith("Dispose_Void")).SingleOrDefault();
+
+                            if (method != null)
+                            {
+                                var methodToCompile = QueueCompileMethod(pe, method, genericOverride.Item2, methodSpec);
+
+                                Call(assembly, ldftn, methodToCompile, genericOverride.Item2);
+                            }
+                        }
+                    }
                     else
                     {
                         throw new Exception("Unable to handle this method");
@@ -2583,6 +2626,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
                         _stack.Pop();
+                    if ((memberRef.MemberSignature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
                     if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
                         _stack.Push(memberRef.MemberSignature.RetType);
                 }
