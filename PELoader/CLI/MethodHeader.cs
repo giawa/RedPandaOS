@@ -23,6 +23,35 @@ namespace PELoader
         }
     }
 
+    public class ExceptionHeader
+    {
+        [Flags]
+        public enum ExceptionHeaderFlags : ushort
+        {
+            Exception,
+            Filter,
+            Finally,
+            Fault
+        }
+
+        public ExceptionHeaderFlags Flags { get; private set; }
+        public ushort TryOffset { get; private set; }
+        public byte TryLength { get; private set; }
+        public ushort HandlerOffset { get; private set; }
+        public byte HandlerLength { get; private set; }
+        public uint Token { get; private set; }
+
+        public ExceptionHeader(byte[] data)
+        {
+            Flags = (ExceptionHeaderFlags)(BitConverter.ToUInt16(data, 0) & 0x0fff);
+            TryOffset = BitConverter.ToUInt16(data, 2);
+            TryLength = data[4]; 
+            HandlerOffset = BitConverter.ToUInt16(data, 5);
+            HandlerLength = data[7];
+            Token = BitConverter.ToUInt32(data, 8);
+        }
+    }
+
     public class MethodHeader
     {
         public uint CodeSize;
@@ -34,6 +63,8 @@ namespace PELoader
 
         public MethodDefLayout MethodDef;
         public LocalVarSig LocalVars;
+
+        public ExceptionHeader[] ExceptionHeaders;
 
         public MethodHeader(byte[] code)
         {
@@ -65,11 +96,6 @@ namespace PELoader
                 CodeSize = BitConverter.ToUInt32(fatHeader, 4);
                 LocalVarSigTok = BitConverter.ToUInt32(fatHeader, 8);
 
-                if ((type & 0x08) != 0)
-                {
-                    throw new Exception("More sections follows after this header (II.25.4.5)");
-                }
-
                 if (LocalVarSigTok != 0)
                 {
                     LocalVars = new LocalVarSig(metadata, LocalVarSigTok);
@@ -78,6 +104,32 @@ namespace PELoader
 
             Code = memory.GetBytes(rva, (int)CodeSize);
             rva += CodeSize;
+
+            // if a FAT header then check if more sections follow the method body (II.25.4.5)
+            if ((type & 0x03) != 0x02 && (type & 0x08) != 0)
+            {
+                // align RVA back to 4-bvyte boundary
+                if ((rva & 0x03) != 0) rva = (rva & ~(uint)0x03) + 4;
+                var headerType = memory.GetByte(rva);
+
+                if ((headerType & 0x03) == 0x01) // Exception handling header
+                {
+                    var exceptionHeaderCount = (memory.GetByte(rva + 1) - 4) / 12;
+                    rva += 4;
+                    ExceptionHeaders = new ExceptionHeader[exceptionHeaderCount];
+
+                    for (int i = 0; i < exceptionHeaderCount; i++)
+                    {
+                        var exceptionData = memory.GetBytes(rva, 12);
+                        rva += 12;
+
+                        ExceptionHeaders[i] = new ExceptionHeader(exceptionData);
+                    }
+                }
+                else throw new Exception("Unhandled method header");
+                
+                if ((headerType & 0x80) != 0) throw new Exception("More sections follows after this header (II.25.4.5)");
+            }
         }
     }
 }
