@@ -51,6 +51,9 @@ namespace Emulator.CPU.x86
         {
             var opcode = _memory[IP++];
 
+            //if (RSP > 0x8ff6)
+            //    Console.Write("uh oh");
+
             switch (opcode)
             {
                 case 0x0F:
@@ -62,8 +65,17 @@ namespace Emulator.CPU.x86
                     _registers[0] = _registers[0] & ReadWordFromIP();
                     break;
 
+                case 0x29:  // SUB
+                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.SUB);
+                    else throw new NotImplementedException();
+                    break;
+
                 case 0x31:  // XOR Evqp Gvqp
                     DoAction16WithModRM(CommonAction.XOR);   // xor destination (register or memory) with the contents of a register and store in destination
+                    break;
+
+                case 0x39:
+                    DoAction16WithModRM(CommonAction.CMP);
                     break;
 
                 case 0x3D:  // CMP rAX Ivds
@@ -128,12 +140,38 @@ namespace Emulator.CPU.x86
                     else throw new Exception("Unsupported mode");
                     break;
 
+                case 0x6A:  // PUSH imm8
+                    if (Mode == Mode.RealMode)
+                    {
+                        var bytes = BitConverter.GetBytes((ushort)_memory[IP++]);
+                        _registers[4] -= 2;
+                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
+                    }
+                    else throw new NotImplementedException();
+                    break;
+
                 case 0x74:  // JZ or JE Jbs
                     JMP(FLAGS.HasFlag(RFLAGS.ZF), (sbyte)_memory[IP++]);
                     break;
 
                 case 0x75:  // JNZ or JNE Jbs
                     JMP(FLAGS.HasFlag(RFLAGS.ZF) == false, (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x7C:  // JL or JNGE Gbs
+                    JMP((FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x7D:  // JGE or JNL Jbs
+                    JMP((FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x7E:  // JLE or JNG Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.ZF) || (FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x7F:  // JG or JNLE Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.ZF) == false && (FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
                     break;
 
                 case 0x83:  // XOR Evqp Ibs
@@ -149,7 +187,7 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x8D:  // LEA
-                    DoAction16WithModRM(CommonAction.MOV, lea: true);
+                    DoAction16WithModRM(CommonAction.LEA);
                     break;
 
                 case 0x8E:  // MOV Sw Ew
@@ -192,7 +230,7 @@ namespace Emulator.CPU.x86
                     if (Mode == Mode.RealMode)
                     {
                         IP = BitConverter.ToUInt16(_memory, (int)RSP);
-                        _registers[4] += (ulong)(2 * (toPop + 1));   // +1 for the IP we just popped
+                        _registers[4] += (ulong)(toPop + 2);   // +2 for the IP we just popped
                     }
                     else throw new NotImplementedException();
                     break;
@@ -218,7 +256,12 @@ namespace Emulator.CPU.x86
 
                         IP = (ulong)((long)IP + callOffset);
                     }
-                    else throw new Exception("Unsupported mode");
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0xF7:
+                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.MUL);
+                    else throw new NotImplementedException();
                     break;
 
                 default: throw new Exception(string.Format("Unknown opcode 0x{0:X}", opcode));
@@ -293,7 +336,10 @@ namespace Emulator.CPU.x86
             }
             else
             {
-                FLAGS &= ~(RFLAGS.CF | RFLAGS.ZF);
+                FLAGS &= ~(RFLAGS.CF | RFLAGS.ZF | RFLAGS.SF | RFLAGS.OF);
+
+                if ((long)dest - (long)src < 0) FLAGS |= RFLAGS.SF;
+                if (dest + src > ushort.MaxValue) FLAGS |= RFLAGS.OF;
 
                 if (dest == src) FLAGS |= RFLAGS.ZF;
                 else if (dest < src) FLAGS |= RFLAGS.CF;
@@ -312,7 +358,9 @@ namespace Emulator.CPU.x86
             XOR = 6,
             CMP = 7,
             MOV,
-            MOVZX8
+            MOVZX8,
+            MUL,
+            LEA,
         }
 
         private enum RotationAction
@@ -357,23 +405,25 @@ namespace Emulator.CPU.x86
             else throw new Exception("Unsupported modrm");
         }
 
-        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false, /*bool dereferenceAddress = false,*/ bool lea = false)
+        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false)
         {
             var modrm = _memory[IP++];
             var mod = (modrm & 0xC0) >> 6;
             var reg = (modrm & 0x38) >> 3;
             var rm = (modrm & 0x07);
 
+            ulong addr = 0;
+
             if (mod == 3)
             {
-                //if (dereferenceAddress) throw new NotImplementedException();
-
                 if (segmentRegister) _segmentRegisters[reg] = DoAction16(action, _segmentRegisters[reg], (ushort)_registers[rm]);
                 else _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+
+                return;
             }
             else if (mod == 1)
             {
-                ulong addr = _memory[IP++];
+                addr = _memory[IP++];
 
                 switch (rm)
                 {
@@ -386,19 +436,9 @@ namespace Emulator.CPU.x86
                     case 6: addr += RBP; break;
                     case 7: addr += RBX; break;
                 }
-
-                // grab the 16 bit value at addr
-                short contents = BitConverter.ToInt16(_memory, (int)addr);
-                //if (dereferenceAddress) contents = BitConverter.ToInt16(_memory, contents);
-                if (lea) throw new NotImplementedException();
-
-                if (segmentRegister) throw new Exception();
-                else _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
             }
             else if (mod == 0)
             {
-                ulong addr = 0;
-
                 switch (rm)
                 {
                     case 0: addr = RBX + RSI; break;
@@ -410,17 +450,16 @@ namespace Emulator.CPU.x86
                     case 6: throw new Exception("Use disp16");
                     case 7: addr = RBX; break;
                 }
-
-                if (segmentRegister) throw new Exception();
-                else if (lea) _registers[reg] = (ushort)addr;// DoAction16(action, (ushort)_registers[reg], (ushort)addr);
-                else
-                {
-                    short contents = BitConverter.ToInt16(_memory, (int)addr);
-                    //if (dereferenceAddress) contents = BitConverter.ToInt16(_memory, contents);
-                    _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
-                }
             }
             else throw new Exception("Unsupported modrm");
+
+            if (segmentRegister) throw new Exception();
+            else if (action == CommonAction.LEA) _registers[reg] = (ushort)addr;
+            else
+            {
+                short contents = BitConverter.ToInt16(_memory, (int)addr);
+                _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
+            }
         }
 
         private ushort DoAction16(CommonAction action, ushort dest, ushort src)
@@ -431,11 +470,25 @@ namespace Emulator.CPU.x86
                 case CommonAction.AND: return (ushort)(dest & src);
                 case CommonAction.OR: return (ushort)(dest | src);
                 case CommonAction.ADD: return (ushort)(dest + src);
-                case CommonAction.SUB: 
-                    // TODO: Set SF properly based on result of the operation
+                case CommonAction.SUB:
+                    FLAGS &= ~(RFLAGS.CF | RFLAGS.ZF | RFLAGS.SF | RFLAGS.OF);
+
+                    if ((long)dest - (long)src < 0) FLAGS |= RFLAGS.SF;
+                    if (dest + src > ushort.MaxValue) FLAGS |= RFLAGS.OF;
+
                     return (ushort)(dest - src);
                 case CommonAction.MOV: return src;
                 case CommonAction.MOVZX8: return (ushort)(src & 0xff);
+                case CommonAction.MUL:
+                    uint mul = (uint)(RAX & 0xffff) * (uint)dest;
+                    _registers[0] = mul & 0xffff;
+                    _registers[2] = (mul >> 16) & 0xffff;
+                    if ((mul >> 16) > 0) FLAGS |= (RFLAGS.CF | RFLAGS.OF);
+                    else FLAGS &= ~(RFLAGS.CF | RFLAGS.OF);
+                    return dest;    // we do not store the value back into the register, so just return the original value
+                case CommonAction.CMP:
+                    CMP(dest, src, false);
+                    return dest;    // we do not store the value back into the register, so just return the original value
                 default: throw new Exception("Unsupported action " + action.ToString());
             }
         }
