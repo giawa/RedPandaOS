@@ -51,11 +51,23 @@ namespace Emulator.CPU.x86
         {
             var opcode = _memory[IP++];
 
-            //if (RSP > 0x8ff6)
-            //    Console.Write("uh oh");
-
             switch (opcode)
             {
+                case 0x06:
+                    if (Mode == Mode.RealMode)
+                    {
+                        var bytes = BitConverter.GetBytes((ushort)ES);
+                        _registers[4] -= 2;
+                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
+                    }
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x09:
+                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.OR);
+                    else throw new NotImplementedException();
+                    break;
+
                 case 0x0F:
                     SecondaryOpcode();
                     break;
@@ -178,8 +190,12 @@ namespace Emulator.CPU.x86
                     DoAction16WithEvqp();
                     break;
 
+                case 0x88:  // MOV
+                    DoAction8WithModRM(CommonAction.MOV);
+                    break;
+
                 case 0x89:  // MOV Evqp Gvqp
-                    DoAction16WithModRM(CommonAction.MOV);
+                    DoAction16WithModRM(CommonAction.MOV, swap: true);
                     break;
 
                 case 0x8B:
@@ -192,6 +208,22 @@ namespace Emulator.CPU.x86
 
                 case 0x8E:  // MOV Sw Ew
                     DoAction16WithModRM(CommonAction.MOV, true);   // mov src (register or memory) into a segment register
+                    break;
+
+                case 0xA1:
+                    if (Mode == Mode.RealMode)
+                    {
+                        var a1offset = Read16FromIP();
+                        _registers[0] = BitConverter.ToUInt16(_memory, (int)a1offset);
+                    }
+                    else throw new NotImplementedException();
+                    break;
+
+                // MOV [imm16], AX
+                case 0xA3:
+                    var a3offset = Read16FromIP();
+                    var a3bytes = BitConverter.GetBytes((ushort)_registers[0]);
+                    Array.Copy(a3bytes, 0, _memory, (int)a3offset, a3bytes.Length);
                     break;
 
                 // MOV reg8, imm8
@@ -240,6 +272,11 @@ namespace Emulator.CPU.x86
                     byte interruptType = _memory[IP++];
                     if (Mode == Mode.RealMode) BiosHandleInterrupt(interruptType);
                     else throw new NotImplementedException();
+                    break;
+
+                // shift Evqp
+                case 0xD3:
+                    DoRotation16WithEvqp(); 
                     break;
 
                 case 0xEB:  // JMP imm
@@ -390,6 +427,31 @@ namespace Emulator.CPU.x86
             DREG
         }
 
+        private void DoRotation16WithEvqp()
+        {
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
+            var action = (RotationAction)((modrm & 0x38) >> 3);
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                ushort initial = (ushort)_registers[rm];
+                _registers[rm] &= ~0xffffUL;
+                switch (action)
+                {
+                    case RotationAction.SHR:
+                        _registers[rm] |= (ushort)(initial >> (byte)(_registers[1] & 0xff));
+                        FLAGS &= ~RFLAGS.CF;
+                        if (initial >> (byte)((_registers[1] & 0xff) - 1) != 0) FLAGS |= RFLAGS.CF;
+                        break;
+                        
+                    default: throw new NotImplementedException();
+                }
+            }
+            else throw new Exception("Unsupported modrm");
+        }
+
         private void DoAction16WithEvqp()
         {
             var modrm = _memory[IP++];
@@ -405,7 +467,87 @@ namespace Emulator.CPU.x86
             else throw new Exception("Unsupported modrm");
         }
 
-        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false)
+        private byte RegContentsFromReg8(int reg)
+        {
+            switch (reg)
+            {
+                case 0:
+                case 1:
+                case 2:
+                case 3: return (byte)_registers[reg];
+
+                case 4:
+                case 5:
+                case 6:
+                case 7: return (byte)(_registers[reg - 4] >> 8);
+
+                default: throw new Exception("Invalid reg");
+            }
+        }
+
+        private void DoAction8WithModRM(CommonAction action)
+        {
+            if (action != CommonAction.MOV) throw new NotImplementedException();
+
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;
+            var reg = (modrm & 0x38) >> 3;
+            var rm = (modrm & 0x07);
+
+            ulong addr = 0;
+
+            if (mod == 3)
+            {
+                if (rm < 4)
+                {
+                    _registers[rm] &= ~0xffUL;
+                    _registers[rm] |= RegContentsFromReg8(reg);//DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+                }
+                else
+                {
+                    _registers[rm - 4] &= ~0xff00UL;
+                    _registers[rm - 4] |= ((ulong)RegContentsFromReg8(reg) << 8);
+                }
+
+                return;
+            }
+            /*else if (mod == 1)
+            {
+                addr = _memory[IP++];
+
+                switch (rm)
+                {
+                    case 0: addr += RBX + RSI; break;
+                    case 1: addr += RBX + RDI; break;
+                    case 2: addr += RBP + RSI; break;
+                    case 3: addr += RBP + RDI; break;
+                    case 4: addr += RSI; break;
+                    case 5: addr += RDI; break;
+                    case 6: addr += RBP; break;
+                    case 7: addr += RBX; break;
+                }
+            }
+            else if (mod == 0)
+            {
+                switch (rm)
+                {
+                    case 0: addr = RBX + RSI; break;
+                    case 1: addr = RBX + RDI; break;
+                    case 2: addr = RBP + RSI; break;
+                    case 3: addr = RBP + RDI; break;
+                    case 4: addr = RSI; break;
+                    case 5: addr = RDI; break;
+                    case 6: throw new Exception("Use disp16");
+                    case 7: addr = RBX; break;
+                }
+            }*/
+            else throw new Exception("Unsupported modrm");
+
+            short contents = BitConverter.ToInt16(_memory, (int)addr);
+            _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
+        }
+
+        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false, bool swap = false)
         {
             var modrm = _memory[IP++];
             var mod = (modrm & 0xC0) >> 6;
@@ -447,14 +589,25 @@ namespace Emulator.CPU.x86
                     case 3: addr = RBP + RDI; break;
                     case 4: addr = RSI; break;
                     case 5: addr = RDI; break;
-                    case 6: throw new Exception("Use disp16");
+                    case 6: addr = Read16FromIP(); break;
                     case 7: addr = RBX; break;
                 }
             }
             else throw new Exception("Unsupported modrm");
 
-            if (segmentRegister) throw new Exception();
+            if (segmentRegister)
+            {
+                short contents = BitConverter.ToInt16(_memory, (int)addr);
+                _segmentRegisters[reg] = DoAction16(action, (ushort)_segmentRegisters[reg], (ushort)contents);
+            }
             else if (action == CommonAction.LEA) _registers[reg] = (ushort)addr;
+            else if (swap && action == CommonAction.MOV)
+            {
+                //short contents = BitConverter.ToInt16(_memory, (int)addr);
+                //_registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
+                var bytes = BitConverter.GetBytes((ushort)_registers[reg]);
+                Array.Copy(bytes, 0, _memory, (int)addr, bytes.Length);
+            }
             else
             {
                 short contents = BitConverter.ToInt16(_memory, (int)addr);
