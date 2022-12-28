@@ -27,6 +27,14 @@ namespace Emulator.CPU.x86
         OF = (1 << 11)
     }
 
+    public enum Segment
+    {
+        Code,
+        Data,
+        Stack,
+        Extra
+    }
+
     public partial class CPU
     {
         public Mode Mode { get; private set; } = Mode.RealMode;
@@ -45,7 +53,7 @@ namespace Emulator.CPU.x86
         public void InitBios()
         {
             // the BIOS will load the first 512 bytes into location 0x7C00
-            byte[] memory = new byte[0x80000];
+            byte[] memory = new byte[0x4000000];    // 64MB of RAM
             Array.Copy(_disk, 0, memory, 0x7C00, 512);
             _memory = memory;
 
@@ -62,6 +70,21 @@ namespace Emulator.CPU.x86
         {
             var opcode = _memory[IP++];
 
+            Segment currentSegment = Segment.Data;
+            if (currentSegment == Segment.Data && opcode == 0x26)
+            {
+                currentSegment = Segment.Extra;
+                opcode = _memory[IP++];
+            }
+
+            Mode currentMode = this.Mode;
+            if (currentMode == Mode.RealMode && opcode == 0x66)
+            {
+                // this is an extended instruction
+                currentMode = Mode.ProtectedMode;
+                opcode = _memory[IP++];
+            }
+
             switch (opcode)
             {
                 case 0x01:  // ADD
@@ -69,17 +92,12 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x06:  // PUSH ES
-                    if (Mode == Mode.RealMode)
-                    {
-                        var bytes = BitConverter.GetBytes((ushort)ES);
-                        _registers[4] -= 2;
-                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
-                    }
+                    if (currentMode == Mode.RealMode) Push16(ES);
                     else throw new NotImplementedException();
                     break;
 
                 case 0x07:  // POP ES
-                    if (Mode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode)
                     {
                         _segmentRegisters[0] = BitConverter.ToUInt16(_memory, (int)RSP);
                         _registers[4] += 2;
@@ -88,21 +106,21 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x09:
-                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.OR);
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.OR);
                     else throw new NotImplementedException();
                     break;
 
                 case 0x0F:
-                    SecondaryOpcode();
+                    SecondaryOpcode(currentMode);
                     break;
 
                 case 0x25:  // AND rAX Ivds
-                    if (Mode == Mode.LongMode) throw new Exception("TODO: Must sign extend a 32 bit value");
-                    _registers[0] = _registers[0] & ReadWordFromIP();
+                    if (currentMode == Mode.LongMode) throw new Exception("TODO: Must sign extend a 32 bit value");
+                    _registers[0] = _registers[0] & ReadWordFromIP(currentMode);
                     break;
 
                 case 0x29:  // SUB
-                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.SUB);
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.SUB);
                     else throw new NotImplementedException();
                     break;
 
@@ -127,7 +145,7 @@ namespace Emulator.CPU.x86
                 case 0x45:
                 case 0x46:
                 case 0x47:
-                    if (Mode == Mode.RealMode) _registers[opcode & 0x0f] = DoAction16(CommonAction.ADD, (ushort)_registers[opcode & 0x0f], 1);
+                    if (currentMode == Mode.RealMode) _registers[opcode & 0x0f] = DoAction16(CommonAction.ADD, (ushort)_registers[opcode & 0x0f], 1);
                     else throw new NotImplementedException();
                     break;
 
@@ -140,12 +158,8 @@ namespace Emulator.CPU.x86
                 case 0x56:
                 case 0x57:
                     if (RSP > int.MaxValue) throw new Exception("64b mode unsupported");
-                    if (Mode == Mode.RealMode)
-                    {
-                        var bytes = BitConverter.GetBytes((ushort)_registers[opcode & 0x07]);
-                        _registers[4] -= 2;
-                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
-                    }
+                    if (currentMode == Mode.RealMode) Push16((ushort)_registers[opcode & 0x07]);
+                    else if (currentMode == Mode.ProtectedMode) Push32((uint)_registers[opcode & 0x07]);
                     else throw new Exception("Unsupported mode");
                     break;
 
@@ -158,39 +172,50 @@ namespace Emulator.CPU.x86
                 case 0x5E:
                 case 0x5F:
                     if (RSP > int.MaxValue) throw new Exception("64b mode unsupported");
-                    if (Mode == Mode.RealMode)
-                    {
-                        _registers[opcode & 0x07] = BitConverter.ToUInt16(_memory, (int)RSP);
-                        _registers[4] += 2;
-                    }
+                    if (currentMode == Mode.RealMode) _registers[opcode & 0x07] = Pop16();
+                    else if (currentMode == Mode.ProtectedMode) _registers[opcode & 0x07] = Pop32();
                     else throw new Exception("Unsupported mode");
                     break;
 
                 case 0x60:  // PUSHA
-                    if (Mode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode)
                     {
+                        var originalRsp = (ushort)RSP;
+                        Push16((ushort)RAX);
+                        Push16((ushort)RCX);
+                        Push16((ushort)RDX);
+                        Push16((ushort)RBX);
+                        Push16(originalRsp);
+                        Push16((ushort)RBP);
+                        Push16((ushort)RSI);
+                        Push16((ushort)RDI);
+                    }
+                    else throw new Exception("Unsupported mode");
+                    break;
 
+                case 0x61:  // POPA
+                    if (currentMode == Mode.RealMode)
+                    {
+                        _registers[7] = Pop16();
+                        _registers[6] = Pop16();
+                        _registers[5] = Pop16();
+                        var rsp = Pop16();
+                        _registers[3] = Pop16();
+                        _registers[2] = Pop16();
+                        _registers[1] = Pop16();
+                        _registers[0] = Pop16();
+                        _registers[4] = rsp;
                     }
                     else throw new Exception("Unsupported mode");
                     break;
 
                 case 0x68:  // PUSH imm
-                    if (Mode == Mode.RealMode)
-                    {
-                        var bytes = BitConverter.GetBytes((ushort)Read16FromIP());
-                        _registers[4] -= 2;
-                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
-                    }
+                    if (currentMode == Mode.RealMode) Push16((ushort)Read16FromIP());
                     else throw new Exception("Unsupported mode");
                     break;
 
                 case 0x6A:  // PUSH imm8
-                    if (Mode == Mode.RealMode)
-                    {
-                        var bytes = BitConverter.GetBytes((ushort)_memory[IP++]);
-                        _registers[4] -= 2;
-                        Array.Copy(bytes, 0, _memory, (int)RSP, 2);
-                    }
+                    if (currentMode == Mode.RealMode) Push16((ushort)_memory[IP++]);
                     else throw new NotImplementedException();
                     break;
 
@@ -243,7 +268,8 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x8B:
-                    DoAction16WithModRM(CommonAction.MOV);//, dereferenceAddress: true);
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MOV);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.MOV);
                     break;
 
                 case 0x8D:  // LEA
@@ -255,7 +281,7 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0xA1:
-                    if (Mode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode)
                     {
                         var a1offset = Read16FromIP();
                         _registers[0] = BitConverter.ToUInt16(_memory, (int)a1offset);
@@ -297,13 +323,13 @@ namespace Emulator.CPU.x86
                 case 0xBD:
                 case 0xBE:
                 case 0xBF:
-                    _registers[opcode & 0x07] = ReadWordFromIP();
+                    _registers[opcode & 0x07] = ReadWordFromIP(currentMode);
                     break;
 
                 // ret
                 case 0xC2:
                     byte toPop = _memory[IP++];
-                    if (Mode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode)
                     {
                         IP = BitConverter.ToUInt16(_memory, (int)RSP);
                         _registers[4] += (ulong)(toPop + 2);   // +2 for the IP we just popped
@@ -313,14 +339,15 @@ namespace Emulator.CPU.x86
 
                 // mov reg/mem16, imm16
                 case 0xC7:
-                    if (Mode == Mode.RealMode) Mov16WithModRM(_memory[IP++], (ushort)Read16FromIP());
+                    if (currentMode == Mode.RealMode) Mov16WithModRM(_memory[IP++]);//, (ushort)Read16FromIP());
+                    else if (currentMode == Mode.ProtectedMode) Mov32WithModRM(_memory[IP++]);//, (ushort)Read16FromIP());
                     else throw new NotImplementedException();
                     break;
 
                 // interrupt!
                 case 0xCD:
                     byte interruptType = _memory[IP++];
-                    if (Mode == Mode.RealMode) BiosHandleInterrupt(interruptType);
+                    if (currentMode == Mode.RealMode) BiosHandleInterrupt(interruptType);
                     else throw new NotImplementedException();
                     break;
 
@@ -334,7 +361,7 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0xE8:  // CALL imm
-                    if (Mode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode)
                     {
                         var callOffset = Read16SignedFromIP();
                         var bytes = BitConverter.GetBytes((ushort)IP);
@@ -347,12 +374,13 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0xF7:
-                    if (Mode == Mode.RealMode) DoAction16WithModRM(CommonAction.MUL);
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MUL);
                     else throw new NotImplementedException();
                     break;
 
+
                 case 0xFF:
-                    if (Mode == Mode.RealMode) DoFF16WithEvqp();
+                    if (currentMode == Mode.RealMode) DoFF16WithEvqp();
                     else throw new NotImplementedException();
                     break;
 
@@ -365,6 +393,27 @@ namespace Emulator.CPU.x86
             var bytes = BitConverter.GetBytes(value);
             _registers[4] -= 2;
             Array.Copy(bytes, 0, _memory, (int)RSP, 2);
+        }
+
+        public void Push32(uint value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            _registers[4] -= 4;
+            Array.Copy(bytes, 0, _memory, (int)RSP, 4);
+        }
+
+        public ushort Pop16()
+        {
+            var temp = BitConverter.ToUInt16(_memory, (int)RSP);
+            _registers[4] += 2;
+            return temp;
+        }
+
+        public uint Pop32()
+        {
+            var temp = BitConverter.ToUInt32(_memory, (int)RSP);
+            _registers[4] += 4;
+            return temp;
         }
 
         public ulong[] Stack
@@ -382,12 +431,52 @@ namespace Emulator.CPU.x86
             }
         }
 
-        private void SecondaryOpcode()
+        private void SecondaryOpcode(Mode currentMode)
         {
             var secondaryOpcode = _memory[IP++];
 
             switch (secondaryOpcode)
             {
+                case 0x82:  // JC or JNAE Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.CF), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x83:  // JNB or JNC Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.CF) == false, Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x84:  // JZ or JE Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x85:  // JNZ or JNE Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false, Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x8C:  // JL or JNGE Gbs
+                    if (currentMode == Mode.RealMode) JMP((FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x8D:  // JGE or JNL Jbs
+                    if (currentMode == Mode.RealMode) JMP((FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x8E:  // JLE or JNG Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) || (FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0x8F:  // JG or JNLE Jbs
+                    if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false && (FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else throw new NotImplementedException();
+                    break;
+
                 case 0xb6:  // MOVZX Gvqp Eb
                     DoAction16WithModRM(CommonAction.MOVZX8);
                     break;
@@ -405,14 +494,22 @@ namespace Emulator.CPU.x86
 
         private ulong Read16FromIP()
         {
-            ulong temp = _memory[IP++];
-            temp |= ((ulong)_memory[IP++]) << 8;
+            ulong temp = BitConverter.ToUInt16(_memory, (int)IP);
+            IP += 2;
             return temp;
         }
 
-        private ulong ReadWordFromIP()
+        private ulong Read32FromIP()
         {
-            if (Mode == Mode.RealMode) return Read16FromIP();
+            ulong temp = BitConverter.ToUInt32(_memory, (int)IP);
+            IP += 4;
+            return temp;
+        }
+
+        private ulong ReadWordFromIP(Mode mode)
+        {
+            if (mode == Mode.RealMode) return Read16FromIP();
+            else if (mode == Mode.ProtectedMode) return Read32FromIP();
             else throw new Exception("Unsupported word size");
         }
 
@@ -613,7 +710,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
 
             if (swap && action == CommonAction.MOV)
             {
@@ -638,7 +735,7 @@ namespace Emulator.CPU.x86
             else throw new NotImplementedException();
         }
 
-        private void Mov16WithModRM(byte modrm, ushort imm)
+        private void Mov32WithModRM(byte modrm)
         {
             var mod = (modrm & 0xC0) >> 6;
             var reg = (modrm & 0x38) >> 3;
@@ -646,17 +743,35 @@ namespace Emulator.CPU.x86
 
             if (mod == 3)
             {
-                _registers[rm] = imm;
+                _registers[rm] = Read32FromIP();
 
                 return;
             }
 
-            ulong addr = AddressFromModRM(mod, reg, rm);
-            var bytes = BitConverter.GetBytes(imm);
+            ulong addr = AddressFromModRM(Mode.ProtectedMode, mod, reg, rm);
+            var bytes = BitConverter.GetBytes((uint)Read32FromIP());
+            Array.Copy(bytes, 0, _memory, (int)addr, 4);
+        }
+
+        private void Mov16WithModRM(byte modrm)
+        {
+            var mod = (modrm & 0xC0) >> 6;
+            var reg = (modrm & 0x38) >> 3;
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                _registers[rm] = Read16FromIP();
+
+                return;
+            }
+
+            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
+            var bytes = BitConverter.GetBytes((ushort)Read16FromIP());
             Array.Copy(bytes, 0, _memory, (int)addr, 2);
         }
 
-        private ulong AddressFromModRM(int mod, int reg, int rm)
+        private ulong AddressFromModRM(Mode mode, int mod, int reg, int rm)
         {
             ulong addr = 0;
 
@@ -686,13 +801,46 @@ namespace Emulator.CPU.x86
                     case 3: addr = RBP + RDI; break;
                     case 4: addr = RSI; break;
                     case 5: addr = RDI; break;
-                    case 6: addr = Read16FromIP(); break;
+                    case 6:
+                        if (mode == Mode.RealMode) addr = Read16FromIP();
+                        else if (mode == Mode.ProtectedMode) addr = Read32FromIP();
+                        else throw new NotImplementedException();
+                        break;
                     case 7: addr = RBX; break;
                 }
             }
             else throw new Exception("Unsupported modrm");
 
             return addr;
+        }
+
+        private void DoAction32WithModRM(CommonAction action, bool swap = false)
+        {
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;
+            var reg = (modrm & 0x38) >> 3;
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                _registers[rm] = DoAction32(action, (uint)_registers[rm], (uint)_registers[reg]);
+
+                return;
+            }
+
+            ulong addr = AddressFromModRM(Mode.ProtectedMode,mod, reg, rm);
+
+            if (action == CommonAction.LEA) _registers[reg] = (uint)addr;
+            else if (swap && action == CommonAction.MOV)
+            {
+                var bytes = BitConverter.GetBytes((uint)_registers[reg]);
+                Array.Copy(bytes, 0, _memory, (int)addr, bytes.Length);
+            }
+            else
+            {
+                int contents = BitConverter.ToInt32(_memory, (int)addr);
+                _registers[reg] = DoAction32(action, (uint)_registers[reg], (uint)contents);
+            }
         }
 
         private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false, bool swap = false)
@@ -710,7 +858,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
 
             if (segmentRegister)
             {
@@ -756,6 +904,37 @@ namespace Emulator.CPU.x86
                     if ((mul >> 16) > 0) FLAGS |= (RFLAGS.CF | RFLAGS.OF);
                     else FLAGS &= ~(RFLAGS.CF | RFLAGS.OF);
                     return dest;    // we do not store the value back into the register, so just return the original value
+                case CommonAction.CMP:
+                    CMP(dest, src, false);
+                    return dest;    // we do not store the value back into the register, so just return the original value
+                default: throw new Exception("Unsupported action " + action.ToString());
+            }
+        }
+
+        private uint DoAction32(CommonAction action, uint dest, uint src)
+        {
+            switch (action)
+            {
+                case CommonAction.XOR: return (dest ^ src);
+                case CommonAction.AND: return (dest & src);
+                case CommonAction.OR: return (dest | src);
+                case CommonAction.ADD: return (dest + src);
+                case CommonAction.SUB:
+                    FLAGS &= ~(RFLAGS.CF | RFLAGS.ZF | RFLAGS.SF | RFLAGS.OF);
+
+                    if ((long)dest - (long)src < 0) FLAGS |= RFLAGS.SF;
+                    if (dest + src > ushort.MaxValue) FLAGS |= RFLAGS.OF;
+
+                    return dest - src;
+                case CommonAction.MOV: return src;
+                //case CommonAction.MOVZX8: return (ushort)(src & 0xff);
+                /*case CommonAction.MUL:
+                    uint mul = (uint)(RAX & 0xffff) * (uint)dest;
+                    _registers[0] = mul & 0xffff;
+                    _registers[2] = (mul >> 16) & 0xffff;
+                    if ((mul >> 16) > 0) FLAGS |= (RFLAGS.CF | RFLAGS.OF);
+                    else FLAGS &= ~(RFLAGS.CF | RFLAGS.OF);
+                    return dest;*/    // we do not store the value back into the register, so just return the original value
                 case CommonAction.CMP:
                     CMP(dest, src, false);
                     return dest;    // we do not store the value back into the register, so just return the original value

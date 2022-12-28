@@ -64,7 +64,65 @@ namespace Emulator.CPU.x86
                 else if ((_registers[0] & 0xff00UL) == 0x0000) ;    // reset disk system
                 else throw new NotImplementedException();
             }
+            else if (interrupt == 0x15)  // memory stuff
+            {
+                if ((_registers[0] & 0xffff) == 0xE820)
+                {
+                    // clear error flag
+                    FLAGS &= ~RFLAGS.CF;
+
+                    // get the continuation so we can tell which memory entry to provide
+                    ulong continuation = _registers[3];
+
+                    // if we're outside the range then return an error
+                    if (continuation >= (ulong)_memoryEntries.Length)
+                    {
+                        FLAGS |= RFLAGS.CF;
+                        return;
+                    }
+
+                    // copy the entry to the requested memory location
+                    CopyEntryToMemory(_memoryEntries[continuation], RDI);
+
+                    // increment the continuation
+                    if ((int)continuation + 1 >= _memoryEntries.Length) _registers[3] = 0;
+                    else _registers[3] = continuation + 1;
+                }
+                else throw new NotImplementedException();
+            }
             else throw new NotImplementedException();
         }
+
+        internal void CopyEntryToMemory(MemoryMapEntry entry, ulong address)
+        {
+            Array.Copy(BitConverter.GetBytes(entry.Offset), 0, _memory, (int)address, 8);
+            Array.Copy(BitConverter.GetBytes(entry.Length), 0, _memory, (int)address + 8, 8);
+            Array.Copy(BitConverter.GetBytes(entry.Type), 0, _memory, (int)address + 16, 4);
+            Array.Copy(BitConverter.GetBytes(entry.ACPI), 0, _memory, (int)address + 20, 4);
+        }
+
+        internal class MemoryMapEntry
+        {
+            public ulong Offset;
+            public ulong Length;
+            public uint Type;
+            public uint ACPI;
+
+            public MemoryMapEntry(ulong offset, ulong length, uint type, uint acpi)
+            {
+                Offset = offset;
+                Length = length;
+                Type = type;
+                ACPI = acpi;
+            }
+        }
+
+        internal MemoryMapEntry[] _memoryEntries = new MemoryMapEntry[]
+        {
+            new MemoryMapEntry(0, 0x9fC00, 1, 1),       // first chunk of memory available to all x86 CPUs
+            new MemoryMapEntry(0x9FC00, 0x400, 2, 1),   // reserved memory
+            new MemoryMapEntry(0xF0000, 0x10000, 2, 1), // reserved memory
+            new MemoryMapEntry(0x100000, 0x4000000 - 0x100000, 1, 1), // 63MB of memory
+        };
     }
 }
