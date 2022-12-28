@@ -132,8 +132,13 @@ namespace Emulator.CPU.x86
                     DoAction16WithModRM(CommonAction.CMP);
                     break;
 
+                case 0x3C:  // CMP AL
+                    CMP((byte)RAX, _memory[IP++], false);
+                    break;
+
                 case 0x3D:  // CMP rAX Ivds
-                    CMP(RAX, Read16FromIP(), false);
+                    if (currentMode == Mode.RealMode) CMP((ushort)RAX, Read16FromIP(), false);
+                    else throw new NotImplementedException();
                     break;
 
                 // INC
@@ -251,6 +256,10 @@ namespace Emulator.CPU.x86
                     JMP(FLAGS.HasFlag(RFLAGS.ZF) == false && (FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
                     break;
 
+                case 0x80:
+                    CmpWithModRm();
+                    break;
+
                 case 0x83:  // XOR Evqp Ibs
                     DoAction16WithEvqp();
                     break;
@@ -278,6 +287,15 @@ namespace Emulator.CPU.x86
 
                 case 0x8E:  // MOV Sw Ew
                     DoAction16WithModRM(CommonAction.MOV, true);   // mov src (register or memory) into a segment register
+                    break;
+
+                case 0x9F:  // LAHF
+                    if (currentMode == Mode.RealMode)
+                    {
+                        _registers[0] &= ~0xFF00UL; // clear AH
+                        _registers[0] |= (((ulong)FLAGS) & 0xff) << 8;  // load the lower 8 bits of FLAGS into AH
+                    }
+                    else throw new NotImplementedException();
                     break;
 
                 case 0xA1:
@@ -326,6 +344,10 @@ namespace Emulator.CPU.x86
                     _registers[opcode & 0x07] = ReadWordFromIP(currentMode);
                     break;
 
+                case 0xC1:
+                    DoRotation16WithEvqp(_memory[IP++], _memory[IP++]);
+                    break;
+
                 // ret
                 case 0xC2:
                     byte toPop = _memory[IP++];
@@ -353,7 +375,12 @@ namespace Emulator.CPU.x86
 
                 // shift Evqp
                 case 0xD3:
-                    DoRotation16WithEvqp(); 
+                    DoRotation16WithEvqp(_memory[IP++]); 
+                    break;
+
+                case 0xE9:  // JMP imm
+                    if (currentMode == Mode.RealMode) JMP(true, Read16SignedFromIP());
+                    else throw new NotImplementedException();
                     break;
 
                 case 0xEB:  // JMP imm
@@ -627,12 +654,13 @@ namespace Emulator.CPU.x86
             else throw new Exception("Unsupported modrm");
         }
 
-        private void DoRotation16WithEvqp()
+        private void DoRotation16WithEvqp(byte modrm, int amount = -1)
         {
-            var modrm = _memory[IP++];
             var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
             var action = (RotationAction)((modrm & 0x38) >> 3);
             var rm = (modrm & 0x07);
+
+            if (amount == -1) amount = (int)(_registers[1] & 0xff);
 
             if (mod == 3)
             {
@@ -641,13 +669,34 @@ namespace Emulator.CPU.x86
                 switch (action)
                 {
                     case RotationAction.SHR:
-                        _registers[rm] |= (ushort)(initial >> (byte)(_registers[1] & 0xff));
+                        _registers[rm] |= (ushort)(initial >> amount);
                         FLAGS &= ~RFLAGS.CF;
-                        if (initial >> (byte)((_registers[1] & 0xff) - 1) != 0) FLAGS |= RFLAGS.CF;
+                        if (((initial >> (byte)(amount - 1)) & 0x0001) != 0) FLAGS |= RFLAGS.CF;
                         break;
-                        
+
+                    case RotationAction.SHL:
+                        _registers[rm] |= (ushort)(initial << amount);
+                        FLAGS &= ~RFLAGS.CF;
+                        if (((initial << (byte)(amount - 1)) & 0x8000) != 0) FLAGS |= RFLAGS.CF;
+                        break;
+
                     default: throw new NotImplementedException();
                 }
+            }
+            else throw new Exception("Unsupported modrm");
+        }
+
+        private void CmpWithModRm()
+        {
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
+            //var action = (CommonAction)((modrm & 0x38) >> 3);
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                if (rm < 4) CMP((byte)_registers[rm], _memory[IP++], false);
+                else CMP((byte)(_registers[rm - 4] >> 8), _memory[IP++], false);
             }
             else throw new Exception("Unsupported modrm");
         }
@@ -777,7 +826,7 @@ namespace Emulator.CPU.x86
 
             if (mod == 1)
             {
-                addr = _memory[IP++];
+                //addr = (sbyte)_memory[IP++];
 
                 switch (rm)
                 {
@@ -790,6 +839,8 @@ namespace Emulator.CPU.x86
                     case 6: addr += RBP; break;
                     case 7: addr += RBX; break;
                 }
+
+                addr = (ulong)((long)addr + (sbyte)_memory[IP++]);
             }
             else if (mod == 0)
             {

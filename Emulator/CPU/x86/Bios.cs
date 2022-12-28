@@ -88,6 +88,21 @@ namespace Emulator.CPU.x86
                     if ((int)continuation + 1 >= _memoryEntries.Length) _registers[3] = 0;
                     else _registers[3] = continuation + 1;
                 }
+                else if ((_registers[0] & 0xffff) == 0x2403)
+                {
+                    // clear error flag
+                    FLAGS &= ~RFLAGS.CF;
+
+                    _registers[0] &= ~0xff00UL;   // clear AH
+                }
+                else if ((_registers[0] & 0xffff) == 0x2402)
+                {
+                    // clear error flag
+                    FLAGS &= ~RFLAGS.CF;
+
+                    _registers[0] &= ~0xffffUL;     // clear AH and AL
+                    _registers[0] |= 0x01;          // mark AL as 1 for success, we've enabled the A20 line
+                }
                 else throw new NotImplementedException();
             }
             else throw new NotImplementedException();
