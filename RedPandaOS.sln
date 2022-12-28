@@ -23,7 +23,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ElfSharp", "ElfSharp", "{AD
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ELFSharp", "elfsharp\ELFSharp\ELFSharp.csproj", "{12B96819-8F18-4DE0-A24E-860E72863B33}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildTools", "BuildTools\BuildTools.csproj", "{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildTools", "BuildTools\BuildTools.csproj", "{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emulator", "Emulator\Emulator.csproj", "{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,6 +73,10 @@ Global
 		{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

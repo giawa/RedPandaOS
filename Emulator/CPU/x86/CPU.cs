@@ -33,13 +33,24 @@ namespace Emulator.CPU.x86
 
         private ulong IP;
         private byte[] _memory;
+        private byte[] _disk;
 
         public RFLAGS FLAGS = 0;
 
-        public void LoadProgram(byte[] memory)
+        public void LoadDisk(byte[] disk)
         {
+            _disk = disk;
+        }
+
+        public void InitBios()
+        {
+            // the BIOS will load the first 512 bytes into location 0x7C00
+            byte[] memory = new byte[0x80000];
+            Array.Copy(_disk, 0, memory, 0x7C00, 512);
             _memory = memory;
-            IP = 0;
+
+            Jump(0x7C00);
+            RDX = 0x80; // BIOS sets disk in DX on boot
         }
 
         public void Jump(ulong ip)
@@ -53,7 +64,11 @@ namespace Emulator.CPU.x86
 
             switch (opcode)
             {
-                case 0x06:
+                case 0x01:  // ADD
+                    DoAction16WithModRM(CommonAction.ADD);
+                    break;
+
+                case 0x06:  // PUSH ES
                     if (Mode == Mode.RealMode)
                     {
                         var bytes = BitConverter.GetBytes((ushort)ES);
@@ -61,6 +76,15 @@ namespace Emulator.CPU.x86
                         Array.Copy(bytes, 0, _memory, (int)RSP, 2);
                     }
                     else throw new NotImplementedException();
+                    break;
+
+                case 0x07:  // POP ES
+                    if (Mode == Mode.RealMode)
+                    {
+                        _segmentRegisters[0] = BitConverter.ToUInt16(_memory, (int)RSP);
+                        _registers[4] += 2;
+                    }
+                    else throw new Exception("Unsupported mode");
                     break;
 
                 case 0x09:
@@ -125,7 +149,7 @@ namespace Emulator.CPU.x86
                     else throw new Exception("Unsupported mode");
                     break;
 
-                case 0x58:
+                case 0x58:  // POP Zv
                 case 0x59:
                 case 0x5A:
                 case 0x5B:
@@ -138,6 +162,14 @@ namespace Emulator.CPU.x86
                     {
                         _registers[opcode & 0x07] = BitConverter.ToUInt16(_memory, (int)RSP);
                         _registers[4] += 2;
+                    }
+                    else throw new Exception("Unsupported mode");
+                    break;
+
+                case 0x60:  // PUSHA
+                    if (Mode == Mode.RealMode)
+                    {
+
                     }
                     else throw new Exception("Unsupported mode");
                     break;
@@ -160,6 +192,14 @@ namespace Emulator.CPU.x86
                         Array.Copy(bytes, 0, _memory, (int)RSP, 2);
                     }
                     else throw new NotImplementedException();
+                    break;
+
+                case 0x72:  // JC or JNAE Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.CF), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x73:  // JNB or JNC Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.CF) == false, (sbyte)_memory[IP++]);
                     break;
 
                 case 0x74:  // JZ or JE Jbs
@@ -191,11 +231,15 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x88:  // MOV
-                    DoAction8WithModRM(CommonAction.MOV);
+                    DoAction8WithModRM(CommonAction.MOV, swap: true);
                     break;
 
                 case 0x89:  // MOV Evqp Gvqp
                     DoAction16WithModRM(CommonAction.MOV, swap: true);
+                    break;
+
+                case 0x8A:  // MOV reg8, reg/mem8
+                    DoAction8WithModRM(CommonAction.MOV);
                     break;
 
                 case 0x8B:
@@ -267,6 +311,12 @@ namespace Emulator.CPU.x86
                     else throw new NotImplementedException();
                     break;
 
+                // mov reg/mem16, imm16
+                case 0xC7:
+                    if (Mode == Mode.RealMode) Mov16WithModRM(_memory[IP++], (ushort)Read16FromIP());
+                    else throw new NotImplementedException();
+                    break;
+
                 // interrupt!
                 case 0xCD:
                     byte interruptType = _memory[IP++];
@@ -301,8 +351,20 @@ namespace Emulator.CPU.x86
                     else throw new NotImplementedException();
                     break;
 
+                case 0xFF:
+                    if (Mode == Mode.RealMode) DoFF16WithEvqp();
+                    else throw new NotImplementedException();
+                    break;
+
                 default: throw new Exception(string.Format("Unknown opcode 0x{0:X}", opcode));
             }
+        }
+
+        public void Push16(ushort value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            _registers[4] -= 2;
+            Array.Copy(bytes, 0, _memory, (int)RSP, 2);
         }
 
         public ulong[] Stack
@@ -400,6 +462,17 @@ namespace Emulator.CPU.x86
             LEA,
         }
 
+        private enum FFAction
+        {
+            INC = 0,
+            DEC = 1,
+            CALL = 2,
+            CALLF = 3,
+            JMP = 4,
+            JMPF = 5,
+            PUSH = 6,
+        }
+
         private enum RotationAction
         {
             // note these are in order of 'o' opcode field for instructions 0xC0, 0xC1, 0xD0, 0xD1, 0xD2, 0xD3
@@ -425,6 +498,36 @@ namespace Emulator.CPU.x86
             SREG,
             CREG,
             DREG
+        }
+
+        private void DoFF16WithEvqp()
+        {
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
+            var action = (FFAction)((modrm & 0x38) >> 3);
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                switch (action)
+                {
+                    /*case RotationAction.SHR:
+                        _registers[rm] |= (ushort)(initial >> (byte)(_registers[1] & 0xff));
+                        FLAGS &= ~RFLAGS.CF;
+                        if (initial >> (byte)((_registers[1] & 0xff) - 1) != 0) FLAGS |= RFLAGS.CF;
+                        break;*/
+                    case FFAction.JMP:
+                        if (mod == 3)
+                        {
+                            IP = _registers[rm];
+                        }
+                        else throw new NotImplementedException();
+                        break;
+
+                    default: throw new NotImplementedException();
+                }
+            }
+            else throw new Exception("Unsupported modrm");
         }
 
         private void DoRotation16WithEvqp()
@@ -485,7 +588,7 @@ namespace Emulator.CPU.x86
             }
         }
 
-        private void DoAction8WithModRM(CommonAction action)
+        private void DoAction8WithModRM(CommonAction action, bool swap = false)
         {
             if (action != CommonAction.MOV) throw new NotImplementedException();
 
@@ -493,8 +596,6 @@ namespace Emulator.CPU.x86
             var mod = (modrm & 0xC0) >> 6;
             var reg = (modrm & 0x38) >> 3;
             var rm = (modrm & 0x07);
-
-            ulong addr = 0;
 
             if (mod == 3)
             {
@@ -511,59 +612,55 @@ namespace Emulator.CPU.x86
 
                 return;
             }
-            /*else if (mod == 1)
-            {
-                addr = _memory[IP++];
 
-                switch (rm)
-                {
-                    case 0: addr += RBX + RSI; break;
-                    case 1: addr += RBX + RDI; break;
-                    case 2: addr += RBP + RSI; break;
-                    case 3: addr += RBP + RDI; break;
-                    case 4: addr += RSI; break;
-                    case 5: addr += RDI; break;
-                    case 6: addr += RBP; break;
-                    case 7: addr += RBX; break;
-                }
+            ulong addr = AddressFromModRM(mod, reg, rm);
+
+            if (swap && action == CommonAction.MOV)
+            {
+                _memory[addr] = (byte)_registers[reg];
             }
-            else if (mod == 0)
+            else if (action == CommonAction.MOV)
             {
-                switch (rm)
-                {
-                    case 0: addr = RBX + RSI; break;
-                    case 1: addr = RBX + RDI; break;
-                    case 2: addr = RBP + RSI; break;
-                    case 3: addr = RBP + RDI; break;
-                    case 4: addr = RSI; break;
-                    case 5: addr = RDI; break;
-                    case 6: throw new Exception("Use disp16");
-                    case 7: addr = RBX; break;
-                }
-            }*/
-            else throw new Exception("Unsupported modrm");
+                byte contents = _memory[addr];
 
-            short contents = BitConverter.ToInt16(_memory, (int)addr);
-            _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)contents);
+                if (reg < 4)
+                {
+                    _registers[reg] &= ~0xffUL;
+                    _registers[reg] |= contents;
+                }
+                else
+                {
+                    _registers[reg - 4] &= ~0xff00UL;
+                    _registers[reg - 4] |= ((ulong)contents << 8);
+                }
+                //_registers[reg] = DoAction16(action, (ushort)_registers[reg], contents);
+            }
+            else throw new NotImplementedException();
         }
 
-        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false, bool swap = false)
+        private void Mov16WithModRM(byte modrm, ushort imm)
         {
-            var modrm = _memory[IP++];
             var mod = (modrm & 0xC0) >> 6;
             var reg = (modrm & 0x38) >> 3;
             var rm = (modrm & 0x07);
 
-            ulong addr = 0;
-
             if (mod == 3)
             {
-                if (segmentRegister) _segmentRegisters[reg] = DoAction16(action, _segmentRegisters[reg], (ushort)_registers[rm]);
-                else _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+                _registers[rm] = imm;
 
                 return;
             }
-            else if (mod == 1)
+
+            ulong addr = AddressFromModRM(mod, reg, rm);
+            var bytes = BitConverter.GetBytes(imm);
+            Array.Copy(bytes, 0, _memory, (int)addr, 2);
+        }
+
+        private ulong AddressFromModRM(int mod, int reg, int rm)
+        {
+            ulong addr = 0;
+
+            if (mod == 1)
             {
                 addr = _memory[IP++];
 
@@ -594,6 +691,26 @@ namespace Emulator.CPU.x86
                 }
             }
             else throw new Exception("Unsupported modrm");
+
+            return addr;
+        }
+
+        private void DoAction16WithModRM(CommonAction action, bool segmentRegister = false, bool swap = false)
+        {
+            var modrm = _memory[IP++];
+            var mod = (modrm & 0xC0) >> 6;
+            var reg = (modrm & 0x38) >> 3;
+            var rm = (modrm & 0x07);
+
+            if (mod == 3)
+            {
+                if (segmentRegister) _segmentRegisters[reg] = DoAction16(action, _segmentRegisters[reg], (ushort)_registers[rm]);
+                else _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+
+                return;
+            }
+
+            ulong addr = AddressFromModRM(mod, reg, rm);
 
             if (segmentRegister)
             {
