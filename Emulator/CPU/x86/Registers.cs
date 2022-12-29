@@ -12,6 +12,7 @@ namespace Emulator.CPU.x86
         //public ushort es, cs, ss, ds, fs, gs;
         private ulong[] _registers = new ulong[8] { 1, 2, 3, 4, 5, 6, 7, 8 };
         private ushort[] _segmentRegisters = new ushort[6];
+        private ulong[] _controlRegisters = new ulong[4] { 0, 0, 0, 0 };
 
         public ulong RAX { get { return _registers[0]; } }
         public ulong RCX { get { return _registers[1]; } }
@@ -50,101 +51,5 @@ namespace Emulator.CPU.x86
         {
             return (ushort)_registers[reg];
         }
-
-        /*public byte AL
-        {
-            get { return (byte)(rax & 0xff); }
-            set { rax = (rax & ~0xffUL) | value; }
-        }
-
-        public byte CL
-        {
-            get { return (byte)(rcx & 0xff); }
-            set { rcx = (rcx & ~0xffUL) | value; }
-        }
-
-        public byte DL
-        {
-            get { return (byte)(rdx & 0xff); }
-            set { rdx = (rdx & ~0xffUL) | value; }
-        }
-
-        public byte BL
-        {
-            get { return (byte)(rbx & 0xff); }
-            set { rbx = (rbx & ~0xffUL) | value; }
-        }
-
-        public byte AH
-        {
-            get { return (byte)((rax >> 8) & 0xff); }
-            set { rax = (rax & ~0xff00UL) | ((ulong)value << 8); }
-        }
-
-        public byte CH
-        {
-            get { return (byte)((rcx >> 8) & 0xff); }
-            set { rcx = (rcx & ~0xff00UL) | ((ulong)value << 8); }
-        }
-
-        public byte DH
-        {
-            get { return (byte)((rdx >> 8) & 0xff); }
-            set { rdx = (rdx & ~0xff00UL) | ((ulong)value << 8); }
-        }
-
-        public byte BH
-        {
-            get { return (byte)((rbx >> 8) & 0xff); }
-            set { rbx = (rbx & ~0xff00UL) | ((ulong)value << 8); }
-        }
-
-        public ushort AX
-        {
-            get { return (ushort)(rax & 0xffff); }
-            set { rax = (rax & ~0xffffUL) | value; }
-        }
-
-        public ushort CX
-        {
-            get { return (ushort)(rcx & 0xffff); }
-            set { rcx = (rcx & ~0xffffUL) | value; }
-        }
-
-        public ushort DX
-        {
-            get { return (ushort)(rdx & 0xffff); }
-            set { rdx = (rdx & ~0xffffUL) | value; }
-        }
-
-        public ushort BX
-        {
-            get { return (ushort)(rbx & 0xffff); }
-            set { rbx = (rbx & ~0xffffUL) | value; }
-        }
-
-        public ushort SP
-        {
-            get { return (ushort)(rsp & 0xffff); }
-            set { rsp = (rsp & ~0xffffUL) | value; }
-        }
-
-        public ushort BP
-        {
-            get { return (ushort)(rbp & 0xffff); }
-            set { rbp = (rbp & ~0xffffUL) | value; }
-        }
-
-        public ushort SI
-        {
-            get { return (ushort)(rsi & 0xffff); }
-            set { rsi = (rsi & ~0xffffUL) | value; }
-        }
-
-        public ushort DI
-        {
-            get { return (ushort)(rdi & 0xffff); }
-            set { rdi = (rdi & ~0xffffUL) | value; }
-        }*/
     }
 }
