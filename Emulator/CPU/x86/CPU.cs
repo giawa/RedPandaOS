@@ -142,6 +142,7 @@ namespace Emulator.CPU.x86
 
                 case 0x31:  // XOR Evqp Gvqp
                     if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.XOR);   // xor destination (register or memory) with the contents of a register and store in destination
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.XOR);
                     else throw new NotImplementedException();
                     break;
 
@@ -235,6 +236,7 @@ namespace Emulator.CPU.x86
 
                 case 0x68:  // PUSH imm
                     if (currentMode == Mode.RealMode) Push16((ushort)Read16FromIP());
+                    else if (currentMode == Mode.ProtectedMode) Push32((uint)Read32FromIP());
                     else throw new Exception("Unsupported mode");
                     break;
 
@@ -343,6 +345,17 @@ namespace Emulator.CPU.x86
                     else throw new NotImplementedException();
                     break;
 
+                case 0xA2:  // MOV [imm], AL
+                    if (currentMode == Mode.RealMode) throw new NotImplementedException();
+                    else if (currentMode == Mode.ProtectedMode)
+                    {
+                        uint addr = BitConverter.ToUInt32(_memory, (int)IP);
+                        IP += 4;
+                        _memory[addr] = (byte)(RAX & 0xff);
+                    }
+                    else throw new NotImplementedException();
+                    break;
+
                 // MOV [imm16], AX
                 case 0xA3:
                     if (currentMode == Mode.RealMode)
@@ -397,7 +410,8 @@ namespace Emulator.CPU.x86
 
                 // ret
                 case 0xC2:
-                    byte toPop = _memory[IP++];
+                    ushort toPop = BitConverter.ToUInt16(_memory, (int)IP);
+                    IP += 2;
                     if (currentMode == Mode.RealMode)
                     {
                         IP = BitConverter.ToUInt16(_memory, (int)RSP);
@@ -473,6 +487,14 @@ namespace Emulator.CPU.x86
                     }
                     break;
 
+                case 0xEC:  // IN
+                    In();
+                    break;
+
+                case 0xEE:  // OUT
+                    Out();
+                    break;
+
                 case 0xF7:
                     if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MUL);
                     else throw new NotImplementedException();
@@ -528,6 +550,11 @@ namespace Emulator.CPU.x86
                 {
                     int Count = Math.Min(100, (int)(0x9000 - RSP) / 2);
                     for (int i = 0; i < Count; i++) stack.Add(BitConverter.ToUInt16(_memory, (int)RSP + i * 2));
+                }
+                else if (Mode == Mode.ProtectedMode)
+                {
+                    int Count = Math.Min(100, (int)(0x9000 - RSP) / 4);
+                    for (int i = 0; i < Count; i++) stack.Add(BitConverter.ToUInt32(_memory, (int)RSP + i * 4));
                 }
                 else throw new NotImplementedException();
                 return stack.ToArray();
@@ -662,8 +689,15 @@ namespace Emulator.CPU.x86
                     else throw new NotImplementedException();
                     break;
 
-                case 0xb6:  // MOVZX Gvqp Eb
-                    DoAction16WithModRM(CommonAction.MOVZX8);
+                case 0xB6:  // MOVZX Gvqp Eb
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MOVZX8);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.MOVZX8);
+                    else throw new NotImplementedException();
+                    break;
+
+                case 0xB7:  // MOVZX Gvqp Eb
+                    if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.MOVZX16);
+                    else throw new NotImplementedException();
                     break;
 
                 default: throw new Exception(string.Format("Unknown opcode 0x{0:X}", secondaryOpcode));
@@ -747,6 +781,7 @@ namespace Emulator.CPU.x86
             CMP = 7,
             MOV,
             MOVZX8,
+            MOVZX16,
             MUL,
             LEA,
         }
@@ -1006,19 +1041,38 @@ namespace Emulator.CPU.x86
 
             if (mod == 1)
             {
-                switch (rm)
+                if (mode == Mode.RealMode)
                 {
-                    case 0: addr += RBX + RSI; break;
-                    case 1: addr += RBX + RDI; break;
-                    case 2: addr += RBP + RSI; break;
-                    case 3: addr += RBP + RDI; break;
-                    case 4: addr += RSI; break;
-                    case 5: addr += RDI; break;
-                    case 6: addr += RBP; break;
-                    case 7: addr += RBX; break;
-                }
+                    switch (rm)
+                    {
+                        case 0: addr += RBX + RSI; break;
+                        case 1: addr += RBX + RDI; break;
+                        case 2: addr += RBP + RSI; break;
+                        case 3: addr += RBP + RDI; break;
+                        case 4: addr += RSI; break;
+                        case 5: addr += RDI; break;
+                        case 6: addr += RBP; break;
+                        case 7: addr += RBX; break;
+                    }
 
-                addr = (ulong)((long)addr + (sbyte)_memory[IP++]);
+                    addr = (ulong)((long)addr + (sbyte)_memory[IP++]);
+                }
+                else if (mode == Mode.ProtectedMode)
+                {
+                    switch (rm)
+                    {
+                        case 0: addr += RAX; break;
+                        case 1: addr += RCX; break;
+                        case 2: addr += RDX; break;
+                        case 3: addr += RBX; break;
+                        case 4: addr += AddressFromSIB(mode, mod, reg, rm, _memory[IP++]); break;
+                        case 5: addr += RBP; break;
+                        case 6: addr += RSI; break;
+                        case 7: addr += RDI; break;
+                    }
+
+                    addr = (ulong)((long)addr + (sbyte)_memory[IP++]);
+                }
             }
             else if (mod == 0)
             {
@@ -1220,7 +1274,8 @@ namespace Emulator.CPU.x86
 
                     return dest - src;
                 case CommonAction.MOV: return src;
-                //case CommonAction.MOVZX8: return (ushort)(src & 0xff);
+                case CommonAction.MOVZX8: return (uint)(src & 0xff);
+                case CommonAction.MOVZX16: return (uint)(src & 0xffff);
                 /*case CommonAction.MUL:
                     uint mul = (uint)(RAX & 0xffff) * (uint)dest;
                     _registers[0] = mul & 0xffff;
