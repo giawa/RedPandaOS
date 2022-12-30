@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using System.ComponentModel;
+﻿using System.Runtime.InteropServices;
 
 namespace Emulator.CPU.x86
 {
@@ -123,11 +117,18 @@ namespace Emulator.CPU.x86
 
                 case 0x09:
                     if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.OR);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.OR);
                     else throw new NotImplementedException();
                     break;
 
                 case 0x0F:
                     SecondaryOpcode(currentMode);
+                    break;
+
+                case 0x21:
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.AND);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.AND);
+                    else throw new NotImplementedException();
                     break;
 
                 case 0x25:  // AND rAX Ivds
@@ -262,7 +263,23 @@ namespace Emulator.CPU.x86
                     JMP(FLAGS.HasFlag(RFLAGS.ZF) == false, (sbyte)_memory[IP++]);
                     break;
 
-                case 0x7C:  // JL or JNGE Gbs
+                case 0x76:  // JBE or JNA Jbs
+                    JMP((FLAGS.HasFlag(RFLAGS.CF) || FLAGS.HasFlag(RFLAGS.ZF)), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x77:  // JNBE or JA Jbs
+                    JMP((FLAGS.HasFlag(RFLAGS.CF) == false && FLAGS.HasFlag(RFLAGS.ZF) == false), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x78:  // JS Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.SF), (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x79:  // JNS Jbs
+                    JMP(FLAGS.HasFlag(RFLAGS.SF) == false, (sbyte)_memory[IP++]);
+                    break;
+
+                case 0x7C:  // JL or JNGE Jbs
                     JMP((FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), (sbyte)_memory[IP++]);
                     break;
 
@@ -282,7 +299,7 @@ namespace Emulator.CPU.x86
                     CmpWithModRm();
                     break;
 
-                case 0x83:  // XOR Evqp Ibs
+                case 0x83:  // CommonAction Evqp Ibs
                     if (currentMode == Mode.RealMode) DoAction16WithEvqp();
                     else if (currentMode == Mode.ProtectedMode) DoAction32WithEvqp();
                     else throw new NotImplementedException();
@@ -323,7 +340,7 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0x9F:  // LAHF
-                    if (currentMode == Mode.RealMode)
+                    if (currentMode == Mode.RealMode || currentMode == Mode.ProtectedMode)
                     {
                         _registers[0] &= ~0xFF00UL; // clear AH
                         _registers[0] |= (((ulong)FLAGS) & 0xff) << 8;  // load the lower 8 bits of FLAGS into AH
@@ -405,6 +422,7 @@ namespace Emulator.CPU.x86
 
                 case 0xC1:
                     if (currentMode == Mode.RealMode) DoRotation16WithEvqp(_memory[IP++], _memory[IP++]);
+                    else if (currentMode == Mode.ProtectedMode) DoRotation32WithEvqp(_memory[IP++], _memory[IP++]);
                     else throw new NotImplementedException();
                     break;
 
@@ -442,11 +460,13 @@ namespace Emulator.CPU.x86
                 // shift Evqp
                 case 0xD3:
                     if (currentMode == Mode.RealMode) DoRotation16WithEvqp(_memory[IP++]);
+                    else if (currentMode == Mode.ProtectedMode) DoRotation32WithEvqp(_memory[IP++]);
                     else throw new NotImplementedException();
                     break;
 
                 case 0xE9:  // JMP imm
                     if (currentMode == Mode.RealMode) JMP(true, Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(true, Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
@@ -496,7 +516,19 @@ namespace Emulator.CPU.x86
                     break;
 
                 case 0xF7:
-                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MUL);
+                    var modrmf7 = _memory[IP];
+                    var rmf7 = ((modrmf7 & 0x38) >> 3);
+                    CommonAction actionf7;
+
+                    switch (rmf7)
+                    {
+                        case 4: actionf7 = CommonAction.MUL; break;
+                        case 6: actionf7 = CommonAction.DIV; break;
+                        default: throw new NotImplementedException();
+                    }
+
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(actionf7);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(actionf7);
                     else throw new NotImplementedException();
                     break;
 
@@ -651,41 +683,49 @@ namespace Emulator.CPU.x86
 
                 case 0x82:  // JC or JNAE Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.CF), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.CF), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x83:  // JNB or JNC Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.CF) == false, Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.CF) == false, Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x84:  // JZ or JE Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.ZF), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x85:  // JNZ or JNE Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false, Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false, Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x8C:  // JL or JNGE Gbs
                     if (currentMode == Mode.RealMode) JMP((FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP((FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x8D:  // JGE or JNL Jbs
                     if (currentMode == Mode.RealMode) JMP((FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP((FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x8E:  // JLE or JNG Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) || (FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) || (FLAGS.HasFlag(RFLAGS.SF) != FLAGS.HasFlag(RFLAGS.OF)), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
                 case 0x8F:  // JG or JNLE Jbs
                     if (currentMode == Mode.RealMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false && (FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read16SignedFromIP());
+                    else if (currentMode == Mode.ProtectedMode) JMP(FLAGS.HasFlag(RFLAGS.ZF) == false && (FLAGS.HasFlag(RFLAGS.SF) == FLAGS.HasFlag(RFLAGS.OF)), Read32SignedFromIP());
                     else throw new NotImplementedException();
                     break;
 
@@ -784,6 +824,7 @@ namespace Emulator.CPU.x86
             MOVZX16,
             MUL,
             LEA,
+            DIV,
         }
 
         private enum FFAction
@@ -886,6 +927,48 @@ namespace Emulator.CPU.x86
             else throw new Exception("Unsupported modrm");
         }
 
+        private void DoRotation32WithEvqp(byte modrm, int amount = -1)
+        {
+            var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
+            var action = (RotationAction)((modrm & 0x38) >> 3);
+            var rm = (modrm & 0x07);
+
+            if (amount == -1) amount = (int)(_registers[1] & 0xff);
+
+            if (mod == 3)
+            {
+                uint initial = (uint)_registers[rm];
+                _registers[rm] &= ~0xffffUL;
+                switch (action)
+                {
+                    case RotationAction.SHR:
+                        _registers[rm] |= (initial >> amount);
+                        FLAGS &= ~RFLAGS.CF;
+                        if (((initial >> (byte)(amount - 1)) & 0x0001) != 0) FLAGS |= RFLAGS.CF;
+                        break;
+
+                    case RotationAction.SHL:
+                        _registers[rm] |= (initial << amount);
+                        FLAGS &= ~RFLAGS.CF;
+                        if (((initial << (byte)(amount - 1)) & 0x80000000) != 0) FLAGS |= RFLAGS.CF;
+                        break;
+
+                    case RotationAction.SAR:
+                        uint msb = (uint)(_registers[rm] & 0x80000000UL);
+                        FLAGS &= ~RFLAGS.CF;
+                        if (((initial >> (byte)(amount - 1)) & 0x0001) != 0) FLAGS |= RFLAGS.CF;
+                        for (int i = 0; i < amount; i++)
+                        {
+                            _registers[rm] = (_registers[rm] >> 1) | msb;
+                        }
+                        break;
+
+                    default: throw new NotImplementedException();
+                }
+            }
+            else throw new Exception("Unsupported modrm");
+        }
+
         private void CmpWithModRm()
         {
             var modrm = _memory[IP++];
@@ -910,8 +993,8 @@ namespace Emulator.CPU.x86
 
             if (mod == 3)
             {
-                if (action == CommonAction.CMP) CMP((ushort)_registers[rm], _memory[IP++], false);
-                else _registers[rm] = DoAction32(action, (ushort)_registers[rm], _memory[IP++]);
+                if (action == CommonAction.CMP) CMP((uint)_registers[rm], _memory[IP++], false);
+                else _registers[rm] = DoAction32(action, (uint)_registers[rm], _memory[IP++]);
             }
             else throw new Exception("Unsupported modrm");
         }
@@ -1276,16 +1359,24 @@ namespace Emulator.CPU.x86
                 case CommonAction.MOV: return src;
                 case CommonAction.MOVZX8: return (uint)(src & 0xff);
                 case CommonAction.MOVZX16: return (uint)(src & 0xffff);
-                /*case CommonAction.MUL:
-                    uint mul = (uint)(RAX & 0xffff) * (uint)dest;
-                    _registers[0] = mul & 0xffff;
-                    _registers[2] = (mul >> 16) & 0xffff;
-                    if ((mul >> 16) > 0) FLAGS |= (RFLAGS.CF | RFLAGS.OF);
+                case CommonAction.MUL:
+                    ulong mul = (RAX & 0xffffffff) * dest;
+                    _registers[0] = mul & 0xffffffff;
+                    _registers[2] = (mul >> 32) & 0xffffffff;
+                    if ((mul >> 32) > 0) FLAGS |= (RFLAGS.CF | RFLAGS.OF);
                     else FLAGS &= ~(RFLAGS.CF | RFLAGS.OF);
-                    return dest;*/    // we do not store the value back into the register, so just return the original value
+                    return dest;    // we do not store the value back into the register, so just return the original value
                 case CommonAction.CMP:
                     CMP(dest, src, false);
                     return dest;    // we do not store the value back into the register, so just return the original value
+                case CommonAction.DIV:
+                    if (RDX != 0) throw new NotImplementedException();
+                    uint result = (uint)RAX / dest;
+                    uint remainder = (uint)RAX % dest;
+                    if (src == 0) throw new NotImplementedException();
+                    _registers[0] = result;
+                    _registers[2] = remainder;
+                    return dest;
                 default: throw new Exception("Unsupported action " + action.ToString());
             }
         }
