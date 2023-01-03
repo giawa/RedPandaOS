@@ -6,7 +6,12 @@
 
         internal void InitPeripherals()
         {
+            // COM1
             _peripherals.Add(new COM(0x3f8));
+
+            // both PICs
+            _peripherals.Add(new PIC(0x20));
+            _peripherals.Add(new PIC(0xA0));
         }
 
         private void Out()
@@ -57,6 +62,56 @@
         bool HasRegister(ushort dx);
         void Out(ushort dx, byte al);
         byte In(ushort dx);
+    }
+
+    public class PIC : IIODevice
+    {
+        private int _baseAddr = 0;
+        private byte[] _registers = new byte[2];
+
+        public PIC(int baseAddr)
+        {
+            _baseAddr = baseAddr;
+
+            if (_baseAddr == 0x20) _irqs[0] = true; // set PIT by default
+        }
+
+        public void Out(ushort dx, byte al)
+        {
+            _registers[dx - _baseAddr] = al;
+        }
+
+        public byte In(ushort dx)
+        {
+            return 0;
+        }
+
+        public bool HasRegister(ushort dx)
+        {
+            if (dx < _baseAddr) return false;
+            if (dx >= _baseAddr + _registers.Length) return false;
+
+            return true;
+        }
+
+        public bool Interrupted
+        {
+            get
+            {
+                foreach (var irq in _irqs) if (irq) return true;
+                return false;
+            }
+        }
+
+        private bool[] _irqs = new bool[8];
+
+        public int FirstInterrupt()
+        {
+            int offset = (_baseAddr == 0x20 ? 0x20 : 0x28);
+
+            for (int i = 0; i < _irqs.Length; i++) if (_irqs[i]) return i + offset;
+            return -1;
+        }
     }
 
     public class COM : IIODevice

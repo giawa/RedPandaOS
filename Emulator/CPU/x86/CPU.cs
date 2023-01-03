@@ -64,8 +64,56 @@ namespace Emulator.CPU.x86
             IP = ip;
         }
 
+        private void CheckInterrupts()
+        {
+            foreach (var peripheral in _peripherals)
+            {
+                if (peripheral is PIC pic)
+                {
+                    if (pic.Interrupted)
+                    {
+                        int firstInterrupt = pic.FirstInterrupt();
+                        Interrupt(firstInterrupt);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void Interrupt(int interruptNumber)
+        {
+            if (interruptNumber == -1) throw new NotImplementedException();
+            if (Mode != Mode.ProtectedMode) throw new NotImplementedException();
+
+            // 1. save SS, ESP, EFLAGS, CS and EIP
+            var ss = SS;
+            var esp = RSP;
+            var eflags = FLAGS;
+            var cs = CS;
+            var ip = IP;
+
+            // 2. TODO: load segment selector via TSS
+
+            // 3. push temporary values on to stack
+            Push32(ss);
+            Push32((uint)esp);
+            Push32((uint)eflags);
+            Push32(cs);
+            Push32((uint)ip);
+
+            // 4. TODO: push error code on to stack if applicable
+
+            // 5. load values from IDT
+            var isr = _idt[interruptNumber];
+            IP = ((uint)isr.base_hi << 16) | isr.base_lo;
+
+            // 6. TODO: clear IF flag in ELAGS?
+        }
+
         public void Tick()
         {
+            if (_interruptsEnabled) CheckInterrupts();
+
             var opcode = _memory[IP++];
 
             Segment currentSegment = Segment.Data;
@@ -217,6 +265,18 @@ namespace Emulator.CPU.x86
                         Push16((ushort)RSI);
                         Push16((ushort)RDI);
                     }
+                    else if (currentMode == Mode.ProtectedMode)
+                    {
+                        var originalRsp = (uint)RSP;
+                        Push32((uint)RAX);
+                        Push32((uint)RCX);
+                        Push32((uint)RDX);
+                        Push32((uint)RBX);
+                        Push32(originalRsp);
+                        Push32((uint)RBP);
+                        Push32((uint)RSI);
+                        Push32((uint)RDI);
+                    }
                     else throw new Exception("Unsupported mode");
                     break;
 
@@ -300,6 +360,12 @@ namespace Emulator.CPU.x86
                     CmpWithModRm();
                     break;
 
+                case 0x81:
+                    if (currentMode == Mode.RealMode) DoAction16WithEvqp(true);
+                    //else if (currentMode == Mode.ProtectedMode) DoAction32WithEvqp();
+                    else throw new NotImplementedException();
+                    break;
+
                 case 0x83:  // CommonAction Evqp Ibs
                     if (currentMode == Mode.RealMode) DoAction16WithEvqp();
                     else if (currentMode == Mode.ProtectedMode) DoAction32WithEvqp();
@@ -324,6 +390,11 @@ namespace Emulator.CPU.x86
                 case 0x8B:
                     if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MOV);
                     else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.MOV);
+                    break;
+
+                case 0x8C:
+                    if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.MOV, true, true);
+                    else throw new NotImplementedException();
                     break;
 
                 case 0x8D:  // LEA
@@ -537,6 +608,10 @@ namespace Emulator.CPU.x86
                     _interruptsEnabled = false;
                     break;
 
+                case 0xFB:  // STI
+                    _interruptsEnabled = true;
+                    break;
+
                 case 0xFF:
                     if (currentMode == Mode.RealMode) DoFF16WithEvqp();
                     else throw new NotImplementedException();
@@ -655,6 +730,29 @@ namespace Emulator.CPU.x86
                         finally
                         {
                             Marshal.FreeHGlobal(lgdtPtr);
+                        }
+                    }
+                    else if (opcode01 == 3) // LIDT
+                    {
+                        var idtPtr = Marshal.AllocHGlobal(Marshal.SizeOf<IDT>());
+                        try
+                        {
+                            var modlidt = (modrm01 & 0xC0) >> 6;
+                            var reglidt = (modrm01 & 0x38) >> 3;
+                            var rmlidt = (modrm01 & 0x07);
+
+                            var addr = (uint)AddressFromModRM(Mode, modlidt, reglidt, rmlidt);
+                            
+                            uint lidtsize = BitConverter.ToUInt16(_memory, (int)addr);
+                            uint lidtaddr = BitConverter.ToUInt32(_memory, (int)addr + 2);
+
+                            // copy the contents of the IDT data to the _idt structure
+                            Marshal.Copy(_memory, (int)lidtaddr, idtPtr, Marshal.SizeOf<IDT>());
+                            _idt = Marshal.PtrToStructure<IDT>(idtPtr);
+                        }
+                        finally
+                        {
+                            Marshal.FreeHGlobal(idtPtr);
                         }
                     }
                     else throw new NotImplementedException();
@@ -1001,17 +1099,21 @@ namespace Emulator.CPU.x86
             else throw new Exception("Unsupported modrm");
         }
 
-        private void DoAction16WithEvqp()
+        private void DoAction16WithEvqp(bool _modeWidth = false)
         {
             var modrm = _memory[IP++];
             var mod = (modrm & 0xC0) >> 6;  // dest in EvGv
             var action = (CommonAction)((modrm & 0x38) >> 3);
             var rm = (modrm & 0x07);
 
+            ushort comparison = _memory[IP++];
+            if (_modeWidth) comparison = (ushort)(comparison | (_memory[IP++] << 8));
+            if (Mode > Mode.ProtectedMode) throw new NotImplementedException();
+
             if (mod == 3)
             {
-                if (action == CommonAction.CMP) CMP((ushort)_registers[rm], _memory[IP++], false);
-                else _registers[rm] = DoAction16(action, (ushort)_registers[rm], _memory[IP++]);
+                if (action == CommonAction.CMP) CMP((ushort)_registers[rm], comparison, false);
+                else _registers[rm] = DoAction16(action, (ushort)_registers[rm], comparison);
             }
             else throw new Exception("Unsupported modrm");
         }
@@ -1059,7 +1161,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode, mod, reg, rm);
 
             if (swap && action == CommonAction.MOV)
             {
@@ -1097,7 +1199,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(Mode.ProtectedMode, mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode, mod, reg, rm);
             var bytes = BitConverter.GetBytes((uint)Read32FromIP());
             Array.Copy(bytes, 0, _memory, (int)addr, 4);
         }
@@ -1115,7 +1217,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode, mod, reg, rm);
             var bytes = BitConverter.GetBytes((ushort)Read16FromIP());
             Array.Copy(bytes, 0, _memory, (int)addr, 2);
         }
@@ -1260,7 +1362,7 @@ namespace Emulator.CPU.x86
                 return;
             }
 
-            ulong addr = AddressFromModRM(Mode.ProtectedMode, mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode, mod, reg, rm);
 
             if (action == CommonAction.LEA) _registers[reg] = (uint)addr;
             else if (swap && action == CommonAction.MOV)
@@ -1284,13 +1386,22 @@ namespace Emulator.CPU.x86
 
             if (mod == 3)
             {
-                if (segmentRegister) _segmentRegisters[reg] = DoAction16(action, _segmentRegisters[reg], (ushort)_registers[rm]);
-                else _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+                if (segmentRegister)
+                {
+                    if (swap) _registers[rm] = DoAction16(action, (ushort)_registers[rm], _segmentRegisters[reg]);
+                    else _segmentRegisters[reg] = DoAction16(action, _segmentRegisters[reg], (ushort)_registers[rm]);
+                }
+                else
+                {
+                    /*if (swap)  _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+                    else _registers[reg] = DoAction16(action, (ushort)_registers[reg], (ushort)_registers[rm]);*/
+                    _registers[rm] = DoAction16(action, (ushort)_registers[rm], (ushort)_registers[reg]);
+                }
 
                 return;
             }
 
-            ulong addr = AddressFromModRM(Mode.RealMode, mod, reg, rm);
+            ulong addr = AddressFromModRM(Mode, mod, reg, rm);
 
             if (segmentRegister)
             {
