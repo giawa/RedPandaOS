@@ -138,6 +138,7 @@ namespace Emulator.CPU.x86
 
                 case 0x29:  // SUB
                     if (currentMode == Mode.RealMode) DoAction16WithModRM(CommonAction.SUB);
+                    else if (currentMode == Mode.ProtectedMode) DoAction32WithModRM(CommonAction.SUB);
                     else throw new NotImplementedException();
                     break;
 
@@ -954,13 +955,14 @@ namespace Emulator.CPU.x86
                         break;
 
                     case RotationAction.SAR:
-                        uint msb = (uint)(_registers[rm] & 0x80000000UL);
+                        uint msb = (uint)(initial & 0x80000000UL);
                         FLAGS &= ~RFLAGS.CF;
                         if (((initial >> (byte)(amount - 1)) & 0x0001) != 0) FLAGS |= RFLAGS.CF;
                         for (int i = 0; i < amount; i++)
                         {
-                            _registers[rm] = (_registers[rm] >> 1) | msb;
+                            initial = (initial >> 1) | msb;
                         }
+                        _registers[rm] = initial;
                         break;
 
                     default: throw new NotImplementedException();
