@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System;
 
 namespace IL2Asm.Optimizer.x86_RealMode
 {
@@ -123,7 +124,14 @@ namespace IL2Asm.Optimizer.x86_RealMode
                         }
                     }
 
-                    if (madeChanges)
+                    if (madeChanges && instruction.StartsWith("cmp") && int.TryParse(split[1], out int s1))
+                    {
+                        // this is a special case where simplify constants was outputting something like "cmp 128, bx", which is invalid
+                        // so we cannot optimize this part
+                        //assembly[i] = $"cmp {split[2]}, {split[1]} ; {assembly[i]}";
+                        throw new Exception("Unsupport optimization");
+                    }
+                    else if (madeChanges)
                     {
                         string result = string.Format($"    {split[0]} {split[1]}");
                         if (split[1].StartsWith("[") && (split[2] == "-" || split[2] == "+"))
