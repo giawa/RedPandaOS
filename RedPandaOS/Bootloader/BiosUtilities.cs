@@ -102,13 +102,16 @@ namespace Bootloader
         public static void Write(string s)
         {
             // do not refactor this to use s.Length as the real mode assembler does not support it
+            // instead strings in read mode are null terminated bytes, so we loop until we find 0
             int i = 0;
+            char t;
 
-            while (s[i] != 0)
+            do
             {
-                Bios.WriteChar(s[i]);
+                t = s[i];
+                Bios.WriteChar(t);
                 i += 1;
-            }
+            } while (t != 0);
         }
 
         public static void WriteInt(short value)

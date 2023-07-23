@@ -33,6 +33,10 @@ namespace Kernel.Devices
             _idt_ptr.address = Utilities.ObjectToPtr(_idt_entries) + 8; // plus 8 bytes to find start of actual array data
 
             // remap the IRQ table
+            // this moves the interrupts the come from the PICs from 0->0x0f up to 0x20->0x2f
+            // this is to deal with the software interrupts (ISRs) being mapped to 0->0x1f, which
+            // conflicts with the default IRQ mapping.  If left as-is we wouldn't be able to tell
+            // software interrupts and PIC interrupts apart
             CPU.OutDxAl(0x20, 0x11);
             CPU.OutDxAl(0xA0, 0x11);
             CPU.OutDxAl(0x21, 0x20);

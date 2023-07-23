@@ -40,19 +40,23 @@
                 var c = s[i];
                 if (c == '{' && (s[i + 2] == '}' || s[i + 4] == '}'))
                 {
+                    var nextc = s[i + 1];
                     uint value = 0;
-                    if (s[i + 1] == '0') value = u1;
-                    else if (s[i + 1] == '1') value = u2;
-                    else if (s[i + 1] == '2') value = u3;
+                    if (nextc == '0') value = u1;
+                    else if (nextc == '1') value = u2;
+                    else if (nextc == '2') value = u3;
 
                     if (s[i + 2] == ':' && s[i + 3] == 'X')
                     {
                         WriteHex(value);
+                        i += 4;
+                    }
+                    else
+                    {
+                        WriteInt(value);
                         i += 2;
                     }
-                    else WriteInt(value);
 
-                    i += 2;
                     continue;
                 }
 
@@ -74,11 +78,10 @@
 
             while (divisor > 0)
             {
-                uint c = value / divisor;// Runtime.Math32.Divide(value, divisor);
-                //Bios.WriteByte((byte)((c % 10) + 48));
+                uint c = value / divisor;
                 Write((byte)((c % 10) + 48));
 
-                divisor = divisor / 10;// Runtime.Math32.Divide(divisor, 10);
+                divisor = divisor / 10;
             }
         }
 
@@ -115,27 +118,16 @@
 
         public static void WriteHex(uint value)
         {
-            WriteHexChar((byte)(value >> 28));
-            WriteHexChar((byte)(value >> 24));
-            WriteHexChar((byte)(value >> 20));
-            WriteHexChar((byte)(value >> 16));
-            WriteHexChar((byte)(value >> 12));
-            WriteHexChar((byte)(value >> 8));
-            WriteHexChar((byte)(value >> 4));
-            WriteHexChar((byte)(value));
+            for (int i = 7; i >= 0; i--)
+            {
+                WriteHexChar((byte)(value >> (4 * i)));
+            }
         }
 
-        public static void WriteHex(int value)
+        /*public static void WriteHex(int value)
         {
-            WriteHexChar(value >> 28);
-            WriteHexChar(value >> 24);
-            WriteHexChar(value >> 20);
-            WriteHexChar(value >> 16);
-            WriteHexChar(value >> 12);
-            WriteHexChar(value >> 8);
-            WriteHexChar(value >> 4);
-            WriteHexChar(value);
-        }
+            WriteHex((uint)value);
+        }*/
 
         public static void WriteHex(short value)
         {
