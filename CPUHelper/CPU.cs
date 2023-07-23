@@ -503,7 +503,21 @@ namespace CPUHelper
         {
             assembly.AddAsm("pop eax");
             assembly.AddAsm("pop ebx");
-            assembly.AddAsm("mov [ebx], al");
+            assembly.AddAsm("mov byte [ebx], al");
+        }
+
+        [AsmMethod]
+        public static void WriteMemShort(uint addr, ushort data)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.WriteMemShort_Void_U4_U2", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void WriteMemShortAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("pop ebx");
+            assembly.AddAsm("mov word [ebx], ax");
         }
 
         [AsmMethod]
@@ -650,6 +664,13 @@ namespace CPUHelper
         {
             assembly.AddAsm("pop ax");
             assembly.AddAsm("jmp ax");
+        }
+
+        [AsmPlug("CPUHelper.CPU.Jump_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void JumpAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");
+            assembly.AddAsm("jmp eax");
         }
 
         [AsmMethod]
