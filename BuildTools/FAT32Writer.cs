@@ -85,7 +85,7 @@ namespace BuildTools
             WriteUInt(firstFat, 0xffffffffU, 4);
         }
 
-        public void StoreKernel(string filename)
+        public void Build()
         {
             // TODO:  This is just a hack to get a basic file system working
             // The directory/file classes should provide helpers to insert directory/etc
@@ -98,7 +98,7 @@ namespace BuildTools
             rootSector[0x0B] = 0x08;    // volume label
 
             // create a "boot" directory in the root directory
-            var bootCluster = _handler.ReserveEmptyCluster();
+            /*var bootCluster = _handler.ReserveEmptyCluster();
             FATDirectory bootDirectory = new FATDirectory("BOOT", bootCluster);
             bootDirectory.DirEntry[0x0C] = 0x08;    // mark as lowercase
             bootDirectory.DirEntry.CopyTo(rootSector, 32);
@@ -115,7 +115,7 @@ namespace BuildTools
             FATFile symbolsFile = new FATFile("SYMBOLS.BIN", _handler, symbolsBytes);
             symbolsFile.DirEntry[0x0B] = 0x05;    // system and read only flags
             symbolsFile.DirEntry[0x0C] = 0x18;    // mark as lowercase
-            symbolsFile.DirEntry.CopyTo(bootDirectoryFirstSector, 32);
+            symbolsFile.DirEntry.CopyTo(bootDirectoryFirstSector, 32);*/
 
             ExploreDirectory(new DirectoryInfo("../../../disk"), null, shouldBeRoot, 64);
         }
@@ -126,7 +126,6 @@ namespace BuildTools
 
             foreach (var d in dir.GetDirectories())
             {
-                if (startOffset == 0 && d.Name.ToLowerInvariant() == "boot") throw new Exception("Boot directory is reserved");
                 if (offset >= 512) throw new Exception("Too many directories!");
 
                 var newCluster = _handler.ReserveEmptyCluster();
@@ -422,8 +421,7 @@ namespace BuildTools
 
         public uint ReserveEmptyCluster()
         {
-            uint empty = 0;
-            for (uint i = 0; i < _sectorsPerFat && empty == 0; i++)
+            for (uint i = 0; i < _sectorsPerFat; i++)
             {
                 var fatSector = _sectors[(int)i + _fatBeginLba];
                 for (uint j = 0; j < fatSector.Length / 4; j++)
@@ -436,13 +434,11 @@ namespace BuildTools
                         fatSector[j * 4 + 1] = 0xff;
                         fatSector[j * 4 + 2] = 0xff;
                         fatSector[j * 4 + 3] = 0x0f;
-                        empty = i * 512 / 4 + j;
-                        break;
+                        return i * 512 / 4 + j;
                     }
                 }
-                if (empty != 0) break;
             }
-            return empty;
+            throw new Exception("No empty cluster found");
         }
 
         public bool AdvanceWrite()

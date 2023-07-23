@@ -157,6 +157,12 @@ namespace GiawaOS
                 Console.WriteLine($"GenerateSymbols {stopwatch.ElapsedMilliseconds} ms");
                 stopwatch.Restart();
 
+
+                // copy kernel and symbols to the boot directory
+                if (!Directory.Exists("../../../disk/boot")) Directory.CreateDirectory("../../../disk/boot");
+                File.Copy("pm.bin", "../../../disk/boot/kernel.bin", true);
+                File.Copy("symbols.bin", "../../../disk/boot/symbols.bin", true);
+
                 DiskMaker.DiskInfo disk = new DiskMaker.DiskInfo();
                 DiskMaker.PartitionInfo bootablePartition = new DiskMaker.PartitionInfo()
                 {
@@ -167,7 +173,7 @@ namespace GiawaOS
                     PartitionType = 0x0B    // FAT32 CHS/LBA
                 };
                 disk.Partitions.Add(bootablePartition);
-                DiskMaker.MakeBootableDisk(disk, "disk.bin", "stage1.bin", "stage2.bin", "pm.bin");
+                DiskMaker.MakeBootableDisk(disk, "disk.bin", "stage1.bin", "stage2.bin");
                 //CopyToVDI("disk.bin", "disk.vdi");
                 File.Copy("disk.bin", "disk.hdd", true);
 
