@@ -50,8 +50,8 @@ namespace IL2Asm.Assembler.x86
                     {
                         isrMethods.AddAsm($"IRQ{i}:");
                         isrMethods.AddAsm("cli");
-                        isrMethods.AddAsm("push byte 0; error code");
-                        isrMethods.AddAsm($"push byte {i + 32}; interrupt number");
+                        isrMethods.AddAsm("push 0; error code");
+                        isrMethods.AddAsm($"push {i + 32}; interrupt number");
                         isrMethods.AddAsm($"jmp {stubName}");
                         isrMethods.AddAsm("");
                     }
@@ -62,8 +62,8 @@ namespace IL2Asm.Assembler.x86
                     {
                         isrMethods.AddAsm($"ISR{i}:");
                         isrMethods.AddAsm("cli");
-                        if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push byte 0; error code");
-                        isrMethods.AddAsm($"push byte {i}; interrupt number");
+                        if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push 0; error code");
+                        isrMethods.AddAsm($"push {i}; interrupt number");
                         isrMethods.AddAsm($"jmp {stubName}");
                         isrMethods.AddAsm("");
                     }
