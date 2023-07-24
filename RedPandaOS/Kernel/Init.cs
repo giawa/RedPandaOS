@@ -56,9 +56,9 @@ namespace Kernel
             if (boot == null) return;
             boot.OnOpen(boot);
             IO.File symbols = null;
-            for (int i = 0; i < boot.Contents.Count; i++)
+            for (int i = 0; i < boot.Files.Count; i++)
             {
-                if (boot.Contents[i].Name == "SYMBOLS.BIN") symbols = boot.Contents[i];
+                if (boot.Files[i].Name == "SYMBOLS.BIN") symbols = boot.Files[i];
             }
             if (symbols == null) return;
 
@@ -86,10 +86,10 @@ namespace Kernel
             if (etc == null) return null;
             etc.OnOpen(etc);
             IO.File texture = null, charData = null;
-            for (int i = 0; i < etc.Contents.Count; i++)
+            for (int i = 0; i < etc.Files.Count; i++)
             {
-                if (etc.Contents[i].Name == "INCONS16.BIN") texture = etc.Contents[i];
-                if (etc.Contents[i].Name == "INCONS16.FNT") charData = etc.Contents[i];
+                if (etc.Files[i].Name == "INCONS16.BIN") texture = etc.Files[i];
+                if (etc.Files[i].Name == "INCONS16.FNT") charData = etc.Files[i];
             }
 
             if (texture == null || charData == null)
@@ -141,9 +141,9 @@ namespace Kernel
             for (int i = 0; i < hda.Directories.Count; i++) if (hda.Directories[i].Name == "ETC") etc = hda.Directories[i];
             if (etc != null) etc.OnOpen(etc);
             IO.File wallpaper = null;
-            for (int i = 0; i < etc.Contents.Count; i++)
+            for (int i = 0; i < etc.Files.Count; i++)
             {
-                if (etc.Contents[i].Name == "WALLPAPR.BIN") wallpaper = etc.Contents[i];
+                if (etc.Files[i].Name == "WALLPAPR.BIN") wallpaper = etc.Files[i];
             }
 
             if (wallpaper != null)

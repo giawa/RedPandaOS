@@ -1,14 +1,45 @@
 ﻿using System;
 using Runtime.Collections;
-using System.Text;
 
 namespace Kernel.IO
 {
     public class Directory
     {
-        public List<File> Contents { get; private set; } = new List<File>();
+        private List<File> _files = new List<File>();
+        private List<Directory> _directories = new List<Directory>();
 
-        public List<Directory> Directories { get; private set; } = new List<Directory>();
+        private ReadOnlyList<File> _readOnlyFiles;
+        private ReadOnlyList<Directory> _readOnlyDirectories;
+
+        public ReadOnlyList<File> Files
+        {
+            get
+            {
+                if (!Opened && OnOpen != null) OnOpen(this);
+                if (_readOnlyFiles == null) _readOnlyFiles = new ReadOnlyList<File>(_files);
+                return _readOnlyFiles;
+            }
+        }
+
+        public ReadOnlyList<Directory> Directories
+        {
+            get
+            {
+                if (!Opened && OnOpen != null) OnOpen(this);
+                if (_readOnlyDirectories == null) _readOnlyDirectories = new ReadOnlyList<Directory>(_directories);
+                return _readOnlyDirectories;
+            }
+        }
+
+        public void AddFile(File file)
+        {
+            _files.Add(file);
+        }
+
+        public void AddDirectory(Directory dir)
+        {
+            _directories.Add(dir);
+        }
 
         public string Name { get; private set; }
 
@@ -97,9 +128,9 @@ namespace Kernel.IO
         {
             Root = new Directory();
 
-            Root.Directories.Add(new Directory("boot", Root));
-            Root.Directories.Add(new Directory("dev", Root));
-            Root.Directories.Add(new Directory("proc", Root));
+            Root.AddDirectory(new Directory("boot", Root));
+            Root.AddDirectory(new Directory("dev", Root));
+            Root.AddDirectory(new Directory("proc", Root));
         }
     }
 }

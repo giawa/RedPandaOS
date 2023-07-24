@@ -194,7 +194,7 @@ namespace Kernel.IO
             if (devices == null) throw new Exception("/dev did not exist");
 
             IO.Directory harddisk = new Directory("hd" + diskletter, devices);
-            devices.Directories.Add(harddisk);
+            devices.AddDirectory(harddisk);
 
             if (partition.PartitionType == 0x0b || partition.PartitionType == 0x0c)
             {

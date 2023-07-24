@@ -164,7 +164,7 @@ namespace Kernel.IO
                     dirCluster |= (uint)BitConverter.ToUInt16(sectorData, offset + 0x14) << 16;
 
                     var newDirectory = new Directory(new string(name), dir);
-                    dir.Directories.Add(newDirectory);
+                    dir.AddDirectory(newDirectory);
                     newDirectory.OnOpen = OnExplore;
                     newDirectory.FilesystemInformation = dirCluster;
                 }
@@ -195,7 +195,7 @@ namespace Kernel.IO
                     var newFile = new File(new string(name), dir);
                     newFile.OnOpen = OnOpen;
                     newFile.FileSystem = this;
-                    dir.Contents.Add(newFile);
+                    dir.AddFile(newFile);
                     newFile.FilesystemInformation = fileCluster;
                     newFile.Size = BitConverter.ToUInt32(sectorData, offset + 0x1C);
                 }
