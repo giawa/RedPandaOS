@@ -10,6 +10,8 @@ namespace Kernel.Memory
 
         public void Free(uint addr, uint size);
 
+        public void Free<T>(T obj);
+
         public T Malloc<T>();
 
         public T Malloc<T>(uint size);

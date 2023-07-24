@@ -92,5 +92,16 @@ namespace Kernel.Memory
 
             return Utilities.PtrToObject<T[]>(addr);
         }
+
+        public void Free<T>(T obj)
+        {
+            Free(Utilities.ObjectToPtr(obj), (uint)Marshal.SizeOf<T>());
+        }
+
+        public void ExpandHeap(uint address, uint pages)
+        {
+            throw new System.Exception("Unsupported");
+            //for (uint i = 0; i < pages; i++) _memory.Add(new PageAlignedHeap(address + i * 4096));
+        }
     }
 }
