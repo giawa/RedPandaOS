@@ -2250,7 +2250,36 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
                 else
                 {
-                    throw new Exception("Unable to handle this method");
+                    // try to load this in
+                    var file = memberName.Substring(0, memberName.IndexOf('.'));
+                    var path = $"{Environment.CurrentDirectory}\\{file}.dll";
+
+                    if (File.Exists(path))
+                    {
+                        /*if (!_loadedAssemblies.ContainsKey(path)) _loadedAssemblies[path] = Assembly.LoadFile(path);
+
+                        var type = _loadedAssemblies[path].GetTypes().
+                            Where(t => t.FullName == memberRef.ParentName).SingleOrDefault();
+
+                        if (type.BaseType.Name == "Object")
+                        {
+                            
+                        }
+                        else throw new Exception("Unable to handle this method");*/
+                        var referencedAssembly = _runtime.Assemblies.Where(a => string.Compare(path, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
+
+                        if (referencedAssembly == null)
+                        {
+                            referencedAssembly = new PortableExecutableFile(path);
+                            AddAssembly(referencedAssembly);
+                        }
+
+                        var type = referencedAssembly.Metadata.MethodDefs.Where(m => m.Name == memberRef.Name && m.Parent.FullName == memberRef.ParentName).SingleOrDefault();
+
+                        if (type != null) NEWOBJCWithMethodDef(pe, assembly, code, ref i, type);
+                        else throw new Exception("Unable to handle this method");
+                    }
+                    else throw new Exception("Unable to handle this method");
                 }
                 assembly.AddAsm("; end plug");
 
@@ -2268,70 +2297,77 @@ namespace IL2Asm.Assembler.x86.Ver2
                     method.Signature.Override(genericOverride.Item2);
                 }
 
-                var parent = method.Parent;
-                int objSize = 0;
-                foreach (var f in parent.Fields)
-                {
-                    var fSize = _runtime.GetTypeSize(metadata, f.Type);
-                    //if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
-                    objSize += fSize;
-                }
-
-                if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
-
-                // first allocate the object using whatever heap allocator we have been provided
-                assembly.AddAsm($"push {objSize}");
-                assembly.AddAsm("push 0");
-                assembly.AddAsm($"call {HeapAllocatorMethod}");
-
-                // eax should now contain the object pointer.  push it twice
-                // (once to use for the constructor THIS, and a second to recover the address)
-                assembly.AddAsm("push eax");
-                assembly.AddAsm("push eax");
-
-                _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
-                _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
-
-                // now the stack is ordered arg1, ..., argn, this, this
-                // the constructor needs this, arg1, ..., argn
-                // push all the arguments for the constructor again to reorder the stack
-                int argSize = 0;
-                if (method.Signature.ParamCount > 0)
-                {
-                    foreach (var a in method.Signature.Params)
-                    {
-                        argSize += _runtime.GetTypeSize(metadata, a);
-                    }
-                    if ((argSize % 4) != 0) throw new Exception("Unsupported type");
-                    for (int j = 0; j < argSize / 4; j++)
-                    {
-                        assembly.AddAsm($"mov ebx, [esp+{argSize + 4}]");
-                        assembly.AddAsm("push ebx");
-                    }
-                }
-
-                // now the object is allocated, we need to call whatever constructor was given to us
-                i -= 4;
-                CALL(pe, assembly, code, ref i, true, false);
-
-                assembly.AddAsm("pop eax");
-                _stack.Pop();
-
-                // remove the args pushed by the calling method as we don't need them anymore
-                // (these are the args we duplicated above to call the constructor with the correct ordering)
-                for (int j = 0; j < argSize / 4; j++)
-                {
-                    assembly.AddAsm("pop ebx");
-                }
-                ebxType = null;
-
-                // eax was consumed by the call instruction, so push it again
-                assembly.AddAsm("push eax");
-
-                eaxType = new ElementType(ElementType.EType.Class, parent.Token);
-                _stack.Push(eaxType);
+                NEWOBJCWithMethodDef(pe, assembly, code, ref i, method);
             }
             else throw new Exception("Unsupported");
+        }
+
+        private void NEWOBJCWithMethodDef(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i, MethodDefLayout method)
+        {
+            var metadata = pe.Metadata;
+
+            var parent = method.Parent;
+            int objSize = 0;
+            foreach (var f in parent.Fields)
+            {
+                var fSize = _runtime.GetTypeSize(metadata, f.Type);
+                //if ((fSize % 4) != 0) fSize += 4 - (fSize % 4);
+                objSize += fSize;
+            }
+
+            if (string.IsNullOrEmpty(HeapAllocatorMethod)) throw new Exception("Need heap allocator");
+
+            // first allocate the object using whatever heap allocator we have been provided
+            assembly.AddAsm($"push {objSize}");
+            assembly.AddAsm("push 0");
+            assembly.AddAsm($"call {HeapAllocatorMethod}");
+
+            // eax should now contain the object pointer.  push it twice
+            // (once to use for the constructor THIS, and a second to recover the address)
+            assembly.AddAsm("push eax");
+            assembly.AddAsm("push eax");
+
+            _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
+            _stack.Push(new ElementType(ElementType.EType.Class, parent.Token));
+
+            // now the stack is ordered arg1, ..., argn, this, this
+            // the constructor needs this, arg1, ..., argn
+            // push all the arguments for the constructor again to reorder the stack
+            int argSize = 0;
+            if (method.Signature.ParamCount > 0)
+            {
+                foreach (var a in method.Signature.Params)
+                {
+                    argSize += _runtime.GetTypeSize(metadata, a);
+                }
+                if ((argSize % 4) != 0) throw new Exception("Unsupported type");
+                for (int j = 0; j < argSize / 4; j++)
+                {
+                    assembly.AddAsm($"mov ebx, [esp+{argSize + 4}]");
+                    assembly.AddAsm("push ebx");
+                }
+            }
+
+            // now the object is allocated, we need to call whatever constructor was given to us
+            i -= 4;
+            CALL(pe, assembly, code, ref i, true, false);
+
+            assembly.AddAsm("pop eax");
+            _stack.Pop();
+
+            // remove the args pushed by the calling method as we don't need them anymore
+            // (these are the args we duplicated above to call the constructor with the correct ordering)
+            for (int j = 0; j < argSize / 4; j++)
+            {
+                assembly.AddAsm("pop ebx");
+            }
+            ebxType = null;
+
+            // eax was consumed by the call instruction, so push it again
+            assembly.AddAsm("push eax");
+
+            eaxType = new ElementType(ElementType.EType.Class, parent.Token);
+            _stack.Push(eaxType);
         }
 
         private void NEWARR(PortableExecutableFile pe, AssembledMethod assembly, byte[] code, ref ushort i)
@@ -2423,7 +2459,8 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 var possiblePlugs = _loadedAssemblies[dllPath].GetTypes().
                     SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
-                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
+                    Where(m => (m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName ||
+                                m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName.Replace(".", "_")) &&
                                m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86).ToArray();
 
                 if (possiblePlugs.Length == 1)

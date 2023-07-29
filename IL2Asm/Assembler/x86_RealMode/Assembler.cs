@@ -823,7 +823,8 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                 var possiblePlugs = _loadedAssemblies[dllPath].GetTypes().
                     SelectMany(t => t.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)).
-                    Where(m => m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName &&
+                    Where(m => (m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName ||
+                                m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.AsmMethodName == memberName.Replace(".", "_")) &&
                                m.GetCustomAttribute<BaseTypes.AsmPlugAttribute>()?.Architecture == BaseTypes.Architecture.X86_Real).ToArray();
 
                 if (possiblePlugs.Length == 1)
