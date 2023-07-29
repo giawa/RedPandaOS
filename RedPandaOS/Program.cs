@@ -13,7 +13,7 @@ namespace GiawaOS
         public static void Main()
         {
             PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
-            PortableExecutableFile bootloaders = new PortableExecutableFile(@"..\..\..\..\Bootloader\bin\Debug\netcoreapp3.1\Bootloader.dll");
+            PortableExecutableFile bootloaders = new PortableExecutableFile(@"..\..\..\..\Bootloader\bin\Debug\net6.0\Bootloader.dll");
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -27,7 +27,7 @@ namespace GiawaOS
             var malloc = FindEntryPoint(file, "KernelHeap", "Malloc");
             var throwHandler = FindEntryPoint(file, "Exceptions", "Throw");
 
-            PortableExecutableFile unamePE = new PortableExecutableFile(@"..\..\..\..\apps\uname\bin\Debug\netcoreapp3.1\uname.dll");
+            PortableExecutableFile unamePE = new PortableExecutableFile(@"..\..\..\..\apps\uname\bin\Debug\net6.0\uname.dll");
 
             var unameApplication = FindEntryPoint(unamePE, "Program", "Main");
 
