@@ -431,39 +431,39 @@ namespace PELoader
         internal uint ResolutionScopeCount { get; private set; }
         internal uint TypeOrMethodDefCount { get; private set; }
 
-        private List<ModuleLayout> _modules = new List<ModuleLayout>();
-        private List<ModuleRefLayout> _moduleRefs = new List<ModuleRefLayout>();
-        private List<TypeRefLayout> _typeRefs = new List<TypeRefLayout>();
-        private List<TypeDefLayout> _typeDefs = new List<TypeDefLayout>();
-        private List<MethodDefLayout> _methodDefs = new List<MethodDefLayout>();
-        private List<ParamLayout> _params = new List<ParamLayout>();
-        private List<MemberRefLayout> _memberRefs = new List<MemberRefLayout>();
-        private List<CustomAttributeLayout> _customAttributes = new List<CustomAttributeLayout>();
-        private List<StandAloneSigLayout> _standAloneSigs = new List<StandAloneSigLayout>();
-        private List<AssemblyLayout> _assemblies = new List<AssemblyLayout>();
-        private List<AssemblyRefLayout> _assemblyRefs = new List<AssemblyRefLayout>();
-        private List<FieldLayout> _fields = new List<FieldLayout>();
-        private List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
-        private List<ConstantLayout> _constants = new List<ConstantLayout>();
-        private List<NestedClassLayout> _nestedClasses = new List<NestedClassLayout>();
-        private List<InterfaceImplLayout> _interfaceImpls = new List<InterfaceImplLayout>();
-        private List<MethodSpecLayout> _methodSpecs = new List<MethodSpecLayout>();
-        private List<GenericParamLayout> _genericParams = new List<GenericParamLayout>();
-        private List<PropertyMapLayout> _propertyMaps = new List<PropertyMapLayout>();
-        private List<PropertyLayout> _properties = new List<PropertyLayout>();
-        private List<MethodSemanticsLayout> _methodSemantics = new List<MethodSemanticsLayout>();
-        private List<DeclSecurityLayout> _declSecurities = new List<DeclSecurityLayout>();
-        private List<ExportedTypeLayout> _exportedTypes = new List<ExportedTypeLayout>();
-        private List<FieldMarshalLayout> _fieldMarshals = new List<FieldMarshalLayout>();
-        private List<ClassLayoutLayout> _classLayouts = new List<ClassLayoutLayout>();
-        private List<FieldLayoutLayout> _fieldLayouts = new List<FieldLayoutLayout>();
-        private List<EventMapLayout> _eventMaps = new List<EventMapLayout>();
-        private List<EventLayout> _events = new List<EventLayout>();
-        private List<MethodImplLayout> _methodImpls = new List<MethodImplLayout>();
-        private List<ImplMapLayout> _implMaps = new List<ImplMapLayout>();
-        private List<FieldRVALayout> _fieldRVAs = new List<FieldRVALayout>();
-        private List<ManifestResourceLayout> _manifestResources = new List<ManifestResourceLayout>();
-        private List<GenericParamConstraintLayout> _genericParamConstraints = new List<GenericParamConstraintLayout>();
+        private readonly List<ModuleLayout> _modules = new List<ModuleLayout>();
+        private readonly List<ModuleRefLayout> _moduleRefs = new List<ModuleRefLayout>();
+        private readonly List<TypeRefLayout> _typeRefs = new List<TypeRefLayout>();
+        private readonly List<TypeDefLayout> _typeDefs = new List<TypeDefLayout>();
+        private readonly List<MethodDefLayout> _methodDefs = new List<MethodDefLayout>();
+        private readonly List<ParamLayout> _params = new List<ParamLayout>();
+        private readonly List<MemberRefLayout> _memberRefs = new List<MemberRefLayout>();
+        private readonly List<CustomAttributeLayout> _customAttributes = new List<CustomAttributeLayout>();
+        private readonly List<StandAloneSigLayout> _standAloneSigs = new List<StandAloneSigLayout>();
+        private readonly List<AssemblyLayout> _assemblies = new List<AssemblyLayout>();
+        private readonly List<AssemblyRefLayout> _assemblyRefs = new List<AssemblyRefLayout>();
+        private readonly List<FieldLayout> _fields = new List<FieldLayout>();
+        private readonly List<TypeSpecLayout> _typeSpecs = new List<TypeSpecLayout>();
+        private readonly List<ConstantLayout> _constants = new List<ConstantLayout>();
+        private readonly List<NestedClassLayout> _nestedClasses = new List<NestedClassLayout>();
+        private readonly List<InterfaceImplLayout> _interfaceImpls = new List<InterfaceImplLayout>();
+        private readonly List<MethodSpecLayout> _methodSpecs = new List<MethodSpecLayout>();
+        private readonly List<GenericParamLayout> _genericParams = new List<GenericParamLayout>();
+        private readonly List<PropertyMapLayout> _propertyMaps = new List<PropertyMapLayout>();
+        private readonly List<PropertyLayout> _properties = new List<PropertyLayout>();
+        private readonly List<MethodSemanticsLayout> _methodSemantics = new List<MethodSemanticsLayout>();
+        private readonly List<DeclSecurityLayout> _declSecurities = new List<DeclSecurityLayout>();
+        private readonly List<ExportedTypeLayout> _exportedTypes = new List<ExportedTypeLayout>();
+        private readonly List<FieldMarshalLayout> _fieldMarshals = new List<FieldMarshalLayout>();
+        private readonly List<ClassLayoutLayout> _classLayouts = new List<ClassLayoutLayout>();
+        private readonly List<FieldLayoutLayout> _fieldLayouts = new List<FieldLayoutLayout>();
+        private readonly List<EventMapLayout> _eventMaps = new List<EventMapLayout>();
+        private readonly List<EventLayout> _events = new List<EventLayout>();
+        private readonly List<MethodImplLayout> _methodImpls = new List<MethodImplLayout>();
+        private readonly List<ImplMapLayout> _implMaps = new List<ImplMapLayout>();
+        private readonly List<FieldRVALayout> _fieldRVAs = new List<FieldRVALayout>();
+        private readonly List<ManifestResourceLayout> _manifestResources = new List<ManifestResourceLayout>();
+        private readonly List<GenericParamConstraintLayout> _genericParamConstraints = new List<GenericParamConstraintLayout>();
 
         public List<TypeDefLayout> TypeDefs { get { return _typeDefs; } }
         public List<TypeRefLayout> TypeRefs { get { return _typeRefs; } }
