@@ -19,6 +19,7 @@
     <ProjectReference Include="..\elfsharp\ELFSharp\ELFSharp.csproj" />
     <ProjectReference Include="..\IL2Asm\IL2Asm.csproj" />
     <ProjectReference Include="..\PELoader\PELoader.csproj" />
+    <ProjectReference Include="..\Runtime\Runtime.csproj" />
   </ItemGroup>
 
 </Project>

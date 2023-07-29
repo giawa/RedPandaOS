@@ -25,7 +25,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ELFSharp", "elfsharp\ELFSha
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildTools", "BuildTools\BuildTools.csproj", "{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emulator", "Emulator\Emulator.csproj", "{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emulator", "Emulator\Emulator.csproj", "{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runtime", "Runtime\Runtime.csproj", "{3620BD58-970D-418C-B36E-FF902DB96F89}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -77,6 +78,10 @@ Global
 		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3620BD58-970D-418C-B36E-FF902DB96F89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3620BD58-970D-418C-B36E-FF902DB96F89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3620BD58-970D-418C-B36E-FF902DB96F89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3620BD58-970D-418C-B36E-FF902DB96F89}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
