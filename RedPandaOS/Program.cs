@@ -13,13 +13,14 @@ namespace GiawaOS
         public static void Main()
         {
             PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
+            PortableExecutableFile bootloaders = new PortableExecutableFile(@"..\..\..\..\Bootloader\bin\Debug\netcoreapp3.1\Bootloader.dll");
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
             // find the Program.Main entry point
-            var bootloader1 = FindEntryPoint(file, "Stage1", "Start");
-            var fatbootloader1 = FindEntryPoint(file, "FATStage1", "Start");
-            var bootloader2 = FindEntryPoint(file, "Stage2", "Start");
+            var bootloader1 = FindEntryPoint(bootloaders, "Stage1", "Start");
+            var fatbootloader1 = FindEntryPoint(bootloaders, "FATStage1", "Start");
+            var bootloader2 = FindEntryPoint(bootloaders, "Stage2", "Start");
             var methodDef32 = FindEntryPoint(file, "Init", "Start");
             var isrHandler = FindEntryPoint(file, "PIC", "IsrHandler");
             var irqHandler = FindEntryPoint(file, "PIC", "IrqHandler");
@@ -54,8 +55,8 @@ namespace GiawaOS
                 //MethodHeader method = new MethodHeader(file.Memory, methodDef);
 
                 var assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
-                assembler16.AddAssembly(file);
-                assembler16.Assemble(file, bootloader1);
+                assembler16.AddAssembly(bootloaders);
+                assembler16.Assemble(bootloaders, bootloader1);
 
                 var stage1 = assembler16.WriteAssembly(0x7C00, 0);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(stage1);
@@ -69,8 +70,8 @@ namespace GiawaOS
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
-                assembler16.AddAssembly(file);
-                assembler16.Assemble(file, fatbootloader1);
+                assembler16.AddAssembly(bootloaders);
+                assembler16.Assemble(bootloaders, fatbootloader1);
 
                 var fatstage1 = assembler16.WriteAssembly(0x7C60, 0);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(fatstage1);
@@ -85,8 +86,8 @@ namespace GiawaOS
 
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
-                assembler16.AddAssembly(file);
-                assembler16.Assemble(file, bootloader2);
+                assembler16.AddAssembly(bootloaders);
+                assembler16.Assemble(bootloaders, bootloader2);
 
                 var stage2 = assembler16.WriteAssembly(0x9000 + 512, 0);
                 IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(stage2);
