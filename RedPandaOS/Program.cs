@@ -26,26 +26,28 @@ namespace GiawaOS
             var malloc = FindEntryPoint(file, "KernelHeap", "Malloc");
             var throwHandler = FindEntryPoint(file, "Exceptions", "Throw");
 
-            var sampleApplication = FindEntryPoint(file, "SampleProcess", "PandaMain");
+            PortableExecutableFile unamePE = new PortableExecutableFile(@"..\..\..\..\apps\uname\bin\Debug\netcoreapp3.1\uname.dll");
+
+            var unameApplication = FindEntryPoint(unamePE, "Program", "Main");
 
             // create sample application
-            var sampleAssembler = new IL2Asm.Assembler.x86.Ver2.Assembler();
-            sampleAssembler.AddAssembly(file);
+            var unameAssembler = new IL2Asm.Assembler.x86.Ver2.Assembler();
+            unameAssembler.AddAssembly(unamePE);
 
-            var sampleApplicationHeader = new MethodHeader(file.Memory, file.Metadata, sampleApplication);
-            sampleAssembler.Assemble(file, new AssembledMethod(file.Metadata, sampleApplicationHeader, null));
+            var unameApplicationHeader = new MethodHeader(unamePE.Memory, unamePE.Metadata, unameApplication);
+            unameAssembler.Assemble(unamePE, new AssembledMethod(unamePE.Metadata, unameApplicationHeader, null));
 
-            while (sampleAssembler._methodsToCompile.Count > 0)
+            while (unameAssembler._methodsToCompile.Count > 0)
             {
-                var m = sampleAssembler._methodsToCompile[0];
-                sampleAssembler._methodsToCompile.RemoveAt(0);
-                sampleAssembler.Assemble(file, m);
+                var m = unameAssembler._methodsToCompile[0];
+                unameAssembler._methodsToCompile.RemoveAt(0);
+                unameAssembler.Assemble(m.PEFile, m.Method);
             }
 
-            var sampleBaseAddr = 0x400000U;
-            var sa = sampleAssembler.WriteAssembly(sampleBaseAddr, 512, sampleBaseAddr + 1024, true);
-            File.WriteAllLines("sa.asm", sa.ToArray());
-            RunNASM("sa.asm", "sa.bin");
+            var unameBaseAddr = 0x400000U;
+            var uname = unameAssembler.WriteAssembly(unameBaseAddr, 512, unameBaseAddr + 1024, true);
+            File.WriteAllLines("uname.asm", uname.ToArray());
+            RunNASM("uname.asm", "uname.bin");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -125,7 +127,7 @@ namespace GiawaOS
                 {
                     var m = methodsToCompile[0];
                     methodsToCompile.RemoveAt(0);
-                    assembler32.Assemble(file, m);
+                    assembler32.Assemble(m.PEFile, m.Method);
                 }
 
                 var pm = assembler32.WriteAssembly(0xA000, 90112);
@@ -176,9 +178,9 @@ namespace GiawaOS
                 stopwatch.Restart();
 
                 // make any necessary PE files
-                PEWriter writer = new PEWriter(File.ReadAllBytes("sa.bin"), (int)sampleBaseAddr);
+                PEWriter writer = new PEWriter(File.ReadAllBytes("uname.bin"), (int)unameBaseAddr);
                 if (!Directory.Exists("../../../disk/apps")) Directory.CreateDirectory("../../../disk/apps");
-                writer.Write("../../../disk/apps/sample.exe");
+                writer.Write("../../../disk/apps/uname.exe");
 
                 // copy kernel and symbols to the boot directory
                 if (!Directory.Exists("../../../disk/boot")) Directory.CreateDirectory("../../../disk/boot");

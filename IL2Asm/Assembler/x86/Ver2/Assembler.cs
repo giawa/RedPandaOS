@@ -2393,7 +2393,19 @@ namespace IL2Asm.Assembler.x86.Ver2
             _stack.Push(eaxType);
         }
 
-        public List<AssembledMethod> _methodsToCompile = new List<AssembledMethod>();
+        public class QueuedAssembledMethod
+        {
+            public AssembledMethod Method { get; private set; }
+            public PortableExecutableFile PEFile { get; private set; }
+
+            public QueuedAssembledMethod(AssembledMethod method, PortableExecutableFile peFile)
+            {
+                Method = method;
+                PEFile = peFile;
+            }
+        }
+
+        public List<QueuedAssembledMethod> _methodsToCompile = new List<QueuedAssembledMethod>();
 
         private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
 
@@ -2459,6 +2471,13 @@ namespace IL2Asm.Assembler.x86.Ver2
                     {
                         var fullDllPath = Path.GetFullPath(dllPath).TrimEnd('\\');
                         var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
+
+                        if (pe == null)
+                        {
+                            pe = new PortableExecutableFile(fullDllPath);
+                            AddAssembly(pe);
+                        }
+                        
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
                                 m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName &&
                                 m.MethodSignature.ParamCount == possiblePlugs[0].GetParameters().Length).SingleOrDefault() ?? null;
@@ -2755,11 +2774,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                 bool methodWaitingToCompile = false;
 
                 foreach (var method in _methodsToCompile)
-                    if (method.Method.MethodDef.ToAsmString(method.GenericInstSig) == memberName && method.MethodSpec == methodSpec)
+                    if (method.Method.Method.MethodDef.ToAsmString(method.Method.GenericInstSig) == memberName && method.Method.MethodSpec == methodSpec)
                         methodWaitingToCompile = true;
 
                 if (!methodWaitingToCompile)
-                    _methodsToCompile.Add(methodToCompile);
+                    _methodsToCompile.Add(new QueuedAssembledMethod(methodToCompile, pe));
             }
 
             return assembledMethods;
