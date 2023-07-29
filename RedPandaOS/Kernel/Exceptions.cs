@@ -10,17 +10,17 @@
             else Logging.WriteLine(LogLevel.Panic, exception.Message);
 
             // try printing the stack trace
-            PrintStackTrace();
+            //PrintStackTrace();
 
             while (true) ;
         }
 
-        public static void PrintStackTrace()
+        public static void PrintStackTrace(uint ebp)
         {
             Logging.LoggingLevel = LogLevel.Warning;    // disable memory allocation messages
 
             // try printing the stack trace
-            uint ebp = CPUHelper.CPU.ReadEBP();
+            //uint ebp = CPUHelper.CPU.ReadEBP();
             for (uint i = 0, s = 0; i < 60 && s < 10; i++)   // explore the stack up to a depth of 40 dwords
             {
                 var address = ebp + (i << 2);
@@ -36,7 +36,37 @@
                     Logging.WriteLine(LogLevel.Panic, symbol);
                     s++;
                 }
-                else if (_symbols == null && contents > 0xA000 && contents <= 0x13000)
+                else if (_symbols == null)// && contents > 0xA000 && contents <= 0x13000)
+                {
+                    Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
+                    s++;
+                }
+            }
+        }
+
+        public static void PrintStackTrace()
+        {
+            Logging.WriteLine(LogLevel.Panic, "****");
+            Logging.LoggingLevel = LogLevel.Warning;    // disable memory allocation messages
+
+            // try printing the stack trace
+            uint ebp = CPUHelper.CPU.ReadEBP();
+            for (uint i = 0, s = 0; i < 60 && s < 100; i++)   // explore the stack up to a depth of 40 dwords
+            {
+                var address = ebp + (i << 2);
+                if ((address & 0xff) == 0) break;
+                //if (address >= 0x9000) break;
+
+                var contents = CPUHelper.CPU.ReadMemInt(ebp + (i << 2));
+                var symbol = GetSymbolName(contents);
+
+                if (symbol != null)
+                {
+                    Logging.Write(LogLevel.Panic, "0x{0:X} : 0x{1:X} ", address, contents);
+                    Logging.WriteLine(LogLevel.Panic, symbol);
+                    s++;
+                }
+                else //if (_symbols == null)// && contents > 0xA000 && contents <= 0x13000)
                 {
                     Logging.WriteLine(LogLevel.Panic, "0x{0:X} : 0x{1:X}", address, contents);
                     s++;

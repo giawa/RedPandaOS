@@ -1,4 +1,5 @@
 ﻿using System;
+using CPUHelper;
 using Runtime.Collections;
 
 namespace Kernel.Devices
@@ -398,7 +399,7 @@ namespace Kernel.Devices
             // wait for busy to clear
             while ((ReadRegister(channel, Register.Status) & (byte)Status.Busy) != 0)
             {
-                Logging.WriteLine(LogLevel.Trace, "[PATA.Poll] Waiting for busy to clear");
+                //Logging.WriteLine(LogLevel.Trace, "[PATA.Poll] Waiting for busy to clear");
             }
 
             if (advancedCheck != 0)

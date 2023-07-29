@@ -47,19 +47,20 @@ namespace Kernel.Devices
         {
             if ((width % 8) != 0) throw new System.Exception("Unsupported BGA width");
 
-            CPU.Cli();
-            var bgaAvailable = ReadBGARegister(Register.VBE_DISPI_INDEX_ID);
+            using (InterruptDisabler.Instance)
+            {
+                var bgaAvailable = ReadBGARegister(Register.VBE_DISPI_INDEX_ID);
 
-            if (bgaAvailable != 0xB0C0) WriteBGARegister(Register.VBE_DISPI_INDEX_ID, 0xB0C0);
+                if (bgaAvailable != 0xB0C0) WriteBGARegister(Register.VBE_DISPI_INDEX_ID, 0xB0C0);
 
-            WriteBGARegister(Register.VBE_DISPI_INDEX_ENABLE, 0);
+                WriteBGARegister(Register.VBE_DISPI_INDEX_ENABLE, 0);
 
-            WriteBGARegister(Register.VBE_DISPI_INDEX_XRES, width);
-            WriteBGARegister(Register.VBE_DISPI_INDEX_YRES, height);
-            WriteBGARegister(Register.VBE_DISPI_INDEX_BPP, bpp);
+                WriteBGARegister(Register.VBE_DISPI_INDEX_XRES, width);
+                WriteBGARegister(Register.VBE_DISPI_INDEX_YRES, height);
+                WriteBGARegister(Register.VBE_DISPI_INDEX_BPP, bpp);
 
-            WriteBGARegister(Register.VBE_DISPI_INDEX_ENABLE, 1);
-            CPU.Sti();
+                WriteBGARegister(Register.VBE_DISPI_INDEX_ENABLE, 1);
+            }
         }
 
         private static void WriteBGARegister(Register register, ushort data)

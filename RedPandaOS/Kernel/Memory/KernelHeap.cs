@@ -5,14 +5,14 @@ namespace Kernel.Memory
 {
     public static class KernelHeap
     {
-        public static SplitBumpHeap KernelAllocator;
+        public static BumpHeap KernelAllocator;
 
         private static uint _addr;
 
         static KernelHeap()
         {
             if (_addr == 0) _addr = 0x60000;    // the start of the kernel heap
-            KernelAllocator = SplitBumpHeap.Instance;
+            //KernelAllocator = SplitBumpHeap.Instance;
         }
 
         [Allocator]
@@ -45,11 +45,11 @@ namespace Kernel.Memory
             var addr = _addr;
             _addr += size;
 
-            if (_addr >= 0x61000)
+            /*if (_addr >= 0x61000)
             {
                 Logging.WriteLine(LogLevel.Panic, "[KernelHeap] Out of memory");
                 while (true) ;
-            }
+            }*/
 
             return addr;
         }

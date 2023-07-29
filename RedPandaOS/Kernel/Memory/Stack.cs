@@ -8,12 +8,12 @@ namespace Kernel.Memory
     {
         public static void MoveStack(uint oldStackAddr, uint newStackAddr, uint size)
         {
-            for (uint i = newStackAddr; i >= newStackAddr - size; i -= 4096)
+            /*for (uint i = newStackAddr; i >= newStackAddr - size; i -= 4096)
             {
                 Paging.AllocateFrame(Paging.GetPage(i, true, Paging.CurrentDirectory), false, true);
             }
 
-            Paging.FlushTLB();
+            Paging.FlushTLB();*/
 
             var esp = CPUHelper.CPU.ReadESP();
             var ebp = CPUHelper.CPU.ReadEBP();
@@ -35,8 +35,8 @@ namespace Kernel.Memory
                 }
             }
 
-            CPUHelper.CPU.WriteEBP(newEbp);
-            CPUHelper.CPU.WriteESP(newEsp);
+            //CPUHelper.CPU.WriteEBP(newEbp);
+            //CPUHelper.CPU.WriteESP(newEsp);
         }
     }
 }

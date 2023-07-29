@@ -30,8 +30,6 @@ namespace Kernel.Devices
         {
             _tickCount += 1;
 
-            Scheduler.Tick();
-
             /*if (Profile)
             {
                 if (_profiler == null) _profiler = new Runtime.Collections.List<uint>(800);
@@ -51,9 +49,9 @@ namespace Kernel.Devices
                 if (_profiler.Count > 795) Profile = false;
             }*/
 
-            /*if ((_tickCount % 50) == 0)
+            /*if ((_tickCount % 10) == 0)
             {
-                Logging.WriteLine(LogLevel.Trace, "Tick {0}", _tickCount);
+                Logging.Write(LogLevel.Panic, "T");
             }*/
         }
     }

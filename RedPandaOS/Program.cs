@@ -12,7 +12,6 @@ namespace GiawaOS
     {
         public static void Main()
         {
-
             PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
 
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -26,6 +25,27 @@ namespace GiawaOS
             var irqHandler = FindEntryPoint(file, "PIC", "IrqHandler");
             var malloc = FindEntryPoint(file, "KernelHeap", "Malloc");
             var throwHandler = FindEntryPoint(file, "Exceptions", "Throw");
+
+            var sampleApplication = FindEntryPoint(file, "SampleProcess", "PandaMain");
+
+            // create sample application
+            var sampleAssembler = new IL2Asm.Assembler.x86.Ver2.Assembler();
+            sampleAssembler.AddAssembly(file);
+
+            var sampleApplicationHeader = new MethodHeader(file.Memory, file.Metadata, sampleApplication);
+            sampleAssembler.Assemble(file, new AssembledMethod(file.Metadata, sampleApplicationHeader, null));
+
+            while (sampleAssembler._methodsToCompile.Count > 0)
+            {
+                var m = sampleAssembler._methodsToCompile[0];
+                sampleAssembler._methodsToCompile.RemoveAt(0);
+                sampleAssembler.Assemble(file, m);
+            }
+
+            var sampleBaseAddr = 0x400000U;
+            var sa = sampleAssembler.WriteAssembly(sampleBaseAddr, 512, sampleBaseAddr + 1024, true);
+            File.WriteAllLines("sa.asm", sa.ToArray());
+            RunNASM("sa.asm", "sa.bin");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -45,8 +65,6 @@ namespace GiawaOS
                 IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(stage1);
                 IL2Asm.Optimizer.x86_RealMode.MergePushPopAcrossMoves.ProcessAssembly(stage1);
                 File.WriteAllLines("stage1.asm", stage1.ToArray());
-
-
 
                 assembler16 = new IL2Asm.Assembler.x86_RealMode.Assembler();
                 assembler16.AddAssembly(file);
@@ -157,6 +175,10 @@ namespace GiawaOS
                 Console.WriteLine($"GenerateSymbols {stopwatch.ElapsedMilliseconds} ms");
                 stopwatch.Restart();
 
+                // make any necessary PE files
+                PEWriter writer = new PEWriter(File.ReadAllBytes("sa.bin"), (int)sampleBaseAddr);
+                if (!Directory.Exists("../../../disk/apps")) Directory.CreateDirectory("../../../disk/apps");
+                writer.Write("../../../disk/apps/sample.exe");
 
                 // copy kernel and symbols to the boot directory
                 if (!Directory.Exists("../../../disk/boot")) Directory.CreateDirectory("../../../disk/boot");
