@@ -237,6 +237,8 @@ namespace IL2Asm
                             if (f.Name == field.Name) return offset;
                             offset += GetTypeSize(metadata, f.Type);
                         }
+
+                        throw new Exception("Could not find field name");
                     }
                 }
                 else
@@ -323,6 +325,7 @@ namespace IL2Asm
                     if (typeRef.Namespace == "System")
                     {
                         if (typeRef.Name == "Action") return 4;
+                        if (typeRef.Name == "StringComparison") return 4;
                     }
 
                     if (pe.Metadata.ExportedTypes != null)

@@ -62,7 +62,10 @@ namespace IL2Asm.Assembler.x86
                     {
                         isrMethods.AddAsm($"ISR{i}:");
                         isrMethods.AddAsm("cli");
-                        if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push 0; error code");
+                        // some ISR include error code information (pushed automatically by the processor)
+                        // to make it consistent, we push 0 for all interrupts that _do not_ include error codes
+                        //if (!(i == 8 || (i >= 10 && i <= 14))) isrMethods.AddAsm("push 0; error code");
+                        if (!(i == 8 || (i >= 10 && i <= 14) || i == 17 || i == 30)) isrMethods.AddAsm("push 0; error code");
                         isrMethods.AddAsm($"push {i}; interrupt number");
                         isrMethods.AddAsm($"jmp {stubName}");
                         isrMethods.AddAsm("");

@@ -2765,22 +2765,30 @@ namespace IL2Asm.Assembler.x86.Ver2
             return assembledMethods;
         }
 
-        public List<string> WriteAssembly(uint offset = 0xA000, uint size = 512)
+        public List<string> WriteAssembly(uint offset = 0xA000, uint size = 512, uint stack = 0x9000, bool userApp = false)
         {
             List<string> output = new List<string>();
 
             output.Add("[bits 32]");
             output.Add($"[org 0x{offset.ToString("X")}]");   // for bootsector code only
             output.Add("_start:");
-            output.Add("    mov ax, 16");
-            output.Add("    mov ds, ax");
-            output.Add("    mov ss, ax");
-            output.Add("    mov es, ax");
-            output.Add("    mov fs, ax");
-            output.Add("    mov gs, ax");
-            output.Add("    mov ebp, 0x9000 ; reset the stack");
-            output.Add("    mov esp, ebp");
-            output.Add("    finit");
+            if (!userApp)
+            {
+                output.Add("    mov ax, 16");
+                output.Add("    mov ds, ax");
+                output.Add("    mov ss, ax");
+                output.Add("    mov es, ax");
+                output.Add("    mov fs, ax");
+                output.Add("    mov gs, ax");
+                output.Add($"    mov ebp, 0x{stack.ToString("X")} ; reset the stack");
+                output.Add("    mov esp, ebp");
+                output.Add("    finit");
+            }
+            else
+            {
+                output.Add($"    mov ebp, 0x{stack.ToString("X")} ; reset the stack");
+                output.Add("    mov esp, ebp");
+            }
             output.Add("");
 
             if (_staticConstructors.Count > 0)

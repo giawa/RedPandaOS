@@ -32,6 +32,12 @@ namespace IL2Asm.Assembler.x86_RealMode
 
         public void Assemble(PortableExecutableFile pe, MethodDefLayout methodDef)
         {
+            if (methodDef.Attributes.Where(a => a.Name.Contains("IL2Asm.BaseTypes.AsmMethodAttribute")).Count() > 0)
+            {
+                var name = methodDef.ToAsmString();
+                throw new Exception("Tried to compile a method flagged with the AsmMethod attribute.");
+            }
+
             if (!_runtime.Assemblies.Contains(pe)) throw new Exception("The portable executable must be added via AddAssembly prior to called Assemble");
             if (methodDef != null && _methods.Where(m => m.Method != null && m.Method.MethodDef.ToAsmString() == methodDef.ToAsmString()).Any()) return;
 
@@ -243,8 +249,13 @@ namespace IL2Asm.Assembler.x86_RealMode
                         if (method.LocalVars != null)
                         {
                             int localVarCount = method.LocalVars.LocalVariables.Length;
-                            for (int p = localVarNames.Count; p < localVarCount; p++)
-                                assembly.AddAsm("pop bx; localvar that was pushed on stack");
+                            int toPop = (localVarCount - localVarNames.Count);
+                            if (toPop > 2) assembly.AddAsm($"add sp, {BytesPerRegister * toPop}; localvars that were pushed on stack");
+                            else if (toPop > 0)
+                            {
+                                for (int p = localVarNames.Count; p < localVarCount; p++)
+                                    assembly.AddAsm("pop bx; localvar that was pushed on stack");
+                            }
                             for (int p = localVarNames.Count - 1; p >= 0; p--)
                                 assembly.AddAsm($"pop {localVarNames[p]}");
                         }
