@@ -233,6 +233,12 @@ namespace Kernel.Memory
                 return;
             }
 
+            if (KernelHeap.KernelAllocator == null)
+            {
+                Logging.WriteLine(LogLevel.Panic, "[Paging] KernelHeap was not initialized");
+                return;
+            }
+
             // get all the non-aligned memory allocation out of the way
             _frames = new BitArray(frameCount);
             PIC.SetIsrCallback(14, PageFault);  // allocates an Action
@@ -255,7 +261,7 @@ namespace Kernel.Memory
 
             // check for PCI devices that need their memory identity mapped
             uint end = 0;
-            for (int i = 0; i < PCI.Devices.Count; i++)
+            for (int i = 0; PCI.Devices != null && i < PCI.Devices.Count; i++)
             {
                 var device = PCI.Devices[i];
 
@@ -391,8 +397,10 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
-            Exceptions.PrintStackTrace();
+            if (error_code == 5) Logging.WriteLine(LogLevel.Panic, "Segmentation fault, program tried to access 0x{0:X} which is outside its allocated range.", addr);
+            else Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X} error_code 0x{1:X}", addr, error_code);
+
+            //Exceptions.PrintStackTrace();
             while (true) ;
 
             if (addr >= 0xA00000 && addr <= 0xAFFFFF)
