@@ -259,7 +259,11 @@ namespace Kernel.Memory
                 }
             }
 
-            if (addr == uint.MaxValue) throw new OutOfMemoryException("Could not find free section of memory");
+            if (addr == uint.MaxValue)
+            {
+                Logging.WriteLine(LogLevel.Panic, "[SBH] Could not find free section of memory");//throw new OutOfMemoryException("Could not find free section of memory");
+                while (true) ;
+            }
 
             for (uint i = addr; i < addr + size; i += 4)
                 CPU.WriteMemInt(i, init);
