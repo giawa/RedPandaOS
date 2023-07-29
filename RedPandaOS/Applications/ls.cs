@@ -13,9 +13,9 @@ namespace Applications
             {
                 callback.Invoke(directory.Directories[i].Name);
             }
-            for (int i = 0; i < directory.Contents.Count; i++)
+            for (int i = 0; i < directory.Files.Count; i++)
             {
-                callback.Invoke(directory.Contents[i].Name);
+                callback.Invoke(directory.Files[i].Name);
             }
         }
     }
