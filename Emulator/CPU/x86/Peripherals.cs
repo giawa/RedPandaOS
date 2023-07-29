@@ -73,7 +73,7 @@
         {
             _baseAddr = baseAddr;
 
-            if (_baseAddr == 0x20) _irqs[0] = true; // set PIT by default
+            //if (_baseAddr == 0x20) _irqs[0] = true; // set PIT by default
         }
 
         public void Out(ushort dx, byte al)
@@ -111,6 +111,11 @@
 
             for (int i = 0; i < _irqs.Length; i++) if (_irqs[i]) return i + offset;
             return -1;
+        }
+
+        public void Interrupt(int interruptNumber)
+        {
+            _irqs[interruptNumber] = true;
         }
     }
 

@@ -110,9 +110,17 @@ namespace Emulator.CPU.x86
             // 6. TODO: clear IF flag in ELAGS?
         }
 
+        bool setInterrupt = false;
+
         public void Tick()
         {
             if (_interruptsEnabled) CheckInterrupts();
+
+            if (IP == 0xa06d && !setInterrupt)
+            {
+                setInterrupt = true;
+                ((PIC)_peripherals[1]).Interrupt(0);
+            }
 
             var opcode = _memory[IP++];
 
