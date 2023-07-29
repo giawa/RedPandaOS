@@ -88,6 +88,12 @@ namespace Kernel.Memory
             assembly.AddAsm($"; StructToPtr nop");
         }
 
+        [AsmPlug("Kernel_Memory_Utilities_StructToPtr_U4_ByRef", IL2Asm.BaseTypes.Architecture.X86_Real)]
+        private static void StructToPtrTAsmReal(IAssembledMethod assembly)
+        {
+            assembly.AddAsm($"; StructToPtr nop");
+        }
+
         public static T Clone<T>(T original, uint size) where T : class
         {
             var addr = KernelHeap.Malloc(size);

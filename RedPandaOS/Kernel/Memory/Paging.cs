@@ -387,7 +387,7 @@ namespace Kernel.Memory
             page.Frame = 0;
         }
 
-        public static void PageFault()
+        public static void PageFault(uint error_code)
         {
             var addr = CPUHelper.CPU.ReadCR2();
 

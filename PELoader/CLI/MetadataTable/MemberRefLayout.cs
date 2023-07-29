@@ -196,6 +196,7 @@ namespace PELoader
 
             if (e1.Type != e2.Type) return false;
             if (e1.Token != e2.Token) return false;
+            if (e1.Type == EType.GenericInst && e2.Type == EType.GenericInst) return true;  // TODO: This is a total hack for now
             if (!object.ReferenceEquals(e1.NestedType, null)) return e1.NestedType == e2.NestedType || e1.NestedType.Type == EType.MVar || e2.NestedType.Type == EType.MVar;
 
             return true;

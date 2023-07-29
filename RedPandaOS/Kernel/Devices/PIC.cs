@@ -15,13 +15,28 @@ namespace Kernel.Devices
         public ushort base_hi;
     }
 
+    [Flags]
+    public enum IDT_Flags : byte
+    {
+        AlwaysSet = 0x06,
+
+        _32bit = 0x08,
+        DPL = 0x60,
+        Present = 0x80,
+
+        Ring3 = 0x60,
+        Ring2 = 0x40,
+        Ring1 = 0x20,
+        Ring0 = 0x00
+    }
+
     public static class PIC
     {
         private static IDT_Entry[] _idt_entries;
         private static CPU.IDTPointer _idt_ptr;
 
         private static Action[] _irqHandlers = new Action[16];
-        private static Action[] _isrHandlers = new Action[32];
+        private static Action<uint>[] _isrHandlers = new Action<uint>[32];
 
         public static void Init()
         {
@@ -57,6 +72,9 @@ namespace Kernel.Devices
                 _idt_entries[i].base_hi = (ushort)(ISR_ADDRESSES[i] >> 16);
             }
 
+            // allow user mode to call interrupt 30
+            _idt_entries[31].flags = (byte)(IDT_Flags.AlwaysSet | IDT_Flags._32bit | IDT_Flags.Present | IDT_Flags.Ring3);
+
             // set up IRQ interrupts
             for (int i = 0; i < 16; i++)
             {
@@ -71,7 +89,7 @@ namespace Kernel.Devices
             CPU.Sti();
         }
 
-        public static void SetIsrCallback(int idt, Action callback)
+        public static void SetIsrCallback(int idt, Action<uint> callback)
         {
             if (_isrHandlers == null || idt < 0 || idt >= _isrHandlers.Length) return;
 
@@ -91,7 +109,7 @@ namespace Kernel.Devices
             uint eax, uint ebx, uint ecx, uint edx, uint esp, uint ebp, uint esi, uint edi,
             uint ds)
         {
-            if (_isrHandlers[int_no] != null) _isrHandlers[int_no]();
+            if (_isrHandlers[int_no] != null) _isrHandlers[int_no](err_code);
             else
             {
                 Logging.WriteLine(LogLevel.Panic, "Unhandled interrupt {0}", int_no);
@@ -120,10 +138,10 @@ namespace Kernel.Devices
                 while (true) ;
             }
 
-            if (int_no == 32)
+            /*if (int_no == 32)
             {
                 Scheduler.Tick();
-            }
+            }*/
         }
 
 #pragma warning disable CS0649
