@@ -89,7 +89,27 @@ namespace PELoader
             }
             else
             {
-                throw new Exception("No support yet for longer blobs.  See II.24.2.4");
+                byte blob2 = Blob.Heap[addr++];
+
+                if ((blob & 0xC0) == 0x80)
+                {
+                    int length = ((blob & 0x3F) << 8) + blob2;
+                    var bytes = Blob.Heap.AsSpan((int)addr, length);
+                    return bytes.ToArray();
+                }
+                else
+                {
+                    byte blob3 = Blob.Heap[addr++];
+                    byte blob4 = Blob.Heap[addr++];
+
+                    if ((blob & 0xE0) == 0xC0)
+                    {
+                        int length = (blob & 0x1F) << 24 + (blob2 << 16) + (blob3 << 8) + blob4;
+                        var bytes = Blob.Heap.AsSpan((int)addr, length);
+                        return bytes.ToArray();
+                    }
+                    else throw new Exception("Unexpected blob size format.  See II.24.2.4 for more information.");
+                }
             }
         }
 

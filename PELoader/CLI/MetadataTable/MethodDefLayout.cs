@@ -138,7 +138,8 @@ namespace PELoader
 
         public override string ToString()
         {
-            return $"{Parent.FullName}.{Name}";
+            if (Parent != null) return $"{Parent.FullName}.{Name}";
+            else return $"???.{Name}";
         }
 
         public string ToAsmString(GenericInstSig genericSig)
