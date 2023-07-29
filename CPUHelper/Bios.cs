@@ -73,12 +73,12 @@ namespace CPUHelper
             assembly.AddAsm("mov [gdt_ptr + 2], bx");
             assembly.AddAsm("cli");
             assembly.AddAsm("lgdt [gdt_ptr]");
-            assembly.AddAsm("mov eax, cr0");
-            assembly.AddAsm("or eax, 0x1");
-            assembly.AddAsm("mov cr0, eax");
+            assembly.AddAsm("mov ebx, cr0");
+            assembly.AddAsm("or ebx, 0x1");
+            assembly.AddAsm("mov cr0, ebx");
             assembly.AddAsm("jmp 08h:0xA000");  // our 32 bit code starts at 0xA000, freshly loaded from the disk
             assembly.AddAsm("gdt_ptr:");
-            assembly.AddAsm("dw 23");
+            assembly.AddAsm("dw 47");
             assembly.AddAsm("dd 0; this gets filled in with bx, which is the address of the gdt object");
         }
 

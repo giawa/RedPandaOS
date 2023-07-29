@@ -19,14 +19,43 @@ namespace CPUHelper
             public byte segmentBase3;
         }
 
+        [Flags]
+        public enum GDTFlags1 : byte
+        {
+            Accessed = 0x01,
+            ReadWrite = 0x02,
+            ConfirmingExpandDown = 0x04,
+            Code = 0x08,
+            CodeDataSegment = 0x10,
+            DPL = 0x20 | 0x40,  // the privilege level (ring level)
+            Present = 0x80,
+
+            // breaking the privilege levels apart
+            Ring0 = 0,
+            Ring1 = 0x20,
+            Ring2 = 0x40,
+            Ring3 = 0x60
+        }
+
+        [Flags]
+        public enum GDTFlags2 : byte
+        {
+            LimitHigh = 0x0F,
+            Available = 0x10,
+            LongMode = 0x20,
+            Big = 0x40,
+            Gran = 0x80
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct GDT
         {
             public GDTSegment Reserved;
             public GDTSegment KernelCodeSegment;
             public GDTSegment KernelDataSegment;
-            //public GDTSegment UserCodeSegment;
-            //public GDTSegment UserDataSegment;
+            public GDTSegment UserCodeSegment;
+            public GDTSegment UserDataSegment;
+            public GDTSegment TaskStateSegment;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -41,6 +70,72 @@ namespace CPUHelper
         {
             public ushort limit;
             public uint address;
+        }
+
+        // this struct came from an example at https://wiki.osdev.org/Getting_to_Ring_3
+        [StructLayout(LayoutKind.Sequential)]
+        public struct TSSEntry
+        {
+            public uint prev_tss;  // The previous TSS - with hardware task switching these form a kind of backward linked list.
+            public uint esp0;      // The stack pointer to load when changing to kernel mode.
+            public uint ss0;       // The stack segment to load when changing to kernel mode.
+                                   // Everything below here is unused.
+            public uint esp1; // esp and ss 1 and 2 would be used when switching to rings 1 or 2.
+            public uint ss1;
+            public uint esp2;
+            public uint ss2;
+            public uint cr3;
+            public uint eip;
+            public uint eflags;
+            public uint eax;
+            public uint ecx;
+            public uint edx;
+            public uint ebx;
+            public uint esp;
+            public uint ebp;
+            public uint esi;
+            public uint edi;
+            public uint es;
+            public uint cs;
+            public uint ss;
+            public uint ds;
+            public uint fs;
+            public uint gs;
+            public uint ldt;
+            public ushort trap;
+            public ushort iomap_base;
+        }
+
+        public class TSSEntryWrapper
+        {
+            public uint prev_tss;  // The previous TSS - with hardware task switching these form a kind of backward linked list.
+            public uint esp0;      // The stack pointer to load when changing to kernel mode.
+            public uint ss0;       // The stack segment to load when changing to kernel mode.
+                                   // Everything below here is unused.
+            public uint esp1; // esp and ss 1 and 2 would be used when switching to rings 1 or 2.
+            public uint ss1;
+            public uint esp2;
+            public uint ss2;
+            public uint cr3;
+            public uint eip;
+            public uint eflags;
+            public uint eax;
+            public uint ecx;
+            public uint edx;
+            public uint ebx;
+            public uint esp;
+            public uint ebp;
+            public uint esi;
+            public uint edi;
+            public uint es;
+            public uint cs;
+            public uint ss;
+            public uint ds;
+            public uint fs;
+            public uint gs;
+            public uint ldt;
+            public ushort trap;
+            public ushort iomap_base;
         }
 
         [AsmMethod]
@@ -78,12 +173,6 @@ namespace CPUHelper
 
         [AsmMethod]
         public static void DisableInterrupts()
-        {
-
-        }
-
-        [AsmMethod]
-        public static void LoadGDT(GDT gdt)
         {
 
         }
@@ -627,7 +716,7 @@ namespace CPUHelper
         [AsmMethod]
         public static void CopyByte<T>(uint source, uint sourceOffset, ref T destination, uint destinationOffset)
         {
-            
+
         }
 
         [AsmPlug("CPUHelper.CPU.CopyByte<SMAP_entry>_Void_U4_U4_ByRef", IL2Asm.BaseTypes.Architecture.X86)]
@@ -717,6 +806,19 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void Interrupt30(char c)
+        {
+
+        }
+
+        [AsmPlug("CPUHelper.CPU.Interrupt30_Void_Char", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void Interrupt30Asm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax"); // store c in eax
+            assembly.AddAsm("int 30");
+        }
+
+        [AsmMethod]
         public static void Cli()
         {
 
@@ -785,13 +887,54 @@ namespace CPUHelper
         [AsmMethod]
         public static uint ReadEDX()
         {
-            return 0;   
+            return 0;
         }
 
         [AsmPlug("CPUHelper.CPU.ReadEDX_U4", IL2Asm.BaseTypes.Architecture.X86)]
         private static void ReadEDXAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("push edx");
+        }
+
+        [AsmMethod]
+        public static void FlushTSS()
+        {
+            return;
+        }
+
+        [AsmPlug("CPUHelper.CPU.FlushTSS_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void FlushTSSAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov ax, (5 * 8) | 0");
+            assembly.AddAsm("ltr ax");
+        }
+
+        [AsmMethod]
+        public static void JumpUserMode(uint addr)
+        {
+            return;
+        }
+
+        [AsmPlug("CPUHelper.CPU.JumpUserMode_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void JumpUserModeAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop edi"); // grab the address to jump to
+
+            assembly.AddAsm("mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3");
+            assembly.AddAsm("mov ds, ax");
+            assembly.AddAsm("mov es, ax");
+            assembly.AddAsm("mov fs, ax");
+            assembly.AddAsm("mov gs, ax ; SS is handled by iret");
+
+            //set up the stack frame iret expects
+            assembly.AddAsm("mov eax, esp");
+            assembly.AddAsm("push (4 * 8) | 3 ; data selector");
+            assembly.AddAsm("push eax ; current esp");
+            assembly.AddAsm("pushf ; eflags");
+            assembly.AddAsm("push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)");
+            assembly.AddAsm("push edi ; instruction address to return to");
+
+            assembly.AddAsm("iret");
         }
     }
 }

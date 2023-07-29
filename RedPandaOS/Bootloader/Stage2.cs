@@ -1,11 +1,13 @@
 ﻿using CPUHelper;
 using IL2Asm.BaseTypes;
+using System;
 
 namespace Bootloader
 {
     public static class Stage2
     {
         private static CPU.GDT _gdt;
+        private static CPU.TSSEntry _tss;
         private static Bios.SMAP_ret _smap_ret;
 
         [RealMode(0x9000)]
@@ -15,8 +17,10 @@ namespace Bootloader
             byte disk = (byte)CPU.ReadMemShort(0x500);  // the disk as reported by the bios
             BiosUtilities.Partition partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
 
-            CPU.WriteMemory(0x500, 0);
-            if (DetectMemory(0x500, 10) == 0)
+            CPU.WriteMemory(0x500, (ushort)Kernel.Memory.Utilities.StructToPtr(ref _gdt));
+            CPU.WriteMemory(0x502, (ushort)Kernel.Memory.Utilities.StructToPtr(ref _tss));
+            CPU.WriteMemory(0x504, 0);
+            if (DetectMemory(0x504, 10) == 0)
             {
                 Panic("Failed to get memory map");
             }
@@ -262,12 +266,25 @@ namespace Bootloader
         private static void EnterProtectedMode()
         {
             _gdt.KernelCodeSegment.segmentLength = 0xffff;
-            _gdt.KernelCodeSegment.flags1 = 0x9A;
-            _gdt.KernelCodeSegment.flags2 = 0xCF;
+            _gdt.KernelCodeSegment.flags1 = 0x9A;   // ReadWrite | Code | CodeDataSegment | Ring0 | Present
+            _gdt.KernelCodeSegment.flags2 = 0xCF;   // LimitHigh | Big | Gran
 
             _gdt.KernelDataSegment.segmentLength = 0xffff;
-            _gdt.KernelDataSegment.flags1 = 0x92;
-            _gdt.KernelDataSegment.flags2 = 0xCF;
+            _gdt.KernelDataSegment.flags1 = 0x92;   // ReadWrite | CodeDataSegment | Ring0 | Present
+            _gdt.KernelDataSegment.flags2 = 0xCF;   // LimitHigh | Big | Gran
+
+            _gdt.UserCodeSegment.segmentLength = 0xffff;
+            _gdt.UserCodeSegment.flags1 = (byte)(CPU.GDTFlags1.Ring3 | CPU.GDTFlags1.ReadWrite | CPU.GDTFlags1.Code | CPU.GDTFlags1.CodeDataSegment | CPU.GDTFlags1.Present);
+            _gdt.UserCodeSegment.flags2 = (byte)(CPU.GDTFlags2.LimitHigh | CPU.GDTFlags2.Available | CPU.GDTFlags2.Big | CPU.GDTFlags2.Gran);
+
+            _gdt.UserDataSegment.segmentLength = 0xffff;
+            _gdt.UserDataSegment.flags1 = (byte)(CPU.GDTFlags1.Ring3 | CPU.GDTFlags1.ReadWrite | CPU.GDTFlags1.CodeDataSegment | CPU.GDTFlags1.Present);
+            _gdt.UserDataSegment.flags2 = (byte)(CPU.GDTFlags2.LimitHigh | CPU.GDTFlags2.Available | CPU.GDTFlags2.Big | CPU.GDTFlags2.Gran);
+
+            _gdt.TaskStateSegment.segmentLength = 104;  // Marshal.SizeOf<TSSEntry>()
+            _gdt.TaskStateSegment.segmentBase1 = (ushort)Kernel.Memory.Utilities.StructToPtr(ref _tss);
+            _gdt.TaskStateSegment.flags1 = 0x89;    // Accessed | Code | Present
+            _gdt.TaskStateSegment.flags2 = 0x00;
 
             Bios.EnterProtectedMode(ref _gdt);
 
