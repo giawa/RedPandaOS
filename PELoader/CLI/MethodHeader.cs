@@ -85,13 +85,14 @@ namespace PELoader
                 CodeSize = (uint)(type >> 2);
                 rva++;
             }
-            else
+            else if ((type & 0x03) == 0x03)
             {
                 // fat method header
                 var fatHeader = memory.GetBytes(rva, 12);
                 rva += 12;
 
                 Flags = (ushort)(BitConverter.ToUInt16(fatHeader, 0) & 0x0fff);
+                var size = BitConverter.ToUInt16(fatHeader, 0) >> 12;
                 MaxStack = BitConverter.ToUInt16(fatHeader, 2);
                 CodeSize = BitConverter.ToUInt32(fatHeader, 4);
                 LocalVarSigTok = BitConverter.ToUInt32(fatHeader, 8);
@@ -101,6 +102,7 @@ namespace PELoader
                     LocalVars = new LocalVarSig(metadata, LocalVarSigTok);
                 }
             }
+            else throw new Exception("Unsupported header type value (II.25.4.1)");
 
             Code = memory.GetBytes(rva, (int)CodeSize);
             rva += CodeSize;
