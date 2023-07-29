@@ -26,7 +26,12 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildTools", "BuildTools\BuildTools.csproj", "{C4DEC74D-021B-4AF7-B3ED-4748D7D2A33C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emulator", "Emulator\Emulator.csproj", "{9D60080A-A0AA-4956-A9C5-19BA63C3F7E9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{B0E08D4E-CD49-4334-BFCF-F5D04991CD67}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runtime", "Runtime\Runtime.csproj", "{3620BD58-970D-418C-B36E-FF902DB96F89}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "uname", "apps\uname\uname.csproj", "{2CF2D376-AE0C-4009-B3BB-B757051D8939}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -82,12 +87,17 @@ Global
 		{3620BD58-970D-418C-B36E-FF902DB96F89}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3620BD58-970D-418C-B36E-FF902DB96F89}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3620BD58-970D-418C-B36E-FF902DB96F89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2CF2D376-AE0C-4009-B3BB-B757051D8939}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2CF2D376-AE0C-4009-B3BB-B757051D8939}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2CF2D376-AE0C-4009-B3BB-B757051D8939}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2CF2D376-AE0C-4009-B3BB-B757051D8939}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{12B96819-8F18-4DE0-A24E-860E72863B33} = {ADF63A65-116C-4976-A493-825A1AF5FCCC}
+		{2CF2D376-AE0C-4009-B3BB-B757051D8939} = {B0E08D4E-CD49-4334-BFCF-F5D04991CD67}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E183039B-8B02-4585-BBCB-F048BC038D93}
