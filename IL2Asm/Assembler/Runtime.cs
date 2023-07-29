@@ -142,7 +142,7 @@ namespace IL2Asm
             else if ((fieldToken & 0xff000000) == 0x0A000000)
             {
                 var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
-                var type = field.MemberSignature.RetType;
+                var type = field.Signature.RetType;
 
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;
@@ -217,7 +217,7 @@ namespace IL2Asm
             else if ((fieldToken & 0xff000000) == 0x0A000000)
             {
                 var field = metadata.MemberRefs[(int)(fieldToken & 0x00ffffff) - 1];
-                var type = field.MemberSignature.RetType;
+                var type = field.Signature.RetType;
 
                 uint typeRefToken = type.Token;
                 if (typeRefToken == 0) typeRefToken = field.Parent;

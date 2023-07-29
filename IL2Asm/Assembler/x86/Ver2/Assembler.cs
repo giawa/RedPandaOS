@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace IL2Asm.Assembler.x86.Ver2
@@ -148,14 +149,14 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
 
             List<StackElementType> callingStackTypes = new List<StackElementType>();
-            if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+            if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS))
             {
                 callingStackTypes.Add(new StackElementType(new ElementType(ElementType.EType.Object), callingStackTypes, _runtime, pe.Metadata));
                 //throw new Exception("Verify this is correct.  May need to adjust LDARG and others as well.");
             }
-            if (methodDef.MethodSignature.ParamCount > 0)
+            if (methodDef.Signature.ParamCount > 0)
             {
-                foreach (var param in methodDef.MethodSignature.Params) callingStackTypes.Add(new StackElementType(param, callingStackTypes, _runtime, pe.Metadata));
+                foreach (var param in methodDef.Signature.Params) callingStackTypes.Add(new StackElementType(param, callingStackTypes, _runtime, pe.Metadata));
             }
 
             int callingStackSize = 0;
@@ -223,7 +224,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // LDARGA.S
                     case 0x0F:
                         _byte = code[i++];
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _byte++; // skip THIS
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _byte++; // skip THIS
                         arg = callingStackTypes[_byte];
                         /*assembly.AddAsm("mov eax, ebp");// + {arg.StackLocation + 4}");
                         assembly.AddAsm($"add eax, {arg.StackLocation + 4}");
@@ -344,7 +345,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     // RET
                     case 0x2A:
                         // place the returned value on ax, which should clear our CLI stack
-                        if (method.MethodDef.MethodSignature.RetType != null && method.MethodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        if (method.MethodDef.Signature.RetType != null && method.MethodDef.Signature.RetType.Type != ElementType.EType.Void)
                         {
                             int retSize = _runtime.GetTypeSize(pe.Metadata, _stack.Peek());
                             if (retSize == 4) assembly.AddAsm("pop eax; return value");
@@ -378,15 +379,15 @@ namespace IL2Asm.Assembler.x86.Ver2
                         }
 
                         int bytes = 0;
-                        if (methodDef.MethodSignature.ParamCount > 0)
+                        if (methodDef.Signature.ParamCount > 0)
                         {
-                            foreach (var param in methodDef.MethodSignature.Params)
+                            foreach (var param in methodDef.Signature.Params)
                             {
                                 int paramSize = _runtime.GetTypeSize(pe.Metadata, param);
                                 bytes += 4 * (int)Math.Ceiling(paramSize / 4f);
                             }
                         }
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         if (assembly.HasStackFrame) assembly.AddAsm("pop ebp");
                         if (method.MethodDef.Name.StartsWith("IsrHandler") || method.MethodDef.Name.StartsWith("IrqHandler")) assembly.AddAsm("ret");
                         else assembly.AddAsm($"ret {bytes}");
@@ -2253,8 +2254,8 @@ namespace IL2Asm.Assembler.x86.Ver2
                 }
                 assembly.AddAsm("; end plug");
 
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
+                if (memberRef.Signature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(memberRef.Signature.RetType);
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
@@ -2264,7 +2265,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 if (genericOverride.Item2 != null)
                 {
                     method = method.Clone(metadata);
-                    method.MethodSignature.Override(genericOverride.Item2);
+                    method.Signature.Override(genericOverride.Item2);
                 }
 
                 var parent = method.Parent;
@@ -2295,9 +2296,9 @@ namespace IL2Asm.Assembler.x86.Ver2
                 // the constructor needs this, arg1, ..., argn
                 // push all the arguments for the constructor again to reorder the stack
                 int argSize = 0;
-                if (method.MethodSignature.ParamCount > 0)
+                if (method.Signature.ParamCount > 0)
                 {
-                    foreach (var a in method.MethodSignature.Params)
+                    foreach (var a in method.Signature.Params)
                     {
                         argSize += _runtime.GetTypeSize(metadata, a);
                     }
@@ -2409,7 +2410,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
         private Dictionary<string, Assembly> _loadedAssemblies = new Dictionary<string, Assembly>();
 
-        private bool CheckForPlugAndInvoke(string dllPath, string memberName, MethodRefSig methodSignature, AssembledMethod assembly)
+        private bool CheckForPlugAndInvoke(string dllPath, string memberName, MethodRefSig methodSignature, AssembledMethod assembly, ICommonMethodInfo methodInfo)
         {
             assembly.HeapAllocatorMethod = HeapAllocatorMethod;
             assembly.ThrowExceptionMethod = ThrowExceptionMethod;
@@ -2477,10 +2478,37 @@ namespace IL2Asm.Assembler.x86.Ver2
                             pe = new PortableExecutableFile(fullDllPath);
                             AddAssembly(pe);
                         }
-                        
+
                         var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == possiblePlugs[0].Name &&
                                 m.Parent.FullName == possiblePlugs[0].DeclaringType.FullName &&
-                                m.MethodSignature.ParamCount == possiblePlugs[0].GetParameters().Length).SingleOrDefault() ?? null;
+                                m.Signature.ParamCount == possiblePlugs[0].GetParameters().Length).SingleOrDefault() ?? null;
+
+                        var methodToCompile = QueueCompileMethod(pe, methodDef, null, null);
+                        Call(assembly, false, methodToCompile, null);
+
+                        for (int i = 0; i < methodSignature.ParamCount; i++) _stack.Pop();
+                        if ((methodSignature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
+                        if (methodSignature.RetType.Type != ElementType.EType.Void)
+                        {
+                            _stack.Push(methodSignature.RetType);
+                            eaxType = methodSignature.RetType;
+                        }
+                        return true;
+                    }
+                    else if (dllPath.EndsWith("Runtime.dll") && methodInfo.ParentName.StartsWith("Runtime."))
+                    {
+                        var fullDllPath = Path.GetFullPath(dllPath).TrimEnd('\\');
+                        var pe = _runtime.Assemblies.Where(a => string.Compare(fullDllPath, Path.GetFullPath(a.Filename).TrimEnd('\\'), StringComparison.InvariantCultureIgnoreCase) == 0).SingleOrDefault();
+
+                        if (pe == null)
+                        {
+                            pe = new PortableExecutableFile(fullDllPath);
+                            AddAssembly(pe);
+                        }
+
+                        var methodDef = pe?.Metadata.MethodDefs.Where(m => m.Name == methodInfo.Name &&
+                                m.Parent.FullName == methodInfo.ParentName &&
+                                m.Signature.ParamCount == methodInfo.Signature.ParamCount).SingleOrDefault() ?? null;
 
                         var methodToCompile = QueueCompileMethod(pe, methodDef, null, null);
                         Call(assembly, false, methodToCompile, null);
@@ -2589,7 +2617,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 var file = memberName.Substring(0, memberName.IndexOf('.'));
                 var path = $"{Environment.CurrentDirectory}\\{file}.dll";
 
-                if (!CheckForPlugAndInvoke(path, memberName, memberRef.MemberSignature, assembly))
+                if (!CheckForPlugAndInvoke(path, memberName, memberRef.Signature, assembly, memberRef))
                 {
                     /*if (memberName.StartsWith("System.Runtime.InteropServices.Marshal.SizeOf<"))
                     {
@@ -2643,11 +2671,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                         throw new Exception("Unable to handle this method");
                     }
 
-                    for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                    for (int j = 0; j < memberRef.Signature.ParamCount; j++)
                         _stack.Pop();
-                    if ((memberRef.MemberSignature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
-                    if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                        _stack.Push(memberRef.MemberSignature.RetType);
+                    if ((memberRef.Signature.Flags & SigFlags.HASTHIS) != 0) _stack.Pop();
+                    if (memberRef.Signature.RetType.Type != ElementType.EType.Void)
+                        _stack.Push(memberRef.Signature.RetType);
                 }
                 assembly.AddAsm("; end plug");
             }
@@ -2659,7 +2687,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 if (genericOverride.Item2 != null)
                 {
                     methodDef = methodDef.Clone(metadata);
-                    methodDef.MethodSignature.Override(genericOverride.Item2);
+                    methodDef.Signature.Override(genericOverride.Item2);
                 }
 
                 var memberName = methodDef.ToAsmString(genericOverride.Item2);
@@ -2669,7 +2697,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                     memberName = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1].ToAsmString();
                 }
 
-                if (!CheckForPlugAndInvoke(pe.Filename, memberName, methodDef.MethodSignature, assembly))
+                if (!CheckForPlugAndInvoke(pe.Filename, memberName, methodDef.Signature, assembly, methodDef))
                 {
                     var methodToCompile = QueueCompileMethod(pe, methodDef, genericOverride.Item2, methodSpec);
 
@@ -2677,16 +2705,16 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                     if (!ldftn)
                     {
-                        for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
+                        for (int j = 0; j < methodDef.Signature.ParamCount; j++)
                             _stack.Pop();
 
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS))
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS))
                         {
                             _stack.Pop();   // pop the object reference from the stack
                         }
 
-                        if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                            _stack.Push(methodDef.MethodSignature.RetType);
+                        if (methodDef.Signature.RetType.Type != ElementType.EType.Void)
+                            _stack.Push(methodDef.Signature.RetType);
                     }
                 }
 
@@ -2713,10 +2741,10 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     assembly.AddAsm($"call {callsite}");
 
-                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                    if (methodDef.Signature.RetType != null && methodDef.Signature.RetType.Type != ElementType.EType.Void)
                     {
                         // TODO:  This is incorrect as eax can only store 32bits of the return type - we really need to store this on the stack
-                        var sizeOfRetType = _runtime.GetTypeSize(assembly.Metadata, methodDef.MethodSignature.RetType);
+                        var sizeOfRetType = _runtime.GetTypeSize(assembly.Metadata, methodDef.Signature.RetType);
                         for (int b = 0; b < Math.Ceiling(sizeOfRetType / 4f); b++)
                             assembly.AddAsm("push eax");
                     }
@@ -2746,7 +2774,7 @@ namespace IL2Asm.Assembler.x86.Ver2
                 List<MethodDefLayout> methods = new List<MethodDefLayout>();
                 foreach (var t in types)
                 {
-                    var method = t.Methods.Where(m => m.Name.EndsWith(endOfName) && m.MethodSignature.IsEquivalent(methodDef.MethodSignature)).FirstOrDefault();
+                    var method = t.Methods.Where(m => m.Name.EndsWith(endOfName) && m.Signature.IsEquivalent(methodDef.Signature)).FirstOrDefault();
                     if (method != null) methods.Add(method);
                     else throw new Exception("Method was not implemented as expected");
                 }

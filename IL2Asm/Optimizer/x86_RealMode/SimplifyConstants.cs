@@ -129,7 +129,7 @@ namespace IL2Asm.Optimizer.x86_RealMode
                         // this is a special case where simplify constants was outputting something like "cmp 128, bx", which is invalid
                         // so we cannot optimize this part
                         //assembly[i] = $"cmp {split[2]}, {split[1]} ; {assembly[i]}";
-                        throw new Exception("Unsupport optimization");
+                        throw new Exception("Unsupported optimization");
                     }
                     else if (madeChanges)
                     {

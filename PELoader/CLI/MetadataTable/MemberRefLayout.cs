@@ -297,15 +297,24 @@ namespace PELoader
         }
     }
 
-    public class MemberRefLayout
+    public interface ICommonMethodInfo
+    {
+        string Name { get; }
+        string ToAsmString();
+        MethodRefSig Signature { get; }
+        string ParentName { get; }
+    }
+
+    public class MemberRefLayout : ICommonMethodInfo
     {
         private uint classIndex;
         public uint nameAddr;
         public uint signature;
         public uint Parent { get; private set; }
+        public string ParentName { get { return _parent; } }
 
         public string Name { get; private set; }
-        public MethodRefSig MemberSignature { get; private set; }
+        public MethodRefSig Signature { get; private set; }
 
         public MemberRefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -348,7 +357,7 @@ namespace PELoader
             }
 
             Name = metadata.GetString(nameAddr);
-            MemberSignature = new MethodRefSig(metadata, signature);
+            Signature = new MethodRefSig(metadata, signature);
         }
 
         private string _parent = null;
@@ -391,12 +400,12 @@ namespace PELoader
         public string ToAsmString()
         {
             StringBuilder sb = new StringBuilder(ToString());//.Replace(".", "_"));
-            sb.Append($"_{MemberSignature.RetType.Type}");
+            sb.Append($"_{Signature.RetType.Type}");
 
-            for (int i = 0; i < MemberSignature.ParamCount; i++)
+            for (int i = 0; i < Signature.ParamCount; i++)
             {
-                if (MemberSignature.Params[i].Type != ElementType.EType.End)
-                    sb.Append($"_{MemberSignature.Params[i].Type}");
+                if (Signature.Params[i].Type != ElementType.EType.End)
+                    sb.Append($"_{Signature.Params[i].Type}");
             }
 
             return sb.ToString();
@@ -406,7 +415,7 @@ namespace PELoader
         {
             StringBuilder sb = new StringBuilder();
 
-            if (MemberSignature != null) sb.Append(MemberSignature.RetType.Type + " ");
+            if (Signature != null) sb.Append(Signature.RetType.Type + " ");
 
             if (string.IsNullOrEmpty(_parent)) sb.Append("???");
             else sb.Append(_parent);
@@ -414,14 +423,14 @@ namespace PELoader
 
             sb.Append(Name);
 
-            if (MemberSignature != null)
+            if (Signature != null)
             {
                 sb.Append("(");
 
-                for (int i = 0; MemberSignature.Params != null && i < MemberSignature.Params.Length; i++)
+                for (int i = 0; Signature.Params != null && i < Signature.Params.Length; i++)
                 {
-                    sb.Append(MemberSignature.Params[i].Type.ToString());
-                    if (i < MemberSignature.Params.Length - 1) sb.Append(", ");
+                    sb.Append(Signature.Params[i].Type.ToString());
+                    if (i < Signature.Params.Length - 1) sb.Append(", ");
                 }
 
                 sb.Append(")");
@@ -438,7 +447,7 @@ namespace PELoader
             signature = original.signature;
             Parent = original.Parent;
             Name = original.Name;
-            MemberSignature = new MethodRefSig(metadata, signature);
+            Signature = new MethodRefSig(metadata, signature);
         }
 
         public MemberRefLayout Clone(CLIMetadata metadata)

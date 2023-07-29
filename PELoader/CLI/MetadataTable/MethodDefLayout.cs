@@ -59,7 +59,7 @@ namespace PELoader
         RequireSecObject = 0x8000
     }
 
-    public class MethodDefLayout
+    public class MethodDefLayout : ICommonMethodInfo
     {
         public uint RVA { get; private set; }
         private uint name;
@@ -72,10 +72,12 @@ namespace PELoader
         public MethodImplAttributes Flags { get; private set; }
 
         public TypeDefLayout Parent { get; internal set; }
-        public MethodRefSig MethodSignature { get; private set; }
+        public MethodRefSig Signature { get; private set; }
 
         public List<ParamLayout> Params = new List<ParamLayout>();
         public List<CustomAttributeLayout> Attributes = new List<CustomAttributeLayout>();
+
+        public string ParentName { get { return Parent.Name; } }
 
         public MethodDefLayout(CLIMetadata metadata, ref int offset)
         {
@@ -122,7 +124,7 @@ namespace PELoader
             }
 
             Name = metadata.GetString(name);
-            MethodSignature = new MethodRefSig(metadata, signature);
+            Signature = new MethodRefSig(metadata, signature);
         }
 
         public void FindParams(List<ParamLayout> paramLayouts)
@@ -161,16 +163,16 @@ namespace PELoader
         public string ToAsmString()
         {
             StringBuilder sb = new StringBuilder(ToString().Replace(".", "_"));
-            if (MethodSignature.RetType.Type == ElementType.EType.SzArray)
+            if (Signature.RetType.Type == ElementType.EType.SzArray)
             {
-                sb.Append($"_@{MethodSignature.RetType.NestedType}");
+                sb.Append($"_@{Signature.RetType.NestedType}");
             }
-            else sb.Append($"_{MethodSignature.RetType.Type}");
+            else sb.Append($"_{Signature.RetType.Type}");
 
-            for (int i = 0; i < MethodSignature.ParamCount; i++)
+            for (int i = 0; i < Signature.ParamCount; i++)
             {
-                if (MethodSignature.Params[i].Type != ElementType.EType.End)
-                    sb.Append($"_{MethodSignature.Params[i].Type}");
+                if (Signature.Params[i].Type != ElementType.EType.End)
+                    sb.Append($"_{Signature.Params[i].Type}");
             }
 
             return sb.ToString();
@@ -180,7 +182,7 @@ namespace PELoader
         {
             if (typeSpec == null || memberRef == null) return false;
             if (Parent.Token != typeSpec.Parent || Name != memberRef.Name) return false;
-            return memberRef.MemberSignature.IsEquivalent(MethodSignature);
+            return memberRef.Signature.IsEquivalent(Signature);
         }
 
         private MethodDefLayout() { }
@@ -202,7 +204,7 @@ namespace PELoader
             methodDef.Params = new List<ParamLayout>(this.Params);
             methodDef.Attributes = new List<CustomAttributeLayout>(this.Attributes);
 
-            methodDef.MethodSignature = new MethodRefSig(metadata, signature);
+            methodDef.Signature = new MethodRefSig(metadata, signature);
 
             return methodDef;
         }

@@ -114,25 +114,25 @@ namespace IL2Asm.Assembler.x86_RealMode
 
                     // LDARG.0
                     case 0x02:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 0;
+                        _uint = method.MethodDef.Signature.ParamCount - 0;
                         assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push ax");
                         break;
                     // LDARG.1
                     case 0x03:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 1;
+                        _uint = method.MethodDef.Signature.ParamCount - 1;
                         assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push ax");
                         break;
                     // LDARG.2
                     case 0x04:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 2;
+                        _uint = method.MethodDef.Signature.ParamCount - 2;
                         assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push ax");
                         break;
                     // LDARG.3
                     case 0x05:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 3;
+                        _uint = method.MethodDef.Signature.ParamCount - 3;
                         assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push ax");
                         break;
@@ -149,7 +149,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // LDARG.S
                     case 0x0E:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        _uint = method.MethodDef.Signature.ParamCount - _byte;
                         assembly.AddAsm($"mov ax, [bp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push ax");
                         break;
@@ -157,7 +157,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // STARG.S
                     case 0x10:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        _uint = method.MethodDef.Signature.ParamCount - _byte;
                         assembly.AddAsm("pop ax");
                         assembly.AddAsm($"mov [bp + {BytesPerRegister * (1 + _uint)}], ax");
                         break;
@@ -240,7 +240,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     // RET
                     case 0x2A:
                         // place the returned value on ax, which should clear our CLI stack
-                        if (method.MethodDef.MethodSignature.RetType != null && method.MethodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        if (method.MethodDef.Signature.RetType != null && method.MethodDef.Signature.RetType.Type != ElementType.EType.Void)
                         {
                             assembly.AddAsm("pop ax; return value");
                         }
@@ -260,7 +260,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                                 assembly.AddAsm($"pop {localVarNames[p]}");
                         }
 
-                        int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
+                        int bytes = (int)methodDef.Signature.ParamCount * BytesPerRegister;
                         assembly.AddAsm("pop bp");
                         assembly.AddAsm($"ret {bytes}");
                         break;
@@ -922,7 +922,7 @@ namespace IL2Asm.Assembler.x86_RealMode
                     string callsite = methodDef.ToAsmString().Replace(".", "_");
                     assembly.AddAsm($"call {callsite}");
 
-                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push ax");
+                    if (methodDef.Signature.RetType != null && methodDef.Signature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push ax");
                 }
             }
             else throw new Exception("Unhandled CALL target");

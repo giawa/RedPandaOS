@@ -51,7 +51,7 @@ namespace ILInterpreter
 
         public bool IsEquivalent(MemberRefLayout member)
         {
-            var signature = member.MemberSignature;
+            var signature = member.Signature;
 
             if (signature.Flags != Flags) return false;
             if (signature.RetType.Type != RetType.Type/* || signature.RetType.Token != RetType.Token*/) return false;

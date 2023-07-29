@@ -104,42 +104,42 @@ namespace IL2Asm.Assembler.x86.Ver1
 
                     // LDARG.0
                     case 0x02:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 0;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - 0;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = new ElementType(ElementType.EType.Object);
-                        else eaxType = methodDef.MethodSignature.Params[0];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = new ElementType(ElementType.EType.Object);
+                        else eaxType = methodDef.Signature.Params[0];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.1
                     case 0x03:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 1;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - 1;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[0];
-                        else eaxType = methodDef.MethodSignature.Params[1];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.Signature.Params[0];
+                        else eaxType = methodDef.Signature.Params[1];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.2
                     case 0x04:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 2;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - 2;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[1];
-                        else eaxType = methodDef.MethodSignature.Params[2];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.Signature.Params[1];
+                        else eaxType = methodDef.Signature.Params[2];
                         _stack.Push(eaxType);
                         break;
                     // LDARG.3
                     case 0x05:
-                        _uint = method.MethodDef.MethodSignature.ParamCount - 3;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - 3;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[2];
-                        else eaxType = methodDef.MethodSignature.Params[3];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.Signature.Params[2];
+                        else eaxType = methodDef.Signature.Params[3];
                         _stack.Push(eaxType);
                         break;
 
@@ -194,31 +194,31 @@ namespace IL2Asm.Assembler.x86.Ver1
                     // LDARG.S
                     case 0x0E:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - _byte;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
-                        else eaxType = methodDef.MethodSignature.Params[_byte];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.Signature.Params[_byte - 1];
+                        else eaxType = methodDef.Signature.Params[_byte];
                         _stack.Push(eaxType);
                         break;
 
                     // LDARGA.S
                     case 0x0F:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
+                        _uint = method.MethodDef.Signature.ParamCount - _byte;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) _uint += 1;
                         assembly.AddAsm($"mov eax, [ebp + {BytesPerRegister * (1 + _uint)}]");
                         assembly.AddAsm("push eax");
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.MethodSignature.Params[_byte - 1];
-                        else eaxType = methodDef.MethodSignature.Params[_byte];
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) eaxType = methodDef.Signature.Params[_byte - 1];
+                        else eaxType = methodDef.Signature.Params[_byte];
                         _stack.Push(eaxType);
                         break;
 
                     // STARG.S
                     case 0x10:
                         _byte = code[i++];
-                        _uint = method.MethodDef.MethodSignature.ParamCount - _byte;
+                        _uint = method.MethodDef.Signature.ParamCount - _byte;
                         assembly.AddAsm("pop eax");
                         assembly.AddAsm($"mov [ebp + {BytesPerRegister * (1 + _uint)}], eax");
                         eaxType = _stack.Pop();
@@ -335,7 +335,7 @@ namespace IL2Asm.Assembler.x86.Ver1
                     // RET
                     case 0x2A:
                         // place the returned value on ax, which should clear our CLI stack
-                        if (method.MethodDef.MethodSignature.RetType != null && method.MethodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
+                        if (method.MethodDef.Signature.RetType != null && method.MethodDef.Signature.RetType.Type != ElementType.EType.Void)
                         {
                             assembly.AddAsm("pop eax; return value");
                             eaxType = _stack.Pop();
@@ -354,8 +354,8 @@ namespace IL2Asm.Assembler.x86.Ver1
                             if (localVarCount > 2) PopStack(localVarCount - 2);
                         }
 
-                        int bytes = (int)methodDef.MethodSignature.ParamCount * BytesPerRegister;
-                        if (methodDef.MethodSignature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
+                        int bytes = (int)methodDef.Signature.ParamCount * BytesPerRegister;
+                        if (methodDef.Signature.Flags.HasFlag(SigFlags.HASTHIS)) bytes += BytesPerRegister;
                         assembly.AddAsm("pop ebp");
                         if (method.MethodDef.Name.StartsWith("IsrHandler") || method.MethodDef.Name.StartsWith("IrqHandler")) assembly.AddAsm("ret");
                         else assembly.AddAsm($"ret {bytes}");
@@ -1587,10 +1587,10 @@ namespace IL2Asm.Assembler.x86.Ver1
                 }
                 assembly.AddAsm("; end plug");
 
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                for (int j = 0; j < memberRef.Signature.ParamCount; j++)
                     _stack.Pop();
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
+                if (memberRef.Signature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(memberRef.Signature.RetType);
             }
             else throw new Exception("Unsupported");
         }
@@ -1805,10 +1805,10 @@ namespace IL2Asm.Assembler.x86.Ver1
                 }
                 assembly.AddAsm("; end plug");
 
-                for (int j = 0; j < memberRef.MemberSignature.ParamCount; j++)
+                for (int j = 0; j < memberRef.Signature.ParamCount; j++)
                     _stack.Pop();
-                if (memberRef.MemberSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(memberRef.MemberSignature.RetType);
+                if (memberRef.Signature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(memberRef.Signature.RetType);
             }
             else if ((methodDesc & 0xff000000) == 0x06000000)
             {
@@ -1846,13 +1846,13 @@ namespace IL2Asm.Assembler.x86.Ver1
                     if (ldftn) assembly.AddAsm($"push {callsite}");
                     else assembly.AddAsm($"call {callsite}");
 
-                    if (methodDef.MethodSignature.RetType != null && methodDef.MethodSignature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
+                    if (methodDef.Signature.RetType != null && methodDef.Signature.RetType.Type != ElementType.EType.Void) assembly.AddAsm("push eax");
                 }
 
-                for (int j = 0; j < methodDef.MethodSignature.ParamCount; j++)
+                for (int j = 0; j < methodDef.Signature.ParamCount; j++)
                     _stack.Pop();
-                if (methodDef.MethodSignature.RetType.Type != ElementType.EType.Void)
-                    _stack.Push(methodDef.MethodSignature.RetType);
+                if (methodDef.Signature.RetType.Type != ElementType.EType.Void)
+                    _stack.Push(methodDef.Signature.RetType);
 
                 // eax and ebx may have been clobbered
                 eaxType = null;
