@@ -15,10 +15,10 @@ namespace Bootloader
         {
             // the stage 1 kernel stored some information for us to load in once we get to stage 2
             byte disk = (byte)CPU.ReadMemShort(0x500);  // the disk as reported by the bios
-            BiosUtilities.Partition partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
+            BiosUtilities.Partition partition = Runtime.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(CPU.ReadMemShort(0x502));
 
-            CPU.WriteMemory(0x500, (ushort)Kernel.Memory.Utilities.StructToPtr(ref _gdt));
-            CPU.WriteMemory(0x502, (ushort)Kernel.Memory.Utilities.StructToPtr(ref _tss));
+            CPU.WriteMemory(0x500, (ushort)Runtime.Memory.Utilities.StructToPtr(ref _gdt));
+            CPU.WriteMemory(0x502, (ushort)Runtime.Memory.Utilities.StructToPtr(ref _tss));
             CPU.WriteMemory(0x504, 0);
             if (DetectMemory(0x504, 10) == 0)
             {
@@ -282,7 +282,7 @@ namespace Bootloader
             _gdt.UserDataSegment.flags2 = (byte)(CPU.GDTFlags2.LimitHigh | CPU.GDTFlags2.Available | CPU.GDTFlags2.Big | CPU.GDTFlags2.Gran);
 
             _gdt.TaskStateSegment.segmentLength = 104;  // Marshal.SizeOf<TSSEntry>()
-            _gdt.TaskStateSegment.segmentBase1 = (ushort)Kernel.Memory.Utilities.StructToPtr(ref _tss);
+            _gdt.TaskStateSegment.segmentBase1 = (ushort)Runtime.Memory.Utilities.StructToPtr(ref _tss);
             _gdt.TaskStateSegment.flags1 = 0x89;    // Accessed | Code | Present
             _gdt.TaskStateSegment.flags2 = 0x00;
 

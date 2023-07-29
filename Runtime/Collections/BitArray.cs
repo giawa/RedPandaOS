@@ -10,7 +10,7 @@
             _array = new uint[Math32.Ceiling(capacity, 32)];
         }
 
-        public void Draw()
+        /*public void Draw()
         {
             for (int i = 0; i < _array.Length; i++)
             {
@@ -25,7 +25,7 @@
                     Kernel.Devices.VGA.WriteChar('0' + count);
                 }
             }
-        }
+        }*/
 
         public int Length { get { return _array.Length; } }
 

@@ -122,7 +122,7 @@
         {
             if (_symbols == null) _symbols = new Runtime.Collections.List<SymbolEntry>(512);
 
-            var byteArray = Memory.Utilities.UnsafeCast<byte[]>(sector);
+            var byteArray = Runtime.Memory.Utilities.UnsafeCast<byte[]>(sector);
 
             for (int i = 0; i < 512 - 4; i++)
             {

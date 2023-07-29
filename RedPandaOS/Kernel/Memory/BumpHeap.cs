@@ -1,6 +1,7 @@
 ﻿using CPUHelper;
 using IL2Asm.BaseTypes;
 using System.Runtime.InteropServices;
+using Runtime.Memory;
 
 namespace Kernel.Memory
 {

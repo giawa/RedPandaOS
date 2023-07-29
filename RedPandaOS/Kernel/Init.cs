@@ -24,7 +24,7 @@ namespace Kernel
 
             for (uint i = 0; i < entries; i++)
             {
-                Memory.SMAP_Entry entry = Memory.Utilities.PtrToObject<Memory.SMAP_Entry>(0x508 + 24 * i);
+                Memory.SMAP_Entry entry = Runtime.Memory.Utilities.PtrToObject<Memory.SMAP_Entry>(0x508 + 24 * i);
                 if ((entry.Type & 1) == 1) freeMemory.Add(entry);
                 //Logging.Write(LogLevel.Warning, "Region {0} {1:X}{2:X}", i, entry.BaseH, entry.BaseL);
                 //Logging.WriteLine(LogLevel.Warning, " {0:X}{1:X} {2:X}", entry.LengthH, entry.LengthL, entry.Type);
@@ -114,7 +114,7 @@ namespace Kernel
         {
             // try setting up TSS by getting its address from the stage 2 boot loader
             var tssAddress = CPU.ReadMemShort(0x502);
-            var tss = Kernel.Memory.Utilities.PtrToObject<CPU.TSSEntryWrapper>(tssAddress);
+            var tss = Runtime.Memory.Utilities.PtrToObject<CPU.TSSEntryWrapper>(tssAddress);
 
             tss.ss0 = 0x10;
             tss.esp0 = 0x7E00;  // use bootloader stage 1 as the new kernel stack for the TSS

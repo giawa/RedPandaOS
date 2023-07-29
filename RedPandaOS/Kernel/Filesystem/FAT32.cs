@@ -330,11 +330,11 @@ namespace Kernel.IO
                 }
             }
 
-            var baseAddr = Memory.Utilities.ObjectToPtr(buffer);
+            var baseAddr = Runtime.Memory.Utilities.ObjectToPtr(buffer);
             for (int i = 0; i < clusters.Count; i++)
             {
                 var lba = _clusterBeginLba + (clusters[i] - 2) * _sectorsPerCluster;
-                LoadLba(lba, Memory.Utilities.PtrToObject<byte[]>(baseAddr), clusterCount[i]);
+                LoadLba(lba, Runtime.Memory.Utilities.PtrToObject<byte[]>(baseAddr), clusterCount[i]);
 
                 baseAddr += ((uint)clusterCount[i] * _sectorsPerCluster * 512);
             }
@@ -358,7 +358,7 @@ namespace Kernel.IO
                     _currentLbaData = _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster);
                     _currentLba = lba;
                 }
-                return Memory.Utilities.PtrToObject<byte[]>(Memory.Utilities.ObjectToPtr(_currentLbaData) + ((uint)_sectorInCluster << 9));
+                return Runtime.Memory.Utilities.PtrToObject<byte[]>(Runtime.Memory.Utilities.ObjectToPtr(_currentLbaData) + ((uint)_sectorInCluster << 9));
                 //return _fat32.LoadLba(_clusterBeginLba + (ClusterId - 2) * _sectorsPerCluster + _sectorInCluster);
             }
 

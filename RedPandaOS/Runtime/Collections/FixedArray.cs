@@ -1,6 +1,7 @@
 ﻿using Kernel.Memory;
 using System;
 using System.Runtime.InteropServices;
+using Runtime.Memory;
 
 namespace Runtime.Collections
 {

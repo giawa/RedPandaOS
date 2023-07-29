@@ -151,7 +151,7 @@ namespace Plugs
         [CSharpPlug("System.String.get_Length_I4")]
         private static int StringLength(string s1)
         {
-            return (int)CPUHelper.CPU.ReadMemInt(Kernel.Memory.Utilities.ObjectToPtr(s1));
+            return (int)CPUHelper.CPU.ReadMemInt(Runtime.Memory.Utilities.ObjectToPtr(s1));
         }
 
         [AsmPlug("System.String.get_Chars_Char_I4", Architecture.X86)]

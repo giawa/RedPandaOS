@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Runtime.Collections;
 using System;
+using Runtime.Memory;
 
 namespace Kernel.Memory
 {
@@ -312,7 +313,7 @@ namespace Kernel.Memory
 
         public static void Draw()
         {
-            _frames.Draw();
+            //_frames.Draw();
         }
 
         private static Page _emptyPage = new Page();

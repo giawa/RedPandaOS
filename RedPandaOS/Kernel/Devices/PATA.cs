@@ -272,7 +272,7 @@ namespace Kernel.Devices
 
                     Logging.WriteLine(LogLevel.Trace, "Got HD size {0}MiB command sets {1}", ideDevice.Size / 2 / 1024, ideDevice.CommandSets);
 
-                    byte[] byteAccessibleBuffer = Memory.Utilities.UnsafeCast<byte[]>(_buffer);
+                    byte[] byteAccessibleBuffer = Runtime.Memory.Utilities.UnsafeCast<byte[]>(_buffer);
                     for (int k = 0; k < 40; k += 2)
                     {
                         ideDevice.Model[k] = byteAccessibleBuffer[54 + k + 1];
@@ -370,7 +370,7 @@ namespace Kernel.Devices
             if (reg > 0x07 && reg < 0x0C)
                 WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
 
-            uint arrayBase = Memory.Utilities.ObjectToPtr(_buffer) + 8;
+            uint arrayBase = Runtime.Memory.Utilities.ObjectToPtr(_buffer) + 8;
             ushort dx = 0;
 
             if (reg < 0x08)
@@ -427,9 +427,9 @@ namespace Kernel.Devices
             byte channel = _devices[drive].Channel;
             byte slaveBit = _devices[drive].Drive;
 
-            _prdt.Address = Memory.Utilities.ObjectToPtr(data) + 8;
+            _prdt.Address = Runtime.Memory.Utilities.ObjectToPtr(data) + 8;
             _prdt.Size = 0x80000000U | (uint)(numSectors * 512);
-            var prdt = Memory.Utilities.ObjectToPtr(_prdt);
+            var prdt = Runtime.Memory.Utilities.ObjectToPtr(_prdt);
 
             // clear DMA command register
             CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + 0x00), 0);
@@ -491,7 +491,7 @@ namespace Kernel.Devices
             // not supporting dma yet, so force to 0
             WriteRegister(channel, Register.Command, (byte)GetAccessCommand(lbaMode, 0, direction));
 
-            uint arrayBase = Memory.Utilities.ObjectToPtr(data) + 8;
+            uint arrayBase = Runtime.Memory.Utilities.ObjectToPtr(data) + 8;
 
             // the below is for pio reads, this would need to be in an if statement and have a dma branch once dma is supported
             if (direction == 0)

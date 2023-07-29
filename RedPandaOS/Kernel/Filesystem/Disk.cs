@@ -1,6 +1,7 @@
 ﻿using Runtime.Collections;
 using System;
 using Kernel.Devices;
+using Runtime.Memory;
 
 namespace Kernel.IO
 {
@@ -70,10 +71,10 @@ namespace Kernel.IO
                 do
                 {
                     // offset + 8 due to the first 8 bytes being the array type and size
-                    partition = Memory.Utilities.PtrToObject<Partition>(Memory.Utilities.ObjectToPtr(sector0) + offset + 8);
+                    partition = Utilities.PtrToObject<Partition>(Utilities.ObjectToPtr(sector0) + offset + 8);
                     if (partition.PartitionType != 0)
                     {
-                        var clone = Memory.Utilities.Clone(partition, 16);
+                        var clone = Memory.Fast.Clone(partition, 16);
                         _partitions.Add(clone);
 
                         if (clone.PartitionType == 0x0b || clone.PartitionType == 0x0c)
@@ -112,13 +113,13 @@ namespace Kernel.IO
         public void WriteSector(uint lba, byte[] data)
         {
             // TODO:  Keep in _buffers and mark as dirty.  Only flush to disk when falling out of _buffers
-            byte result = PATA.Access(1, 0, lba, 1, 0, Memory.Utilities.UnsafeCast<uint[]>(data));
+            byte result = PATA.Access(1, 0, lba, 1, 0, Utilities.UnsafeCast<uint[]>(data));
         }
 
         public byte ReadSector(uint lba, ushort sectorsPerCluster, byte[] buffer)
         {
             //return PATA.Access(0, 0, lba, (byte)sectorsPerCluster, 0, Memory.Utilities.UnsafeCast<uint[]>(buffer));
-            return PATA.AccessWithDMASimple(0, lba, (byte)sectorsPerCluster, Memory.Utilities.UnsafeCast<uint[]>(buffer));
+            return PATA.AccessWithDMASimple(0, lba, (byte)sectorsPerCluster, Utilities.UnsafeCast<uint[]>(buffer));
         }
 
         public byte Read(uint[] lbas, PATA.PRDT[] dmas)
@@ -179,7 +180,7 @@ namespace Kernel.IO
                 buffer.Lba = lba;
             }
 
-            return Memory.Utilities.UnsafeCast<byte[]>(buffer.Buffer);
+            return Utilities.UnsafeCast<byte[]>(buffer.Buffer);
         }
 
         private static char diskletter = 'a';

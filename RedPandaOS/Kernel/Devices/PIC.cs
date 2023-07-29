@@ -1,5 +1,5 @@
 ﻿using CPUHelper;
-using Kernel.Memory;
+using Runtime.Memory;
 using System;
 using System.Runtime.InteropServices;
 

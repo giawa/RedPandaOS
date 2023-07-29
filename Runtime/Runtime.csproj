@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\CPUHelper\CPUHelper.csproj" />
     <ProjectReference Include="..\IL2Asm.BaseTypes\IL2Asm.BaseTypes.csproj" />

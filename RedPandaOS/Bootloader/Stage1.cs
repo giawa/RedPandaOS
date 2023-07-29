@@ -49,7 +49,7 @@ namespace Bootloader
             BiosUtilities.Partition partition;
             do
             {
-                partition = Kernel.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(commonVariable);
+                partition = Runtime.Memory.Utilities.PtrToObject<BiosUtilities.Partition>(commonVariable);
                 if (partition.Bootable == 0x80) break;
                 commonVariable += 16;
             } while (commonVariable < 0x7e00);

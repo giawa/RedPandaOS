@@ -132,7 +132,7 @@ namespace Applications
                         {
                             System.Action<string> onWrite = new System.Action<string>(WriteLine);
                             ls.Run(_currentDirectory, onWrite);
-                            Kernel.Memory.KernelHeap.KernelAllocator.Free(Kernel.Memory.Utilities.ObjectToPtr(onWrite), 8);
+                            Kernel.Memory.KernelHeap.KernelAllocator.Free(Runtime.Memory.Utilities.ObjectToPtr(onWrite), 8);
                         }
                         else if (CompareCommand(command, "cd"))
                             cd(command);

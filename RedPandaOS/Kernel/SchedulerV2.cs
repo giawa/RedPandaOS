@@ -44,7 +44,7 @@ namespace Kernel
                 Paging.SwitchPageDirectory(PageDirectory);
 
                 //var actionSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<Action>();
-                var actionPtr = Memory.Utilities.ObjectToPtr(entryPoint);
+                var actionPtr = Runtime.Memory.Utilities.ObjectToPtr(entryPoint);
 
                 EIP = CPUHelper.CPU.ReadMemInt(actionPtr);
 

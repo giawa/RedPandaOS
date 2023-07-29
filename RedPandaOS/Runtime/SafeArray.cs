@@ -1,13 +1,14 @@
 ﻿using Kernel.Memory;
 using System;
 using System.Runtime.InteropServices;
+using Runtime.Memory;
 
 namespace Runtime
 {
     public class SafeArray<T>
     {
         private T[] _array;
-        private IHeapAllocator _heapAllocator;
+        private Kernel.Memory.IHeapAllocator _heapAllocator;
 
         public T this[int a]
         {

@@ -3,6 +3,7 @@ using IL2Asm.BaseTypes;
 using Runtime.Collections;
 using System;
 using System.Runtime.InteropServices;
+using Runtime.Memory;
 
 namespace Kernel.Memory
 {

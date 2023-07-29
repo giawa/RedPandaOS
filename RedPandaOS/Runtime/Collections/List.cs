@@ -1,4 +1,4 @@
-﻿using Kernel.Memory;
+﻿using Runtime.Memory;
 
 namespace Runtime.Collections
 {

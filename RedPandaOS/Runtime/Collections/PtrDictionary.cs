@@ -49,7 +49,7 @@
                 {
                     if (_ptrs[i] == ptr) return _objects[i];
                 }
-                return Kernel.Memory.Utilities.PtrToObject<T>(0);
+                return Runtime.Memory.Utilities.PtrToObject<T>(0);
             }
         }
     }
