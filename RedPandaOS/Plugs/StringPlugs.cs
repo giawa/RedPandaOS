@@ -24,6 +24,12 @@ namespace Plugs
             return true;
         }
 
+        [CSharpPlug("System.String.Equals_Boolean_String")]
+        private static bool StringEquals(string s1, string s2)
+        {
+            return s1 == s2;
+        }
+
         [AsmPlug("System.String.ToCharArray_SzArray", Architecture.X86)]
         private static void StringToCharArrayAsm(IAssembledMethod assembly)
         {
@@ -66,6 +72,37 @@ namespace Plugs
             }
 
             return -1;
+        }
+
+        [CSharpPlug("System.String.Equals_Boolean_String_String_ValueType")]
+        private static bool StringEqualsWithValueType(string s1, string s2, StringComparison comparisonType)
+        {
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
+            if (s1.Length != s2.Length) return false;
+
+            char c1, c2;
+
+            switch (comparisonType)
+            {
+                case StringComparison.Ordinal: return s1.Equals(s2);
+                case StringComparison.CurrentCultureIgnoreCase:
+                    for (int i = 0; i < s1.Length; i++)
+                    {
+                        c1 = s1[i];
+                        c2 = s2[i];
+
+                        if (c1 >= 'A' && c1 <= 'Z') c1 = (char)(c1 + 32);
+                        if (c2 >= 'A' && c2 <= 'Z') c2 = (char)(c2 + 32);
+
+                        if (c1 != c2) return false;
+                    }
+                    break;
+                default:
+                    throw new Exception("Unsupported string comparison");
+            }
+
+            return true;
         }
 
         [CSharpPlug("System.String.IndexOf_I4_Char")]
