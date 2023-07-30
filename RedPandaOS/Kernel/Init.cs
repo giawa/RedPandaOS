@@ -36,12 +36,22 @@ namespace Kernel
             Memory.Paging.InitializePaging(frameCount, freeMemory);    // loads the entire kernel + heap into paging
         }
 
-        static void PrintEAX(uint t)
+        static void SyscallHandler(uint t)
         {
-            var sp = CPU.ReadESP();
+            var bp = CPU.ReadEBP();
 
-            uint addr = sp + 15 * 4;    // eax is at this position as pushed by the interrupt
-            COM.Write((byte)CPU.ReadMemInt(addr));
+            uint ecx = CPU.ReadMemInt(bp + 12 * 4);
+
+            switch (ecx)
+            {
+                case 1:
+                    uint addr = bp + 13 * 4;    // eax is at this position as pushed by the interrupt
+                    COM.Write((byte)CPU.ReadMemInt(addr));
+                    break;
+                default:
+                    Logging.WriteLine(LogLevel.Warning, "Unknown syscall {0}", ecx);
+                    break;
+            }
         }
 
         private static byte[] ReadFile(IO.File file)
@@ -137,7 +147,7 @@ namespace Kernel
 
             PIC.SetIsrCallback(13, PrintStack);
 
-            PIC.SetIsrCallback(31, PrintEAX);   // for now this is our only "system call", which prints a character stored in EAX to the COM port
+            PIC.SetIsrCallback(31, SyscallHandler);   // for now this is our only "system call", which prints a character stored in EAX to the COM port
 
             PIT.Init(100);
 

@@ -15,7 +15,7 @@ namespace Runtime
         public static void TempSyscallAsm(IAssembledMethod assembly)
         {
             assembly.AddAsm("pop eax");     // grab char
-            assembly.AddAsm("mov ebx, 1");  // WriteCharToStdOut
+            assembly.AddAsm("mov ecx, 1");  // WriteCharToStdOut
             assembly.AddAsm("int 31");      // temporary print char interrupt
         }
     }
