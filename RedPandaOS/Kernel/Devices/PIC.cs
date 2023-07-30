@@ -106,7 +106,7 @@ namespace Kernel.Devices
         public static void IsrHandler(
             uint ss, uint useresp, uint eflags, uint cs, uint eip,
             uint err_code, uint int_no,
-            uint eax, uint ebx, uint ecx, uint edx, uint esp, uint ebp, uint esi, uint edi,
+            uint eax, uint ecx, uint edx, uint ebx, uint esp, uint ebp, uint esi, uint edi,
             uint ds)
         {
             if (_isrHandlers[int_no] != null) _isrHandlers[int_no](err_code);
