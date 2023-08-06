@@ -398,13 +398,18 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            if (error_code == 5) Logging.WriteLine(LogLevel.Panic, "Segmentation fault, program tried to access 0x{0:X} which is outside its allocated range.", addr);
-            else Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X} error_code 0x{1:X}", addr, error_code);
+            if (error_code == 5)
+            {
+                Logging.WriteLine(LogLevel.Panic, "Segmentation fault, program tried to access 0x{0:X} which is outside its allocated range.", addr);
+                Scheduler.TerminateTask(Scheduler.CurrentTask);
+            }
+            else
+            {
+                Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X} error_code 0x{1:X}", addr, error_code);
+                while (true) ;
+            }
 
-            //Exceptions.PrintStackTrace();
-            while (true) ;
-
-            if (addr >= 0xA00000 && addr <= 0xAFFFFF)
+            /*if (addr >= 0xA00000 && addr <= 0xAFFFFF)
             {
                 addr = 0;
                 while (addr < 0xFFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
@@ -424,7 +429,7 @@ namespace Kernel.Memory
                 Logging.WriteLine(LogLevel.Panic, "Got page fault at address 0x{0:X}", addr);
 
                 while (true) ;
-            }
+            }*/
         }
     }
 }

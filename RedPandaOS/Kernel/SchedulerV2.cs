@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if SCHEDULER_V2
+using System;
 using IL2Asm.BaseTypes;
 using Kernel.Devices;
 using Kernel.Memory;
@@ -285,3 +286,4 @@ namespace Kernel
         }
     }
 }
+#endif

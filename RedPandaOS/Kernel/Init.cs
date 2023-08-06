@@ -3,6 +3,7 @@ using Kernel.Devices;
 using Kernel.Memory;
 using Runtime.Collections;
 using System;
+using System.Threading.Tasks;
 
 namespace Kernel
 {
@@ -44,9 +45,14 @@ namespace Kernel
 
             switch (ecx)
             {
-                case 1:
+                case 1: // print character
                     uint addr = bp + 13 * 4;    // eax is at this position as pushed by the interrupt
                     COM.Write((byte)CPU.ReadMemInt(addr));
+                    break;
+                case 2: // get pid
+                    uint pidLoc = bp + 13 * 4;
+                    uint id = Scheduler.CurrentTask?.Id ?? 0;
+                    CPU.WriteMemInt(pidLoc, id);
                     break;
                 default:
                     Logging.WriteLine(LogLevel.Warning, "Unknown syscall {0}", ecx);
@@ -105,11 +111,36 @@ namespace Kernel
                 CPU.WriteMemByte(0x400000 + i, data[i + 512]);   // offset by 512 to jump past the DOS/COFF/etc headers
             }
 
-            //Paging.SwitchPageDirectory(Paging.KernelDirectory);
+            Paging.SwitchPageDirectory(Paging.KernelDirectory);
             Logging.WriteLine(LogLevel.Trace, "Jumping to code");
 
-            //CPU.Jump(0x400000);
-            CPU.JumpUserMode(0x400000);
+            Scheduler.Task task = new Scheduler.Task(0x400000, samplePage);
+            Scheduler.Add(task);
+
+            // create a new page directory for this process before copying to memory
+            PageDirectory anotherPage = Paging.CloneDirectory(Paging.KernelDirectory);
+            Paging.SwitchPageDirectory(anotherPage);
+
+            // create page to store the program
+            var page2 = Paging.GetPage(0x400000, true, anotherPage);
+            var result2 = Paging.AllocateFrame(page2, false, true);
+
+            // copy the data to memory since we know the PE layout without processing it atm
+            for (uint i = 0; i < 512; i++)
+            {
+                CPU.WriteMemByte(0x400000 + i, data[i + 512]);   // offset by 512 to jump past the DOS/COFF/etc headers
+            }
+
+            Paging.SwitchPageDirectory(Paging.KernelDirectory);
+            Logging.WriteLine(LogLevel.Trace, "Jumping to code");
+
+            Scheduler.Task task2 = new Scheduler.Task(0x400000, anotherPage);
+            Scheduler.Add(task2);
+
+
+
+            Scheduler.UseScheduler = true;
+            while (true) ;
         }
 
         static void PrintStack(uint t)
@@ -128,12 +159,13 @@ namespace Kernel
 
             tss.ss0 = 0x10;
             tss.esp0 = 0x7E00;  // use bootloader stage 1 as the new kernel stack for the TSS
+            PIC.InterruptStackStart = tss.esp0;
             CPU.FlushTSS();
         }
 
         static void Start()
         {
-            Logging.LoggingLevel = LogLevel.Trace;
+            //Logging.LoggingLevel = LogLevel.Trace;
             
             COM.Initialize();
             SetupTSS();

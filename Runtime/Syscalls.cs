@@ -18,5 +18,18 @@ namespace Runtime
             assembly.AddAsm("mov ecx, 1");  // WriteCharToStdOut
             assembly.AddAsm("int 31");      // temporary print char interrupt
         }
+
+        public static uint GetPidSysCall()
+        {
+            return 0;
+        }
+
+        [AsmPlug("Runtime.Syscalls.GetPidSysCall_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void GetPidSysCallAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov ecx, 2");  // WriteCharToStdOut
+            assembly.AddAsm("int 31");      // temporary print char interrupt
+            assembly.AddAsm("push eax");    // push the resulting eax back on to the stack to recover from the main process
+        }
     }
 }
