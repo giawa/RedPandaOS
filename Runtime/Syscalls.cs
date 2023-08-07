@@ -31,5 +31,17 @@ namespace Runtime
             assembly.AddAsm("int 31");      // temporary print char interrupt
             assembly.AddAsm("push eax");    // push the resulting eax back on to the stack to recover from the main process
         }
+
+        public static void QuitSysCall(uint exitCode)
+        {
+        }
+
+        [AsmPlug("Runtime.Syscalls.QuitSysCall_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        public static void QuitSysCallAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");     // grab exitCode
+            assembly.AddAsm("mov ecx, 3");  // WriteCharToStdOut
+            assembly.AddAsm("int 31");      // temporary print char interrupt
+        }
     }
 }

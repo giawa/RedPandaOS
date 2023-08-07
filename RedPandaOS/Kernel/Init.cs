@@ -54,6 +54,12 @@ namespace Kernel
                     uint id = Scheduler.CurrentTask?.Id ?? 0;
                     CPU.WriteMemInt(pidLoc, id);
                     break;
+                case 3: // quit task
+                    Scheduler.TerminateTask(Scheduler.CurrentTask);
+                    break;
+                case 4: // yield task
+                    Scheduler.Schedule();
+                    break;
                 default:
                     Logging.WriteLine(LogLevel.Warning, "Unknown syscall {0}", ecx);
                     break;

@@ -1,4 +1,5 @@
-﻿using Runtime;
+﻿using IL2Asm.BaseTypes;
+using Runtime;
 
 namespace uname
 {
@@ -11,7 +12,7 @@ namespace uname
             for (int i = 0; i < uname.Length; i++)
                 Syscalls.WriteCharToStdOutSysCall(uname[i]);
 
-            while (true) ;
+            Syscalls.QuitSysCall(0);
         }
     }
 }
