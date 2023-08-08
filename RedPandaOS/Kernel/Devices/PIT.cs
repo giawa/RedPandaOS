@@ -53,6 +53,7 @@ namespace Kernel.Devices
             {
                 Logging.Write(LogLevel.Panic, "T");
             }*/
+            Scheduler.Tick();
         }
     }
 }

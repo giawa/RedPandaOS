@@ -910,6 +910,34 @@ namespace CPUHelper
         }
 
         [AsmMethod]
+        public static void JumpKernelMode(uint addr)
+        {
+            return;
+        }
+
+        [AsmPlug("CPUHelper.CPU.JumpKernelMode_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void JumpKernelModeAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop edi"); // grab the address to jump to
+
+            assembly.AddAsm("mov ax, (2 * 8) | 0 ; kernel segment");
+            assembly.AddAsm("mov ds, ax");
+            assembly.AddAsm("mov es, ax");
+            assembly.AddAsm("mov fs, ax");
+            assembly.AddAsm("mov gs, ax ; SS is handled by iret");
+
+            //set up the stack frame iret expects
+            assembly.AddAsm("mov eax, esp");
+            assembly.AddAsm("push (2 * 8) | 0 ; kernel data selector");
+            assembly.AddAsm("push eax ; current esp");
+            assembly.AddAsm("pushf ; eflags");
+            assembly.AddAsm("push (1 * 8) | 0 ; kernel code selector");
+            assembly.AddAsm("push edi ; instruction address to return to");
+
+            assembly.AddAsm("iret");
+        }
+
+        [AsmMethod]
         public static void JumpUserMode(uint addr)
         {
             return;

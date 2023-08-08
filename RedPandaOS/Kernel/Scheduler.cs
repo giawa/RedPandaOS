@@ -1,172 +1,187 @@
-﻿#if SCHEDULER_V1
+﻿using System;
+using IL2Asm.BaseTypes;
 using Kernel.Devices;
+using Kernel.Memory;
 using Runtime.Collections;
-using System.Runtime.InteropServices;
 
 namespace Kernel
 {
-    public class Task
+    public class Scheduler
     {
-        private static uint taskCounter = 1;
-
-        public uint Id { get; private set; }
-        public uint esp, ebp, eip;
-        public Memory.PageDirectory pageDirectory;
-        
-        public Task()
+        public enum TaskState
         {
-            Id = taskCounter++;
-        }
-    }
-
-    public static class Scheduler
-    {
-        public static List<Task> Tasks;
-        private static int LastTask = 0;
-        public static Task CurrentTask = null;
-
-        public static void Init()
-        {
-            Tasks = new List<Task>();
-
-            // disable interrupts
-            CPUHelper.CPU.Cli();
-
-            // create a kernel task
-            Task kernel = new Task();
-            kernel.pageDirectory = Memory.Paging.CurrentDirectory;
-            Tasks.Add(kernel);
-            CurrentTask = kernel;
-
-            // re-enable interrupts
-            CPUHelper.CPU.Sti();
+            Uninitialized,
+            FirstRun,
+            Ready,
+            Running,
+            Waiting,
+            Sleeping,
+            Terminated
         }
 
-        public static void Kill(uint id)
+        public class Task
         {
-            int index = -1;
+            // stores the stack as handed to Schedule by the interrupt service routine
+            // ss, useresp, eflags, cs, eip, err_code, int_no, eax, ecx, edx, ebx, esp, ebp, esi, edi, ds
+            public uint[] Stack;    
+            public PageDirectory PageDirectory;
+            public TaskState State;
+            public uint StateInfo;
+            public uint Id;
+            public uint EntryPoint { get; private set; }
+            public uint PrivilegeLevel { get; internal set; } = 3;  // user mode by default
 
-            for (int i = 0; i < Tasks.Count; i++)
-                if (Tasks[i].Id == id) index = i;
+            private static uint _id = 1;
 
-            if (index != -1)
+            public Task(uint entryPoint, PageDirectory pageDirectory)
             {
-                var task = Tasks[index];
+                Id = _id++;
+                State = TaskState.FirstRun;
 
-                // need to stop interrupts here since once we start cleaning up we must finish
-                CPUHelper.CPU.Cli();
-                Tasks.RemoveAt(index);
+                PageDirectory = pageDirectory;
+                EntryPoint = entryPoint;
 
-                task.pageDirectory.Free();
+                Stack = new uint[16];
+            }
 
-                Memory.KernelHeap.KernelAllocator.Free(task.pageDirectory);
-                Memory.KernelHeap.KernelAllocator.Free(task);
+            public Task(Action entryPoint, PageDirectory pageDirectory)
+            {
+                Id = _id++;
+                State = TaskState.FirstRun;
 
-                // if we're currently in the killed task then halt and wait for the schedule to pick this up
-                if (CurrentTask.Id == id)
-                {
-                    CurrentTask = null;
-                    CPUHelper.CPU.Sti();
-                    CPUHelper.CPU.Halt();
-                }
-                else
-                {
-                    CPUHelper.CPU.Sti();
-                }
+                PageDirectory = pageDirectory;
+                EntryPoint = CPUHelper.CPU.ReadMemInt(Runtime.Memory.Utilities.ObjectToPtr(entryPoint));
+
+                Stack = new uint[16];
             }
         }
 
-        public static uint Fork()
+        public static Task CurrentTask;
+
+        public static Task GetCurrentTask()
         {
-            CPUHelper.CPU.Cli();
-
-            // create a new task
-            Task task = new Task();
-            task.pageDirectory = Memory.Paging.CloneDirectory(Memory.Paging.CurrentDirectory);
-
-            uint eip = CPUHelper.CPU.ReadEIP();
-
-            if (eip != 0xdeadc0de)
+            if (CurrentTask == null)
             {
-                task.esp = CPUHelper.CPU.ReadESP();
-                task.ebp = CPUHelper.CPU.ReadEBP();
-                task.eip = eip;
-
-                Tasks.Add(task);
-                CPUHelper.CPU.Sti();
-
-                return task.Id;
+                throw new Exception("No CurrentTask");
             }
-            else
-            {
-                CPUHelper.CPU.Pop();
-                CPUHelper.CPU.Sti();
 
-                return 0;
+            return CurrentTask;
+        }
+
+        private static List<Task> _tasks = new List<Task>();
+        private static int _currentTask = 0;
+        public static Task IdleTask;
+
+        private static void IdleTaskEntryPoint()
+        {
+            while (true)
+            {
+                CPUHelper.CPU.Halt();
             }
         }
 
-        public static void Yield()
+        public static void Add(Task task)
         {
-            Tick();
+            _tasks.Add(task);
         }
+
+        public static bool PreemptiveScheduler = false;
 
         public static void Tick()
         {
-            if (Tasks == null || Tasks.Count <= 1) return;
+            Schedule();
+        }
 
-            // CurrentTask could be null if a task killed itself
-            if (CurrentTask != null)
+        private static void CreateIdleTask()
+        {
+            Paging.SwitchPageDirectory(Paging.KernelDirectory);
+
+            IdleTask = new Task(new Action(IdleTaskEntryPoint), Paging.KernelDirectory);
+            IdleTask.PrivilegeLevel = 0;
+        }
+
+        public static bool UseScheduler = false;
+        private static List<Task> PossibleTasks;
+
+        // this happens inside an ISR so interrupts are already disabled for now
+        public static void Schedule()
+        {
+            if (PossibleTasks == null) PossibleTasks = new List<Task>();
+            if (!UseScheduler) return;
+
+            PossibleTasks.Clear();
+
+            for (int i = 0; i < _tasks.Count; i++)
             {
-                uint esp = CPUHelper.CPU.ReadESP();
-                uint ebp = CPUHelper.CPU.ReadEBP();
-
-                uint eip = CPUHelper.CPU.ReadEIP();
-
-                // check if we've just switched back to this task
-                if (eip == 0xdeadc0de)
-                {
-                    return;
-                }
-
-                CurrentTask.esp = esp;
-                CurrentTask.ebp = ebp;
-                CurrentTask.eip = eip;
+                if (_tasks[i].State == TaskState.FirstRun || _tasks[i].State == TaskState.Ready)
+                    PossibleTasks.Add(_tasks[i]);
             }
 
-            // grab the next task
-            LastTask = (LastTask + 1) % Tasks.Count;
+            if (PossibleTasks.Count == 0)
+            {
+                if (CurrentTask != null) return;    // leave the current task running
+                if (IdleTask == null) CreateIdleTask();
 
-            CurrentTask = Tasks[LastTask];
-            //Logging.Write(LogLevel.Trace, "Setting task to {0} {1:X}", CurrentTask.Id, CurrentTask.pageDirectory.PhysicalAddress);
-            //Logging.WriteLine(LogLevel.Trace, " {0:X} {1:X} {2:X}", CurrentTask.esp, CurrentTask.ebp, CurrentTask.eip);
-
-            Memory.Paging.CurrentDirectory = CurrentTask.pageDirectory;
-
-            CPUHelper.CPU.Cli();
-            JumpWithDummy(CurrentTask.esp, CurrentTask.eip, CurrentTask.ebp, CurrentTask.pageDirectory.PhysicalAddress);
+                SwitchToTask(IdleTask);
+            }
+            else
+            {
+                _currentTask = (_currentTask + 1) % PossibleTasks.Count;
+                SwitchToTask(PossibleTasks[_currentTask]);
+            }
         }
 
-        [IL2Asm.BaseTypes.AsmMethod]
-        private static void JumpWithDummy(uint esp, uint eip, uint ebp, uint cr3)
+        public static void TerminateTask(Task task)
         {
+            task.State = TaskState.Terminated;
+            _tasks.Remove(task);
 
+            CurrentTask = null;
+
+            Schedule();
         }
 
-        [IL2Asm.BaseTypes.AsmPlug("Kernel_Scheduler_JumpWithDummy_Void_U4_U4_U4_U4", IL2Asm.BaseTypes.Architecture.X86)]
-        private static void JumpWithDummyAsm(IL2Asm.BaseTypes.IAssembledMethod assembly)
+        [RequireStackFrame]
+        public static void SwitchToTask(Task nextTask)
         {
-            assembly.AddAsm("pop eax"); // page directory
-            assembly.AddAsm("pop ebp"); // ebp
-            assembly.AddAsm("pop ebx"); // eip
-            assembly.AddAsm("pop esp"); // esp
+            if (CurrentTask != null && CurrentTask == nextTask) return;
 
-            assembly.AddAsm("mov cr3, eax");
-            assembly.AddAsm("mov eax, 0xdeadc0de");
-            assembly.AddAsm("push eax");
-            assembly.AddAsm("sti");
-            assembly.AddAsm("jmp ebx");
+            Paging.SwitchPageDirectory(Paging.KernelDirectory);
+
+            if (CurrentTask != null)
+            {
+                // store registers/etc of current task before switching
+                for (uint i = 0; i < 16; i++)
+                    CurrentTask.Stack[i] = CPUHelper.CPU.ReadMemInt(PIC.InterruptStackStart - (i * 4) - 4);
+
+                if (CurrentTask.State == TaskState.Running)
+                    CurrentTask.State = TaskState.Ready;
+            }
+
+            CurrentTask = nextTask;
+
+            if (CurrentTask.State == TaskState.FirstRun)
+            {
+                // set the privilege level for this task
+                CurrentTask.State = TaskState.Running;
+
+                Paging.SwitchPageDirectory(CurrentTask.PageDirectory);
+                CPUHelper.CPU.Sti();
+                if (CurrentTask.PrivilegeLevel == 3) CPUHelper.CPU.JumpUserMode(CurrentTask.EntryPoint);
+                else CPUHelper.CPU.JumpKernelMode(CurrentTask.EntryPoint);
+            }
+            else if (CurrentTask.State == TaskState.Ready)
+            {
+                CurrentTask.State = TaskState.Running;
+
+                // restore registers which also gets us set with the return instruction pointer for iret
+                for (uint i = 0; i < 16; i++)
+                {
+                    CPUHelper.CPU.WriteMemInt(PIC.InterruptStackStart - (i * 4) - 4, CurrentTask.Stack[i]);
+                }
+
+                Paging.SwitchPageDirectory(CurrentTask.PageDirectory);
+            }
         }
     }
 }
-#endif
