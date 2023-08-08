@@ -18,11 +18,11 @@ This is a place to toy around with what might be necessary to build an operating
   - ✔️ Interrupts
   - ✔️ Paging
   - ✔️ Multitasking
-  - System Calls
+  - ✔️ System Calls (via ISR 31 for the time being)
   - Inter Process Communication
 - Intermediate
   - ✔️ Bitmapped Fonts
-  - User Mode Applications
+  - ✔️ User Mode Applications
   - Ports?
   - 64 Bit Support?
 - Advanced
