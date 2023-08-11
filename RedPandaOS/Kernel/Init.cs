@@ -148,8 +148,15 @@ namespace Kernel
             for (int i = 0; i < root.Directories.Count; i++) if (root.Directories[i].Name == "dev") dev = root.Directories[i];
             for (int i = 0; i < dev.Directories.Count; i++) if (dev.Directories[i].Name == "hda") hda = dev.Directories[i];
             for (int i = 0; i < hda.Directories.Count; i++) if (string.Equals(hda.Directories[i].Name, "apps", StringComparison.CurrentCultureIgnoreCase)) apps = hda.Directories[i];
+            IO.File file = null;
+            for (int i = 0; i < apps.Files.Count; i++) if (string.Equals(apps.Files[i].Name, "composit.exe", StringComparison.CurrentCultureIgnoreCase)) file = apps.Files[i];
+            if (file == null)
+            {
+                Logging.WriteLine(LogLevel.Warning, "Failed to find composit");
+                return;
+            }
 
-            var data = ReadFile(apps.Files[1]);
+            var data = ReadFile(file);
 
             // create a new page directory for this process before copying to memory
             PageDirectory samplePage = Paging.CloneDirectory(Paging.KernelDirectory);

@@ -29,11 +29,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Emulator", "Emulator\Emulat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{B0E08D4E-CD49-4334-BFCF-F5D04991CD67}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runtime", "Runtime\Runtime.csproj", "{3620BD58-970D-418C-B36E-FF902DB96F89}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Runtime", "Runtime\Runtime.csproj", "{3620BD58-970D-418C-B36E-FF902DB96F89}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "uname", "apps\uname\uname.csproj", "{2CF2D376-AE0C-4009-B3BB-B757051D8939}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bootloader", "Bootloader\Bootloader.csproj", "{B15ED00A-A7E1-437A-9211-51F749BC1E58}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bootloader", "Bootloader\Bootloader.csproj", "{B15ED00A-A7E1-437A-9211-51F749BC1E58}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compositor", "apps\compositor\compositor.csproj", "{2E611BA6-874B-430B-A804-4F4D8CE53FFC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -97,6 +99,10 @@ Global
 		{B15ED00A-A7E1-437A-9211-51F749BC1E58}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B15ED00A-A7E1-437A-9211-51F749BC1E58}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B15ED00A-A7E1-437A-9211-51F749BC1E58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E611BA6-874B-430B-A804-4F4D8CE53FFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E611BA6-874B-430B-A804-4F4D8CE53FFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E611BA6-874B-430B-A804-4F4D8CE53FFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E611BA6-874B-430B-A804-4F4D8CE53FFC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -104,6 +110,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{12B96819-8F18-4DE0-A24E-860E72863B33} = {ADF63A65-116C-4976-A493-825A1AF5FCCC}
 		{2CF2D376-AE0C-4009-B3BB-B757051D8939} = {B0E08D4E-CD49-4334-BFCF-F5D04991CD67}
+		{2E611BA6-874B-430B-A804-4F4D8CE53FFC} = {B0E08D4E-CD49-4334-BFCF-F5D04991CD67}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E183039B-8B02-4585-BBCB-F048BC038D93}
