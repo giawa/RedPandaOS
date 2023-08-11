@@ -42,17 +42,16 @@ namespace Kernel
             var bp = CPU.ReadEBP();
 
             uint ecx = CPU.ReadMemInt(bp + 12 * 4);
+            uint eaxAddr = bp + 13 * 4;
 
             switch (ecx)
             {
                 case 1: // print character
-                    uint addr = bp + 13 * 4;    // eax is at this position as pushed by the interrupt
-                    COM.Write((byte)CPU.ReadMemInt(addr));
+                    COM.Write((byte)CPU.ReadMemInt(eaxAddr));
                     break;
                 case 2: // get pid
-                    uint pidLoc = bp + 13 * 4;
                     uint id = Scheduler.CurrentTask?.Id ?? 0;
-                    CPU.WriteMemInt(pidLoc, id);
+                    CPU.WriteMemInt(eaxAddr, id);
                     break;
                 case 3: // quit task
                     Scheduler.TerminateTask(Scheduler.CurrentTask);
@@ -60,10 +59,59 @@ namespace Kernel
                 case 4: // yield task
                     Scheduler.Schedule();
                     break;
+                case 5: // init BGA
+                    uint width = CPU.ReadMemInt(eaxAddr);
+                    uint height = CPU.ReadMemInt(bp + 11 * 4);
+                    uint framebufferValue = InitBGA(width, height);
+                    CPU.WriteMemInt(eaxAddr, framebufferValue);
+                    break;
+                case 6:
+                    uint address = CPU.ReadMemInt(eaxAddr);
+                    uint size = CPU.ReadMemInt(bp + 11 * 4);
+                    uint pages = size / 4096;
+                    for (uint i = 0; i < pages; i++)
+                    {
+                        //var page = Paging.GetPage(address + 4096 * i, false, Scheduler.CurrentTask.PageDirectory);
+                        //var result = Paging.AllocateFrame(page, (address + 4096 * i) >> 12, false, true);
+                        var existingPage = Paging.GetPage(address + 4096 * i, false, Scheduler.CurrentTask.PageDirectory);
+                        if (existingPage != null)
+                        {
+                            Paging.UpdateFrame(existingPage, true, false, true);
+                        }
+                        else
+                        {
+                            Logging.WriteLine(LogLevel.Panic, "Unhandled syscall 6 ability");
+                            while (true) ;
+                        }
+                    }
+                    CPU.WriteMemInt(eaxAddr, 1);
+                    break;
                 default:
                     Logging.WriteLine(LogLevel.Warning, "Unknown syscall {0}", ecx);
                     break;
             }
+        }
+
+        private static uint InitBGA(uint width, uint height)
+        {
+            if (BGA.IsAvailable())
+            {
+                for (int i = 0; i < PCI.Devices.Count; i++)
+                {
+                    var device = PCI.Devices[i];
+
+                    if (device.ClassCode == PCI.ClassCode.DisplayController)
+                    {
+                        BGA bga = new BGA(device);
+                        bga.InitializeMode((ushort)width, (ushort)height, 32);
+
+                        return bga.FrameBufferAddress;
+                    }
+                }
+            }
+
+            Logging.WriteLine(LogLevel.Error, "BGA is not available on this system.");
+            return 0;
         }
 
         private static byte[] ReadFile(IO.File file)

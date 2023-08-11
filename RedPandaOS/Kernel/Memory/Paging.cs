@@ -354,6 +354,21 @@ namespace Kernel.Memory
             CPUHelper.CPU.SetPageDirectory(dir.PhysicalAddress);
         }
 
+        public static int UpdateFrame(Page page, bool present, bool isKernel, bool isWriteable)
+        {
+            if (page.Frame == 0)
+            {
+                Logging.WriteLine(LogLevel.Panic, "Frame was 0, cannot update frame!");
+                while (true) ;
+            }
+
+            page.Present = present;
+            page.ReadWrite = isWriteable;
+            page.User = !isKernel;
+
+            return 0;
+        }
+
         public static int AllocateFrame(Page page, uint frame, bool isKernel, bool isWriteable)
         {
             if (page.Frame != 0) return 0;
@@ -398,9 +413,9 @@ namespace Kernel.Memory
         {
             var addr = CPUHelper.CPU.ReadCR2();
 
-            if (error_code == 5)
+            if (error_code == 5 || error_code == 7)
             {
-                Logging.WriteLine(LogLevel.Panic, "Segmentation fault, program tried to access 0x{0:X} which is outside its allocated range.", addr);
+                Logging.WriteLine(LogLevel.Panic, "Segmentation fault, program tried to access 0x{0:X} which is outside its allocated range (error_code={1}).", addr, error_code);
                 Scheduler.TerminateTask(Scheduler.CurrentTask);
             }
             else
