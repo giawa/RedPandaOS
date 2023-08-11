@@ -1800,6 +1800,13 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 return $"{parent.FullName}.{field.Name}".Replace('.', '_').Replace('<', '_').Replace('>', '_');
             }
+            else if ((addr & 0xff000000) == 0x0a000000)
+            {
+                var memberref = metadata.MemberRefs[(addr & 0x00ffffff) - 1];
+                var parent = memberref.ParentName;
+
+                return $"{parent}.{memberref.Name}".Replace('.', '_').Replace('<', '_').Replace('>', '_');
+            }
             else
             {
                 throw new Exception("Unexpected static type");
@@ -2098,6 +2105,11 @@ namespace IL2Asm.Assembler.x86.Ver2
                 {
                     throw new Exception("Incomplete implementation");
                 }
+            }
+            else if ((fieldToken & 0xff000000) == 0x0a000000)
+            {
+                var memberref = metadata.MemberRefs[(fieldToken & 0x00ffffff) - 1];
+                AddStaticField(metadata, label, memberref.Signature.RetType);
             }
             else throw new Exception("Unexpected table found when trying to find a field.");
         }
