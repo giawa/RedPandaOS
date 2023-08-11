@@ -10,6 +10,43 @@ namespace GiawaOS
 {
     class Program
     {
+        private static void CompileAndBundleApp(string path, string name, uint baseAddress = 0x400000U)
+        {
+            PortableExecutableFile portableExecutable = new PortableExecutableFile(path);
+
+            var entryPoint = FindEntryPoint(portableExecutable, "Program", "Main");
+
+            // create sample application
+            var assembler = new IL2Asm.Assembler.x86.Ver2.Assembler();
+            assembler.AddAssembly(portableExecutable);
+
+            var methodHeader = new MethodHeader(portableExecutable.Memory, portableExecutable.Metadata, entryPoint);
+            assembler.Assemble(portableExecutable, new AssembledMethod(portableExecutable.Metadata, methodHeader, null));
+
+            while (assembler._methodsToCompile.Count > 0)
+            {
+                var m = assembler._methodsToCompile[0];
+                assembler._methodsToCompile.RemoveAt(0);
+                assembler.Assemble(m.PEFile, m.Method);
+            }
+
+            var program = assembler.WriteAssembly(baseAddress, 512, baseAddress + 4096, true);
+
+            IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(program);
+            IL2Asm.Optimizer.MergePushPop.ProcessAssembly(program);
+            IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(program);
+            IL2Asm.Optimizer.x86.SimplifyConstants.ProcessAssembly(program);
+            IL2Asm.Optimizer.x86.RemoveRedundantMoves.ProcessAssembly(program);
+            IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(program);
+
+            File.WriteAllLines($"{name}.asm", program.ToArray());
+            RunNASM($"{name}.asm", $"{name}.bin");
+
+            PEWriter writer = new PEWriter(File.ReadAllBytes($"{name}.bin"), (int)baseAddress);
+            if (!Directory.Exists("../../../disk/apps")) Directory.CreateDirectory("../../../disk/apps");
+            writer.Write($"../../../disk/apps/{name}.exe");
+        }
+
         public static void Main()
         {
             PortableExecutableFile file = new PortableExecutableFile(@"RedPandaOS.dll");
@@ -29,26 +66,8 @@ namespace GiawaOS
 
             PortableExecutableFile unamePE = new PortableExecutableFile(@"..\..\..\..\apps\uname\bin\Debug\net6.0\uname.dll");
 
-            var unameApplication = FindEntryPoint(unamePE, "Program", "Main");
-
-            // create sample application
-            var unameAssembler = new IL2Asm.Assembler.x86.Ver2.Assembler();
-            unameAssembler.AddAssembly(unamePE);
-
-            var unameApplicationHeader = new MethodHeader(unamePE.Memory, unamePE.Metadata, unameApplication);
-            unameAssembler.Assemble(unamePE, new AssembledMethod(unamePE.Metadata, unameApplicationHeader, null));
-
-            while (unameAssembler._methodsToCompile.Count > 0)
-            {
-                var m = unameAssembler._methodsToCompile[0];
-                unameAssembler._methodsToCompile.RemoveAt(0);
-                unameAssembler.Assemble(m.PEFile, m.Method);
-            }
-
-            var unameBaseAddr = 0x400000U;
-            var uname = unameAssembler.WriteAssembly(unameBaseAddr, 512, unameBaseAddr + 1024, true);
-            File.WriteAllLines("uname.asm", uname.ToArray());
-            RunNASM("uname.asm", "uname.bin");
+            CompileAndBundleApp(@"..\..\..\..\apps\uname\bin\Debug\net6.0\uname.dll", "uname");
+            CompileAndBundleApp(@"..\..\..\..\apps\compositor\bin\Debug\net6.0\compositor.dll", "composit");
 
             if (bootloader1 != null && methodDef32 != null)
             {
@@ -177,11 +196,6 @@ namespace GiawaOS
                 stopwatch.Stop();
                 Console.WriteLine($"GenerateSymbols {stopwatch.ElapsedMilliseconds} ms");
                 stopwatch.Restart();
-
-                // make any necessary PE files
-                PEWriter writer = new PEWriter(File.ReadAllBytes("uname.bin"), (int)unameBaseAddr);
-                if (!Directory.Exists("../../../disk/apps")) Directory.CreateDirectory("../../../disk/apps");
-                writer.Write("../../../disk/apps/uname.exe");
 
                 // copy kernel and symbols to the boot directory
                 if (!Directory.Exists("../../../disk/boot")) Directory.CreateDirectory("../../../disk/boot");

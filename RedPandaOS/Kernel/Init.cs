@@ -159,10 +159,12 @@ namespace Kernel
             var page = Paging.GetPage(0x400000, true, samplePage);
             var result = Paging.AllocateFrame(page, false, true);
 
+            Logging.WriteLine(LogLevel.Warning, "Got file with size 0x{0:X}", (uint)data.Length);
+
             // copy the data to memory since we know the PE layout without processing it atm
-            for (uint i = 0; i < 512; i ++)
+            for (uint i = 512; i < (uint)data.Length; i ++)
             {
-                CPU.WriteMemByte(0x400000 + i, data[i + 512]);   // offset by 512 to jump past the DOS/COFF/etc headers
+                CPU.WriteMemByte(0x400000 + i - 512, data[i]);   // offset by 512 to jump past the DOS/COFF/etc headers
             }
 
             Paging.SwitchPageDirectory(Paging.KernelDirectory);
@@ -172,7 +174,7 @@ namespace Kernel
             Scheduler.Add(task);
 
             // create a new page directory for this process before copying to memory
-            PageDirectory anotherPage = Paging.CloneDirectory(Paging.KernelDirectory);
+            /*PageDirectory anotherPage = Paging.CloneDirectory(Paging.KernelDirectory);
             Paging.SwitchPageDirectory(anotherPage);
 
             // create page to store the program
@@ -189,7 +191,7 @@ namespace Kernel
             Logging.WriteLine(LogLevel.Trace, "Jumping to code");
 
             Scheduler.Task task2 = new Scheduler.Task(0x400000, anotherPage);
-            Scheduler.Add(task2);
+            Scheduler.Add(task2);*/
 
 
 
