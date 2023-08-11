@@ -1460,27 +1460,28 @@ namespace IL2Asm.Assembler.x86.Ver2
             }
             if (size != sizePerElement) throw new Exception("Unsupported type");
 
-            assembly.AddAsm("mov eax, [esp + 4]");    // get index
+            assembly.AddAsm("pop ecx");
+            assembly.AddAsm("pop eax");    // get index
             //if (shl > 0) assembly.AddAsm($"shl eax, {shl}");          // multiply by 'shl' to get offset
-            assembly.AddAsm("mov ebx, [esp + 8]");    // get address of array
+            assembly.AddAsm("pop ebx");    // get address of array
             //assembly.AddAsm("add eax, ebx");        // now we have the final address
             //assembly.AddAsm($"lea eax, [8 + ebx + {size} * eax]");
             LeaOrMul_EBXOffset(assembly, 8, size);
-            assembly.AddAsm("pop ebx");             // pop value off the stack
+            //assembly.AddAsm("pop ebx");             // pop value off the stack
             if (sizePerElement == 1)
             {
-                assembly.AddAsm("mov [eax], bl");
+                assembly.AddAsm("mov [eax], cl");
             }
             else if (sizePerElement == 2)
             {
-                assembly.AddAsm("mov [eax], bx");
+                assembly.AddAsm("mov [eax], cx");
             }
             else if (sizePerElement == 4)
             {
-                assembly.AddAsm("mov [eax], ebx");
+                assembly.AddAsm("mov [eax], ecx");
             }
             else throw new Exception("Unsupported type");
-            assembly.AddAsm("add esp, 8");          // clean up the stack
+            //assembly.AddAsm("add esp, 8");          // clean up the stack
         }
 
         private void LeaOrMul_EBXOffset(AssembledMethod assembly, int offset, int size)
