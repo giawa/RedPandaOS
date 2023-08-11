@@ -2464,7 +2464,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             assembly.HeapAllocatorMethod = HeapAllocatorMethod;
             assembly.ThrowExceptionMethod = ThrowExceptionMethod;
 
-            if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\RedPandaOS.dll";
+            if (dllPath.Contains("System.dll")) dllPath = $"{Environment.CurrentDirectory}\\Runtime.dll";
 
             if (File.Exists(dllPath))
             {
@@ -2742,7 +2742,7 @@ namespace IL2Asm.Assembler.x86.Ver2
 
                 var memberName = methodDef.ToAsmString(genericOverride.Item2);
 
-                if (memberName.Contains("Kernel_Memory_Utilities"))
+                if (memberName.Contains("Kernel_Memory_Utilities") || memberName.Contains("Runtime_Memory_Utilities"))
                 {
                     memberName = metadata.MethodDefs[(int)(methodDesc & 0x00ffffff) - 1].ToAsmString();
                 }

@@ -8,6 +8,7 @@ namespace Kernel.Devices
         {
             int divisor = Runtime.Math32.Divide(1193180, frequency);
             Frequency = (uint)frequency;
+            Plugs.SystemPlugs.TickFrequency = (uint)frequency;
 
             CPU.OutDxAl(0x43, 0x36);
             CPU.OutDxAl(0x40, (byte)divisor);
@@ -29,6 +30,7 @@ namespace Kernel.Devices
         public static void Tick()
         {
             _tickCount += 1;
+            Plugs.SystemPlugs.TickCount = _tickCount;
 
             /*if (Profile)
             {
@@ -40,14 +42,14 @@ namespace Kernel.Devices
                 //Logging.WriteLine(LogLevel.Warning, "{0:X} {1:X}", 60, CPU.ReadMemInt(ebp + 60));
                 /*Logging.WriteLine(LogLevel.Warning, "EBP {0:X}", CPUHelper.CPU.ReadEBP());
                 Exceptions.PrintStackTrace();*/
-                /*_profiler.Add(CPU.ReadMemInt(ebp + 60));
-                //Logging.WriteLine(LogLevel.Warning, "{0:X} {1:X}", ebp, CPU.ReadMemInt(ebp + 60));
+            /*_profiler.Add(CPU.ReadMemInt(ebp + 60));
+            //Logging.WriteLine(LogLevel.Warning, "{0:X} {1:X}", ebp, CPU.ReadMemInt(ebp + 60));
 
-                //Exceptions.PrintStackTrace();
-                //while (true) ;
+            //Exceptions.PrintStackTrace();
+            //while (true) ;
 
-                if (_profiler.Count > 795) Profile = false;
-            }*/
+            if (_profiler.Count > 795) Profile = false;
+        }*/
 
             /*if ((_tickCount % 10) == 0)
             {
