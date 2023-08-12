@@ -64,6 +64,25 @@ namespace Plugs
             }
         }
 
+        [AsmPlug("System.Runtime.InteropServices.Marshal.Copy_Void_SzArray_I4_IntPtr_I4", Architecture.X86)]
+        private static void MarshalCopyAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop ecx"); // length
+            assembly.AddAsm("pop edi"); // destination
+            assembly.AddAsm("pop ebx"); // offset
+            assembly.AddAsm("pop esi"); // source
+
+            assembly.AddAsm("add esi, 8");      // get to start of the array
+            assembly.AddAsm("add esi, ebx");    // jump to offset
+            assembly.AddAsm("rep movsb");
+        }
+
+        [AsmPlug("System.IntPtr.op_Explicit_IntPtr_I4", Architecture.X86)]
+        private static void IntPtr_op_ExplicitAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("; conversion from I4 to IntPtr is a nop in x86");
+        }
+
         [AsmPlug("System.Array.Clear_Void_Class_I4_I4", Architecture.X86, AsmFlags.None)]
         private static void ArrayClearAsm(IAssembledMethod assembly)
         {

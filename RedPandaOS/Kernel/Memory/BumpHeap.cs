@@ -25,6 +25,8 @@ namespace Kernel.Memory
 
         private uint _addr = 0x21000;    // the start of the bump heap
 
+        public uint BytesAllocated { get; private set; }
+
         [Allocator]
         public uint Malloc(uint size, uint init = 0)
         {
@@ -39,6 +41,7 @@ namespace Kernel.Memory
                 CPU.WriteMemInt(i, init);
 
             Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1:X}", size, _addr);
+            BytesAllocated += size;
 
             var addr = _addr;
             _addr += size;
@@ -59,6 +62,7 @@ namespace Kernel.Memory
                 CPU.WriteMemInt(i, init);
 
             Logging.WriteLine(LogLevel.Trace, "Allocating {0} bytes at 0x{1:X}", size, _addr);
+            BytesAllocated += size;
 
             var addr = _addr;
             _addr += size;
@@ -68,6 +72,7 @@ namespace Kernel.Memory
         public void Free(uint addr, uint size)
         {
             // nop for now
+            BytesAllocated -= size;
         }
 
         public T Malloc<T>()

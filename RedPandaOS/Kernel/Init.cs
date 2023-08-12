@@ -3,6 +3,7 @@ using Kernel.Devices;
 using Kernel.Memory;
 using Runtime.Collections;
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Kernel
@@ -139,6 +140,30 @@ namespace Kernel
             return data;
         }
 
+        private static void ReadFileTo(IO.File file, uint address)
+        {
+            uint remaining = file.Size;
+            int offset = 0;
+
+            file.OnOpen(file);
+            byte[] fileData = file.FileSystem.GetFirstSector(file);
+
+            if (address > int.MaxValue)
+                throw new Exception("Address out of range due to Marshal.Copy");
+
+            do
+            {
+                int toCopy = (remaining > 512 ? 512 : (int)remaining);
+
+                if (offset >= 512) Marshal.Copy(fileData, 0, (IntPtr)((int)address + (offset - 512)), toCopy);
+                offset += toCopy;
+                remaining -= (uint)toCopy;
+
+                if (remaining > 0) fileData = file.FileSystem.OnReadSector(file);
+
+            } while (remaining > 0);
+        }
+
         private static void LoadSampleApp()
         {
             Logging.WriteLine(LogLevel.Warning, "Loading Sample App");
@@ -156,7 +181,8 @@ namespace Kernel
                 return;
             }
 
-            var data = ReadFile(file);
+            //var data = ReadFile(file);
+            Logging.WriteLine(LogLevel.Warning, "Allocated {0} bytes before paging", KernelHeap.KernelAllocator.BytesAllocated);
 
             // create a new page directory for this process before copying to memory
             PageDirectory samplePage = Paging.CloneDirectory(Paging.KernelDirectory);
@@ -166,19 +192,22 @@ namespace Kernel
             var page = Paging.GetPage(0x400000, true, samplePage);
             var result = Paging.AllocateFrame(page, false, true);
 
-            Logging.WriteLine(LogLevel.Warning, "Got file with size 0x{0:X}", (uint)data.Length);
+            //Logging.WriteLine(LogLevel.Warning, "Got file with size 0x{0:X}", (uint)data.Length);
 
             // copy the data to memory since we know the PE layout without processing it atm
-            for (uint i = 512; i < (uint)data.Length; i ++)
+            /*for (uint i = 0; i < (uint)data.Length; i ++)
             {
-                CPU.WriteMemByte(0x400000 + i - 512, data[i]);   // offset by 512 to jump past the DOS/COFF/etc headers
-            }
+                CPU.WriteMemByte(0x400000 + i, data[i]);   // offset by 512 to jump past the DOS/COFF/etc headers
+            }*/
+            ReadFileTo(file, 0x400000);
 
             Paging.SwitchPageDirectory(Paging.KernelDirectory);
             Logging.WriteLine(LogLevel.Trace, "Jumping to code");
 
             Scheduler.Task task = new Scheduler.Task(0x400000, samplePage);
             Scheduler.Add(task);
+
+            Logging.WriteLine(LogLevel.Warning, "Allocated {0} bytes", KernelHeap.KernelAllocator.BytesAllocated);
 
             // create a new page directory for this process before copying to memory
             /*PageDirectory anotherPage = Paging.CloneDirectory(Paging.KernelDirectory);
@@ -228,7 +257,7 @@ namespace Kernel
 
         static void Start()
         {
-            //Logging.LoggingLevel = LogLevel.Trace;
+            Logging.LoggingLevel = LogLevel.Trace;
             
             COM.Initialize();
             SetupTSS();
