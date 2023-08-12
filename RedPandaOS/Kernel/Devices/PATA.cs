@@ -1,5 +1,6 @@
 ﻿using System;
 using CPUHelper;
+using Runtime;
 using Runtime.Collections;
 
 namespace Kernel.Devices
@@ -288,51 +289,29 @@ namespace Kernel.Devices
             return true;
         }
 
-        private static int _locks = 0;
-
-        private static void Lock()
-        {
-            // disable interrupts
-            CPUHelper.CPU.Cli();
-            _locks++;
-
-            //Logging.WriteLine(LogLevel.Panic, "Lock {0}", (uint)_locks);
-        }
-
-        private static void Unlock()
-        {
-            _locks--;
-            // re-enable interrupts
-            if (_locks == 0) CPUHelper.CPU.Sti();
-            if (_locks <= 0) _locks = 0;
-
-            //Logging.WriteLine(LogLevel.Panic, "Unlock {0}", (uint)_locks);
-        }
-
         private static byte ReadRegister(byte channel, Register register)
         {
             uint result = 0;
             byte reg = (byte)register;
             var ch = _channels[channel];
 
-            Lock();
+            using (InterruptDisabler.Instance)
+            {
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, (byte)(0x80 | ch.DisableInterrupts));
 
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, (byte)(0x80 | ch.DisableInterrupts));
+                if (reg < 0x08)
+                    result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x00));
+                else if (reg < 0x0C)
+                    result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x06));
+                else if (reg < 0x0E)
+                    result = CPUHelper.CPU.InDxByte((ushort)(ch.Control + reg - 0x0C));
+                else if (reg < 0x16)
+                    result = CPUHelper.CPU.InDxByte((ushort)(ch.BusMasterIDE + reg - 0x0E));
 
-            if (reg < 0x08)
-                result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x00));
-            else if (reg < 0x0C)
-                result = CPUHelper.CPU.InDxByte((ushort)(ch.Base + reg - 0x06));
-            else if (reg < 0x0E)
-                result = CPUHelper.CPU.InDxByte((ushort)(ch.Control + reg - 0x0C));
-            else if (reg < 0x16)
-                result = CPUHelper.CPU.InDxByte((ushort)(ch.BusMasterIDE + reg - 0x0E));
-
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, ch.DisableInterrupts);
-
-            Unlock();
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, ch.DisableInterrupts);
+            }
 
             return (byte)result;
         }
@@ -341,53 +320,51 @@ namespace Kernel.Devices
         {
             byte reg = (byte)register;
 
-            Lock();
+            using (InterruptDisabler.Instance)
+            {
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
 
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
+                if (reg < 0x08)
+                    CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Base + reg - 0x00), data);
+                else if (reg < 0x0C)
+                    CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Base + reg - 0x06), data);
+                else if (reg < 0x0E)
+                    CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Control + reg - 0x0C), data);
+                else if (reg < 0x16)
+                    CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + reg - 0x0E), data);
 
-            if (reg < 0x08)
-                CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Base + reg - 0x00), data);
-            else if (reg < 0x0C)
-                CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Base + reg - 0x06), data);
-            else if (reg < 0x0E)
-                CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].Control + reg - 0x0C), data);
-            else if (reg < 0x16)
-                CPUHelper.CPU.OutDxAl((ushort)(_channels[channel].BusMasterIDE + reg - 0x0E), data);
-
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
-
-            Unlock();
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
+            }
         }
 
         private static void ReadBuffer(byte channel, Register register, int size)
         {
             var reg = (byte)register;
 
-            Lock();
+            using (InterruptDisabler.Instance)
+            {
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
 
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, (byte)(0x80 | _channels[channel].DisableInterrupts));
+                uint arrayBase = Runtime.Memory.Utilities.ObjectToPtr(_buffer) + 8;
+                ushort dx = 0;
 
-            uint arrayBase = Runtime.Memory.Utilities.ObjectToPtr(_buffer) + 8;
-            ushort dx = 0;
+                if (reg < 0x08)
+                    dx = (ushort)(_channels[channel].Base + reg);
+                else if (reg < 0x0C)
+                    dx = (ushort)(_channels[channel].Base + reg - 0x06);
+                else if (reg < 0x0E)
+                    dx = (ushort)(_channels[channel].Control + reg - 0x0C);
+                else if (reg < 0x16)
+                    dx = (ushort)(_channels[channel].BusMasterIDE + reg - 0x0E);
 
-            if (reg < 0x08)
-                dx = (ushort)(_channels[channel].Base + reg);
-            else if (reg < 0x0C)
-                dx = (ushort)(_channels[channel].Base + reg - 0x06);
-            else if (reg < 0x0E)
-                dx = (ushort)(_channels[channel].Control + reg - 0x0C);
-            else if (reg < 0x16)
-                dx = (ushort)(_channels[channel].BusMasterIDE + reg - 0x0E);
+                CPUHelper.CPU.InDxMultiDword(dx, arrayBase, size);
 
-            CPUHelper.CPU.InDxMultiDword(dx, arrayBase, size);
-
-            if (reg > 0x07 && reg < 0x0C)
-                WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
-
-            Unlock();
+                if (reg > 0x07 && reg < 0x0C)
+                    WriteRegister(channel, Register.Control, _channels[channel].DisableInterrupts);
+            }
         }
 
         private static byte Poll(byte channel, int advancedCheck)
