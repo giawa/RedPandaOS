@@ -1886,7 +1886,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             i += 4;
 
             var type = _runtime.GetType(metadata, token);
-            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+            if ((type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar) && assembly.GenericInstSig != null)
                 type = assembly.GenericInstSig.Params[0];
             var typeSize = _runtime.GetTypeSize(metadata, type);
 
@@ -2121,7 +2121,7 @@ namespace IL2Asm.Assembler.x86.Ver2
             var type = _runtime.GetType(metadata, BitConverter.ToUInt32(code, i));
             i += 4;
 
-            if (type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar)
+            if ((type.Type == ElementType.EType.Var || type.Type == ElementType.EType.MVar) && assembly.GenericInstSig != null)
                 type = assembly.GenericInstSig.Params[0];
 
             eaxType = _stack.Pop();

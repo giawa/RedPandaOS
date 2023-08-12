@@ -276,7 +276,8 @@ namespace IL2Asm
                 type.Type == ElementType.EType.IntPtr ||
                 type.Type == ElementType.EType.UIntPtr ||
                 type.Type == ElementType.EType.SzArray ||
-                type.Type == ElementType.EType.MVar || // note: mvar might not actually be _bytesPerRegister, this is a hack for now
+                type.Type == ElementType.EType.MVar ||  // note: mvar might not actually be _bytesPerRegister, this is a hack for now
+                type.Type == ElementType.EType.Var ||   // note: var might not actually be _bytesPerRegister, this is a hack for now
                 type.Type == ElementType.EType.Class ||
                 type.Type == ElementType.EType.GenericInst ||
                 type.Type == ElementType.EType.Object)

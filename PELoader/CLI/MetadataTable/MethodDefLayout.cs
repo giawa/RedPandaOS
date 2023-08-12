@@ -156,6 +156,10 @@ namespace PELoader
                     genericName += genericSig.Params[0].Token.ToString();
                 asm = asm.Replace("`1", $"_{genericName}");
             }
+            else if (asm.Contains("`1"))
+            {
+                asm = asm.Replace("`1", $"_Var");
+            }
 
             return asm;
         }
