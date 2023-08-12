@@ -13,7 +13,7 @@ namespace Runtime
             CPUHelper.CPU.Cli();
             _locks++;
 
-            Logging.WriteLine(LogLevel.Panic, "Lock {0}", (uint)_locks);
+            //Logging.WriteLine(LogLevel.Panic, "Lock {0}", (uint)_locks);
         }
 
         private static void Unlock()
@@ -23,7 +23,7 @@ namespace Runtime
             if (_locks == 0) CPUHelper.CPU.Sti();
             if (_locks <= 0) _locks = 0;
 
-            Logging.WriteLine(LogLevel.Panic, "Unlock {0}", (uint)_locks);
+            //Logging.WriteLine(LogLevel.Panic, "Unlock {0}", (uint)_locks);
         }
 
         public void Dispose()

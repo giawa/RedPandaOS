@@ -35,7 +35,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "uname", "apps\uname\uname.c
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bootloader", "Bootloader\Bootloader.csproj", "{B15ED00A-A7E1-437A-9211-51F749BC1E58}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compositor", "apps\compositor\compositor.csproj", "{2E611BA6-874B-430B-A804-4F4D8CE53FFC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "compositor", "apps\compositor\compositor.csproj", "{2E611BA6-874B-430B-A804-4F4D8CE53FFC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
