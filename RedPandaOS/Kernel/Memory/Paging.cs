@@ -251,7 +251,7 @@ namespace Kernel.Memory
             while (addr < 0xBFFFFU) // extend all the way to 0xFFFFF to cover VGA address range, etc
             {
                 var page = GetPage(addr, true, _kernelDirectory);
-                var result = AllocateFrame(page, true, true);
+                var result = AllocateFrame(page, addr >> 12, true, true);
                 if (result == -1)
                 {
                     Logging.WriteLine(LogLevel.Panic, "Could not allocate frame at address 0x{0:X}", addr);
