@@ -11,7 +11,7 @@
             _inUse = new BitArray(Math32.Divide(array.Length, 32));
         }
 
-        public bool TryAlloc(out T? item)
+        public bool Borrow(out T? item)
         {
             int index = _inUse.IndexOfFirstZero();
 
@@ -28,7 +28,7 @@
             }
         }
 
-        public void Free(T item)
+        public void Return(T item)
         {
             for (int i = 0; i < _array.Length; i++)
             {
