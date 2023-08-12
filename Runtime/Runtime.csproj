@@ -15,4 +15,8 @@
     <ProjectReference Include="..\IL2Asm.BaseTypes\IL2Asm.BaseTypes.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Memory\" />
+  </ItemGroup>
+
 </Project>
