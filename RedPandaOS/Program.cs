@@ -32,12 +32,9 @@ namespace GiawaOS
 
             var program = assembler.WriteAssembly(baseAddress, 512, baseAddress + 4096, true);
 
-            IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(program);
-            IL2Asm.Optimizer.MergePushPop.ProcessAssembly(program);
-            IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(program);
-            IL2Asm.Optimizer.x86.SimplifyConstants.ProcessAssembly(program);
-            IL2Asm.Optimizer.x86.RemoveRedundantMoves.ProcessAssembly(program);
-            IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(program);
+            ///IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(program);
+            IL2Asm.Optimizer.x86.MoveLocalsToRegisters.ProcessAssembly(program);
+            RunOptimizers(program);
 
             File.WriteAllLines($"{name}.asm", program.ToArray());
             RunNASM($"{name}.asm", $"{name}.bin");
@@ -45,6 +42,20 @@ namespace GiawaOS
             PEWriter writer = new PEWriter(File.ReadAllBytes($"{name}.bin"), (int)baseAddress);
             if (!Directory.Exists("../../../disk/apps")) Directory.CreateDirectory("../../../disk/apps");
             writer.Write($"../../../disk/apps/{name}.exe");
+        }
+
+        private static void RunOptimizers(List<string> assembly)
+        {
+            int count = assembly.Count;
+
+            IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(assembly);
+            IL2Asm.Optimizer.MergePushPop.ProcessAssembly(assembly);
+            IL2Asm.Optimizer.MergePushPopAcrossMov.ProcessAssembly(assembly);
+            IL2Asm.Optimizer.x86.SimplifyConstants.ProcessAssembly(assembly);
+            IL2Asm.Optimizer.x86.RemoveRedundantMoves.ProcessAssembly(assembly);
+            IL2Asm.Optimizer.RemoveDuplicateInstructions.ProcessAssembly(assembly);
+
+            if (assembly.Count != count) RunOptimizers(assembly);   // maybe not done yet?
         }
 
         public static void Main()
