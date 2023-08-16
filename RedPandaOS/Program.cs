@@ -32,7 +32,7 @@ namespace GiawaOS
 
             var program = assembler.WriteAssembly(baseAddress, 512, baseAddress + 4096, true);
 
-            ///IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(program);
+            //IL2Asm.Optimizer.RemoveUnneededLabels.ProcessAssembly(program);
             IL2Asm.Optimizer.x86.MoveLocalsToRegisters.ProcessAssembly(program);
             RunOptimizers(program);
 

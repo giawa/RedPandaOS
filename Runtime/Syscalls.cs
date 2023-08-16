@@ -73,5 +73,30 @@ namespace Runtime
             assembly.AddAsm("int 31");      // temporary print char interrupt
             assembly.AddAsm("push eax");
         }
+
+        [AsmMethod]
+        public static void PrintStackSysCall()
+        {
+        }
+
+        [AsmPlug("Runtime.Syscalls.PrintStackSysCall_Void", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void PrintStackSysCallAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("mov ecx, 7");  // WriteCharToStdOut
+            assembly.AddAsm("int 31");      // temporary print char interrupt
+        }
+
+        [AsmMethod]
+        public static void SetBGAYOffsetSysCall(uint yOffset)
+        {
+        }
+
+        [AsmPlug("Runtime.Syscalls.SetBGAYOffsetSysCall_Void_U4", IL2Asm.BaseTypes.Architecture.X86)]
+        private static void SetBGAYOffsetSysCallAsm(IAssembledMethod assembly)
+        {
+            assembly.AddAsm("pop eax");     // grab yOffset
+            assembly.AddAsm("mov ecx, 8");  // WriteCharToStdOut
+            assembly.AddAsm("int 31");      // temporary print char interrupt
+        }
     }
 }

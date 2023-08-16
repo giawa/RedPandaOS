@@ -66,7 +66,7 @@ namespace Kernel
                     uint framebufferValue = InitBGA(width, height);
                     CPU.WriteMemInt(eaxAddr, framebufferValue);
                     break;
-                case 6:
+                case 6: // make kernel page in processes page directory available while in user mode
                     uint address = CPU.ReadMemInt(eaxAddr);
                     uint size = CPU.ReadMemInt(bp + 11 * 4);
                     uint pages = size / 4096;
@@ -87,14 +87,28 @@ namespace Kernel
                     }
                     CPU.WriteMemInt(eaxAddr, 1);
                     break;
+                case 7: // print stack trace
+                    Exceptions.PrintStackTrace();
+                    break;
+                case 8: // set BGA y offset
+                    if (_bgaDevice != null) _bgaDevice.SetYOffset((ushort)CPU.ReadMemInt(eaxAddr));
+                    break;
                 default:
                     Logging.WriteLine(LogLevel.Warning, "Unknown syscall {0}", ecx);
                     break;
             }
         }
 
+        private static BGA _bgaDevice;
+
         private static uint InitBGA(uint width, uint height)
         {
+            if (_bgaDevice != null)
+            {
+                Logging.WriteLine(LogLevel.Warning, "BGA Device was already initialized.  Doing nothing.");
+                return _bgaDevice.FrameBufferAddress;
+            }
+
             if (BGA.IsAvailable())
             {
                 for (int i = 0; i < PCI.Devices.Count; i++)
@@ -103,10 +117,10 @@ namespace Kernel
 
                     if (device.ClassCode == PCI.ClassCode.DisplayController)
                     {
-                        BGA bga = new BGA(device);
-                        bga.InitializeMode((ushort)width, (ushort)height, 32);
+                        _bgaDevice = new BGA(device);
+                        _bgaDevice.InitializeMode((ushort)width, (ushort)height, 32);
 
-                        return bga.FrameBufferAddress;
+                        return _bgaDevice.FrameBufferAddress;
                     }
                 }
             }

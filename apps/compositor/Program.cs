@@ -7,43 +7,71 @@ namespace compositor
     {
         public static void Main(string[] args)
         {
-            uint i = 0;
             //uint width = 1280, height = 720;
-            _framebuffer = Syscalls.InitBGASysCall(_width, _height);
+            _firstBuffer = Syscalls.InitBGASysCall(_width, _height);
+            _secondBuffer = _firstBuffer + _width * _height * 4;
+            _currentBuffer = false;
 
             string uname = "Compositor!";
+            uint i = 0;
 
             for (i = 0; i < (uint)uname.Length; i++)
                 Syscalls.WriteCharToStdOutSysCall(uname[(int)i]);
 
-            Syscalls.MapMemorySysCall(_framebuffer, _width * _height * 4);
+            Syscalls.MapMemorySysCall(_firstBuffer, _width * _height * 4 * 2);  // 32b, x2 for double buffering
 
-            /*uint end = width * height;
+            i = 100;
+            while (true)
+            {
+                DrawBackground();
+                //WriteFast(frameBufferAddress, 0x00004a7f, width * height);
 
-            uint[] framebuffer = Runtime.Memory.Utilities.PtrToObject<uint[]>(frameBufferAddress - 8);
-            for (i = 0; i < end; i++) framebuffer[i] = 0x00004a7f;*/
-            //WriteFast(frameBufferAddress, 0x00004a7f, width * height);
+                //WriteFast(_framebuffer, 0x00004a7f, _width * _height);
 
-            WriteFast(_framebuffer, 0x00004a7f, _width * _height);
+                DrawWindow(i, i, 400, 250);
+                i = i + 2;
+                if (i > 200) i = 100;
 
-            DrawWindow(i, 100, 400, 250);
+                if (_currentBuffer) Syscalls.SetBGAYOffsetSysCall(_height);
+                else Syscalls.SetBGAYOffsetSysCall(0);
+
+                _currentBuffer = !_currentBuffer;
+
+                for (uint j = 0; j < 10000000; j++) ;
+            }
 
             while (true) ;
         }
 
-        private static uint _framebuffer, _width = 1280, _height = 720;
+        private static uint _firstBuffer, _secondBuffer;
+
+        private static bool _currentBuffer;
+
+        private static void DrawBackground()
+        {
+            uint end = _width * _height;
+            uint activeBuffer = (_currentBuffer ? _secondBuffer : _firstBuffer);
+
+            uint[] framebuffer = Runtime.Memory.Utilities.PtrToObject<uint[]>(activeBuffer - 8);
+            for (uint i = 0; i < end; i++) framebuffer[i] = 0x00004a7f;
+        }
+
+        private static uint _width = 1280, _height = 720;
 
         private static void DrawWindow(uint x, uint y, uint width, uint height)
         {
+            uint activeBuffer = (_currentBuffer ? _secondBuffer : _firstBuffer);
+
             // height should be 28 pixels higher than the content
             // width should be 12 pixels wider than the content
-            uint framebuffer = _framebuffer + _width * y * 4 + x * 4;
+            uint framebuffer = activeBuffer + _width * y * 4 + x * 4;
+            uint i; // drop on stack a single time to be more likely to get picked up by a hardware register
 
             // draw the title bar first
             WriteFast(framebuffer, 0, width);
             framebuffer += _width * 4;
 
-            for (uint i = 0; i < 20; i++)
+            for (i = 0; i < 20; i++)
             {
                 DrawHorizontalWithBevel(framebuffer, width);
                 framebuffer += _width * 4;
@@ -54,7 +82,7 @@ namespace compositor
             DrawLeftEdge(framebuffer + (width - 6) * 4);
             framebuffer += _width * 4;
 
-            for (uint i = 20; i < height - 22 - 6; i++) // 22 for top bar, 6 for bottom bezel
+            for (i = 20; i < height - 22 - 6; i++) // 22 for top bar, 6 for bottom bezel
             {
                 DrawLeftEdge(framebuffer);
                 WriteFast(framebuffer + 24, 0x00ffffff, width - 12);    // this is the actual window content
@@ -67,7 +95,7 @@ namespace compositor
             DrawLeftEdge(framebuffer + (width - 6) * 4);
             framebuffer += _width * 4;
 
-            for (uint i = 0; i < 4; i++)
+            for (i = 0; i < 4; i++)
             {
                 DrawHorizontalWithBevel(framebuffer, width);
                 framebuffer += _width * 4;
