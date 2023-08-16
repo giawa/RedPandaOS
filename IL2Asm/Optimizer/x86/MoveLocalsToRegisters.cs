@@ -90,7 +90,7 @@ namespace IL2Asm.Optimizer.x86
                     }
                     for (int r = 0; r < replacements; r++)
                     {
-                        assembly.Insert(j - 1, $"    mov {locals[r].Name}, {availableRegisters[r]}");
+                        assembly.Insert(j, $"    mov {locals[r].Name}, {availableRegisters[r]}");
                     }
                     end += replacements * 2;
                     j += replacements * 2;
