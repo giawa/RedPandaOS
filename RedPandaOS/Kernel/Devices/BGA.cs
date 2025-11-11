@@ -74,5 +74,10 @@ namespace Kernel.Devices
             CPU.OutDxAx(0x01CE, (ushort)register);
             return CPU.InDxWord(0x01CF);
         }
+
+        public void SetYOffset(ushort y)
+        {
+            WriteBGARegister(Register.VBE_DISPI_INDEX_Y_OFFSET, y);
+        }
     }
 }
